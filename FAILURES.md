@@ -562,3 +562,69 @@ currently accounts for.
 false PROVEN" is not a property this engine has; asserting it is what D7 cost.
 The true property is conditional, and writing the condition down forced the
 discovery of a failure class nobody had named.
+
+---
+
+## D11 — 2026-08-21
+
+**D10 named a failure class that could not be searched away. There was a signal
+for it sitting in an array the solver already builds.**
+
+Model gaps — a split settlement, a refund netted inside the credit, a chargeback
+reversing across periods — leave the true explanation unreachable by any exact
+solver, because the credit does not equal the sum of its true orders. Some
+*other* subset then lands within tolerance, uniquely, and it is arithmetically
+perfect and factually wrong. Nothing downstream can catch it. The kernel checks
+arithmetic and the arithmetic is correct.
+
+Nothing downstream. Something **upstream** can.
+
+The counting DP already computes which sums are reachable from the candidate
+pool. So ask how densely populated the neighbourhood of the target is:
+
+    a credit in a region where almost every value is reachable was CHEAP to
+    hit, and a unique hit there is weak evidence
+
+    a credit in a sparse region was EXPENSIVE to hit, and a unique hit there
+    is strong evidence
+
+One extra pass over an array that already exists, computed before anyone knows
+whether the answer is right. Measured across the panel:
+
+```
+neighbourhood   proofs   correct   wrong   precision
+sparse             189       189       0       1.000
+moderate            43        38       5       0.884
+dense                4         4       0       1.000
+```
+
+**Every false proof in the panel is in one bucket.** 189 proofs found in sparse
+neighbourhoods, not one wrong.
+
+Stratifying the risk model on it and re-running held out:
+
+```
+                        before    after
+false proof rate         0.80%    0.80%   (unchanged — the engine still errs)
+wrongly auto-posted     ₹1,786       ₹0   (the policy no longer acts on them)
+financial error rate    1.7937%   0.0000%
+safe resolution rate      7.4%     2.2%
+```
+
+The engine is exactly as wrong as it was. The difference is that it now knows
+*which* of its proofs to distrust, and the money stops moving on them.
+
+**The cost is real and is not hidden.** Automation fell from 7.4% to 2.2%,
+because splitting one stratum into three leaves each with fewer observations and
+several below the floor where a rate is a measurement rather than a glimpse.
+Those fail closed. More calibration data recovers it; guessing the rate would
+recover it faster and is exactly the thing this engine exists to refuse.
+
+**A second finding fell out of the larger run.** Coverage is not a constant. At
+250 settlements per seed it is 16.8%; at 600 over the same 90-day window it is
+8.5%, because denser portfolios mean larger pools and more subsets landing
+within tolerance. The engine is not worse on the bigger portfolio — the bigger
+portfolio is a harder question, and the false-proof rate falls with it (0.80% to
+0.08%) precisely because the engine refuses more of it. Any single coverage
+figure quoted without its portfolio density is meaningless, and `results.json`
+now carries that caveat next to the number.

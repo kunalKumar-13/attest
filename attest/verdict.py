@@ -89,6 +89,12 @@ class Finding:
     space: object | None = None
     """The `SearchSpace` the solver was given. A verdict without it is a claim
     about a search, not about the world — see attest/searchspace.py."""
+
+    coincidence: object | None = None
+    """How cheap this match was to make. Measured from the reachability the DP
+    already computed, before anyone knows whether the answer is right. See
+    attest/coincidence.py — it is the only upstream signal that separates a
+    hard-won match from one the pool was always going to produce."""
     exhaustive: bool = False
     """True when every explanation was enumerated, not merely the first few.
     Cross-settlement deduction is only sound when this holds."""

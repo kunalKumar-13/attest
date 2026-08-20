@@ -23,7 +23,7 @@ from attest.eval.harness import Prediction
 from attest.evidence import to_fixed_point
 from attest.layers import match_single_order
 from attest.model import Order, Settlement, tolerance_paise
-from attest.subsetsum import OutOfEnvelope, solve
+from attest.subsetsum import OutOfEnvelope, solve_with_context
 from attest.verdict import Finding, Proof, Verdict, check
 
 
@@ -77,7 +77,8 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
                     break
 
             try:
-                verdict, sols, exhaustive = solve(pool, s.net_paise)
+                verdict, sols, exhaustive, coin = solve_with_context(
+                    pool, s.net_paise)
             except OutOfEnvelope as exc:
                 finding = Finding(s.settlement_id, Verdict.INSUFFICIENT, (),
                                   unsat_core=(f"out-of-envelope: {exc}",),
@@ -97,7 +98,7 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
                 s.settlement_id,
                 Verdict.PROVEN if len(proofs) == 1 else Verdict.AMBIGUOUS,
                 proofs, exhaustive=exhaustive, space=space,
-                layer=f"L3-dp/r{rung}",
+                coincidence=coin, layer=f"L3-dp/r{rung}",
             )
             break
 

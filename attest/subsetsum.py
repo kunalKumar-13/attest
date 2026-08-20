@@ -191,3 +191,20 @@ def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution], bool
     if len(found) == 1:
         return Verdict.PROVEN, found, exhaustive
     return Verdict.AMBIGUOUS, found, exhaustive
+
+
+def solve_with_context(pool: list[Order], target: int):
+    """`solve`, plus a reading of how cheap the match was.
+
+    The reachability array is thrown away by `solve`; here it is used once more
+    to measure the neighbourhood the answer came from. See attest/coincidence.py
+    for why that matters — it is the only upstream signal that distinguishes a
+    hard-won match from one the pool was always going to produce.
+    """
+    from attest.coincidence import assess
+
+    verdict, sols, exhaustive = solve(pool, target)
+    usable = [o.net for o in pool if 0 < o.net <= target]
+    counts = ((_native_reachable(usable, target) if _native_reachable is not None
+               else _reachable(usable, target)) if usable else np.zeros(1, np.uint8))
+    return verdict, sols, exhaustive, assess(counts, target)

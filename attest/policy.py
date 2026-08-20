@@ -76,13 +76,19 @@ class Costs:
 class RiskModel:
     """Measured false-proof rates, conditioned on what is visible up front.
 
-    Keys are `(verdict, integrity)`. Not the layer, deliberately: layer strata
-    are thin enough that a single settlement moves the rate several points, and
-    a rate estimated from four observations is a number pretending to be a
-    measurement.
+    Keys are `(verdict, integrity, cheapness)`. Cheapness earns its place: across
+    the panel every false proof fell in the `moderate` neighbourhood, while 189
+    proofs found in `sparse` neighbourhoods were correct without exception. That
+    is a real separation, measurable before the answer is known, and stratifying
+    on it lets the policy price a hard-won match differently from one the pool
+    was always going to produce.
+
+    Not the layer, deliberately: layer strata are thin enough that a single
+    settlement moves the rate several points, and a rate estimated from four
+    observations is a number pretending to be a measurement.
     """
 
-    rates: dict[tuple[str, str], tuple[int, int]] = field(default_factory=dict)
+    rates: dict[tuple[str, str, str], tuple[int, int]] = field(default_factory=dict)
     """(wrong, total) per stratum."""
 
     calibrated_on: int = 0
@@ -91,9 +97,12 @@ class RiskModel:
     #: glimpsed. Fail closed rather than post on a rate derived from a handful.
     MIN_OBSERVATIONS = 30
 
-    def key(self, f: Finding) -> tuple[str, str]:
+    def key(self, f: Finding) -> tuple[str, str, str]:
         space = f.space if isinstance(f.space, SearchSpace) else None
-        return (f.verdict.value, space.integrity.value if space else "unrecorded")
+        cheap = getattr(getattr(f, "coincidence", None), "cheapness", None)
+        return (f.verdict.value,
+                space.integrity.value if space else "unrecorded",
+                cheap.value if cheap is not None else "unmeasured")
 
     def p_error(self, f: Finding) -> float | None:
         """Upper confidence bound on this stratum's error rate, or None.
@@ -182,9 +191,13 @@ def decide(f: Finding, s: Settlement, risk: RiskModel,
              "result, so expected loss cannot be computed; an unmeasured policy "
              "posts nothing",))
     obs_w, obs_t = risk.rates.get(risk.key(f), (0, 0))
-    why.append(f"observed {obs_w} false proof(s) in {obs_t} {risk.key(f)[0]} "
-               f"results over a {risk.key(f)[1]} search space; priced at the 95% "
+    k = risk.key(f)
+    why.append(f"observed {obs_w} false proof(s) in {obs_t} {k[0]} results over a "
+               f"{k[1]} search space in a {k[2]} neighbourhood; priced at the 95% "
                f"upper bound {p:.4f}, not the point estimate {obs_w / obs_t:.4f}")
+    coin = getattr(f, "coincidence", None)
+    if coin is not None:
+        why.append(coin.note)
 
     exposure = costs.wrong_post(s.net_paise)
     loss = int(p * exposure)

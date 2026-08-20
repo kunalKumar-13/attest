@@ -198,4 +198,5 @@ def detail(r: Run, sid: str) -> dict[str, Any] | None:
         "graph": build_graph(f, s, by_order).to_json(),
         "space": f.space.to_json() if hasattr(f.space, "to_json") else None,
         "uniqueness": f.uniqueness_claim,
+        "coincidence": f.coincidence.to_json() if hasattr(f.coincidence, "to_json") else None,
     }
