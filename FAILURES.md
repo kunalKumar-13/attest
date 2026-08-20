@@ -70,3 +70,39 @@ carry. The Python reference now declares an explicit envelope
 where the true bundle is 6. Tightening the window using the settlement calendar
 should cut the pool by an order of magnitude and is worth more than any solver
 optimisation.
+
+---
+
+## D3 — 2026-08-21
+
+**Inverted the settlement calendar by hand and silently deleted 2/7 of the data.**
+Wrote `business_days_before` as the mirror of `business_days_after`. Pools fell
+from p50 899 to 132 — and the blocking ceiling fell from 0.999 to **0.695**.
+
+The loss was 30.5%, which is the weekend fraction almost exactly. The forward map
+is many-to-one: an order captured on Saturday and one captured the following
+Monday settle on the same business day. A hand-written inverse returns one date
+and drops the weekend.
+
+Fixed by inverting the *actual function* — run `business_days_after` forward over
+a window and keep every date that lands on the target — rather than
+reimplementing the arithmetic backwards. Ceiling back to 0.999 at rung 2, pool
+p50 185 at rung 0. **Lesson: never hand-write the inverse of a many-to-one map.**
+
+**A wrong match got past the kernel.** 1 of 250, precision 0.983. The kernel did
+its job — the arithmetic genuinely balances. The true explanation had been pruned
+by blocking, and a *different* subset then matched uniquely, so the engine proved
+something that was internally consistent and factually wrong. Confirms the
+ceiling metric is not academic: blocking errors do not merely cost recall, they
+manufacture false proofs.
+
+**The real finding: the problem is under-constrained, not under-searched.**
+198 of 250 settlements came back AMBIGUOUS. Not a solver weakness — with a
+185-order pool and paise-level tolerance, genuinely many distinct subsets satisfy
+the amount constraint exactly. Arithmetic alone cannot decide, and the engine
+correctly refuses to.
+
+So the path forward is **more evidence, not more search**: reference-ID anchoring,
+bundle-size priors, cross-settlement uniqueness. D4 is measured by driving the
+AMBIGUOUS rate down while WRONG stays at zero — which is the whole thesis, arrived
+at from the data rather than asserted up front.

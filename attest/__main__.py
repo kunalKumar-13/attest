@@ -25,11 +25,15 @@ def main(argv: list[str]) -> int:
     ds.write(DATA / ("holdout" if holdout else "train"))
 
     with Timer() as t:
-        preds, pools = run(ds.settlements, ds.orders)
+        preds, pools, findings = run(ds.settlements, ds.orders)
     rep = evaluate(ds.settlements, ds.truth, preds, pools, t.elapsed)
 
     label = "HELD-OUT" if holdout else "TRAIN"
-    print(rep.render(f"ATTEST  ·  D1 deterministic floor  ·  {label}  ·  seed {seed}"))
+    from collections import Counter
+    print(rep.render(f"ATTEST  ·  D3 cascade  ·  {label}  ·  seed {seed}"))
+    print("  verdicts: " + "  ".join(
+        f"{v}={n}" for v, n in Counter(f.verdict.value for f in findings).most_common()))
+    print(f"  orders consumed by proofs: {sum(len(f.proofs[0].order_ids) for f in findings if f.postable):,}\n")
     return 0
 
 

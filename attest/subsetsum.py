@@ -41,8 +41,8 @@ from attest.verdict import Verdict
 #: Beyond this the numpy reference exhausts memory bandwidth long before it
 #: exhausts patience. Rust removes the ceiling; until then instances above it are
 #: reported as out-of-envelope rather than silently mis-answered.
-MAX_TARGET_PAISE = 400_000
-MAX_POOL = 400
+MAX_TARGET_PAISE = 3_000_000
+MAX_POOL = 900
 
 #: Distinct explanations enumerated before declaring ambiguity. Two is enough to
 #: prove non-uniqueness; more are collected only to show a human the field.
