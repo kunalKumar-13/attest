@@ -254,6 +254,16 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
+// Theme is a viewer choice, remembered. Light is the default because a
+// reconciliation console is read beside spreadsheets and mail more often than
+// beside terminals.
+const root = document.documentElement;
+root.dataset.theme = localStorage.getItem('attest-theme') || 'light';
+el('theme').onclick = () => {
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('attest-theme', root.dataset.theme);
+  if (S.run) open_();
+};
 el('tabs').onclick = e => { const b = e.target.closest('b'); if (b) setVF(b.dataset.v); };
 el('ledger').onclick = e => { const r = e.target.closest('.row'); if (r) { S.i = +r.dataset.i; open_(); } };
 el('filter').addEventListener('input', e => { S.q = e.target.value; S.i = 0; apply(); open_(); });
