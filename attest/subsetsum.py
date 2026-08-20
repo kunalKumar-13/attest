@@ -82,12 +82,25 @@ def _reachable(nets: list[int], target: int) -> np.ndarray:
 
 
 def _enumerate(nets: list[tuple[str, int]], target: int, tol: int,
-               limit: int) -> list[Solution]:
+               limit: int, reach: np.ndarray | None = None) -> list[Solution]:
     """Depth-first recovery of up to `limit` explanations.
 
     Sorted descending so large orders are decided first and the bound bites
     early; the suffix-sum test prunes any branch whose remaining orders cannot
     reach the residual.
+
+    `reach` is the counting DP's output, and it is what makes large bundles
+    tractable. Blind depth-first search over 185 candidates looking for a
+    27-element subset wanders essentially forever: the suffix-sum bound only
+    rejects a branch once the remainder has become arithmetically impossible,
+    which is far too late. The DP already knows which sums are reachable *at
+    all*, so a branch whose residual is unreachable can be cut immediately
+    rather than explored to exhaustion.
+
+    The test is an over-approximation -- `reach` was computed over every order,
+    including ones this branch has already spent -- so it can only ever fail to
+    prune. It never prunes a live branch, which is the direction that matters:
+    the search stays complete, it just stops visiting the impossible.
     """
     items = sorted(nets, key=lambda kv: -kv[1])
     suffix = [0] * (len(items) + 1)
@@ -97,6 +110,12 @@ def _enumerate(nets: list[tuple[str, int]], target: int, tol: int,
     out: list[Solution] = []
     chosen: list[str] = []
 
+    def unreachable(r: int) -> bool:
+        if reach is None or r < 0:
+            return False
+        lo, hi = max(0, r - tol), min(len(reach) - 1, r + tol)
+        return lo > hi or not reach[lo : hi + 1].any()
+
     def walk(i: int, remaining: int) -> None:
         if len(out) >= limit:
             return
@@ -104,6 +123,8 @@ def _enumerate(nets: list[tuple[str, int]], target: int, tol: int,
             out.append(Solution(tuple(chosen), target - remaining))
             return
         if i >= len(items) or remaining < -tol or suffix[i] < remaining - tol:
+            return
+        if unreachable(remaining):
             return
         oid, net = items[i]
         chosen.append(oid)
@@ -144,7 +165,7 @@ def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution], bool
 
     # Ask for one more than needed: coming back short proves the search ran out
     # of explanations rather than out of budget.
-    found = _enumerate(usable, target, band, MAX_ENUM + 1)
+    found = _enumerate(usable, target, band, MAX_ENUM + 1, counts)
     exhaustive = len(found) <= MAX_ENUM
     found = found[:MAX_ENUM]
 

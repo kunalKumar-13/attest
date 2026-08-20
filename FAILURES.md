@@ -156,3 +156,61 @@ change that raises exact-set match by three points is *not* an improvement if it
 raises false proofs by the same amount. The engine's job is to refuse to guess.
 A feature that makes it guess more confidently is a regression no matter what the
 headline number does.
+
+---
+
+## D5 — 2026-08-21
+
+**Spent an hour optimising a search that was never running.**
+
+`bundle_large` sat at 0.0% across 34 settlements — 13.6% of the portfolio — and
+the diagnosis seemed obvious: depth-first search cannot find a 27-element subset
+among 185 candidates, because the suffix-sum bound only rejects a branch once the
+remainder has become arithmetically impossible, which is far too late.
+
+So the counting DP's reachability array was wired into the enumerator as a prune:
+a branch whose residual is unreachable *at all* is cut immediately. Sound, cheap,
+and it can only over-approximate, so it never prunes a live branch.
+
+Result: **no change. 0.0% before, 0.0% after.**
+
+Measured instead of theorising:
+
+```
+hazard              n   out-of-envelope   median credit
+bundle_large       34        34   100%    Rs 77,051
+everything else   216         3     1%    Rs ~15,000
+                                          envelope cap: Rs 30,000
+```
+
+Every one of them exceeds `MAX_TARGET_PAISE` and raises `OutOfEnvelope` before a
+single subset is examined. The search was never the problem. The search never
+ran.
+
+**14.8% of the portfolio is currently unreachable in Python**, and the cap exists
+because the numpy DP allocates and copies an array the width of the credit —
+`O(n·target)` bytes of memory traffic per order, which at Rs 77,051 is 7.7M cells
+copied 185 times.
+
+The prune stays: it is correct, it costs nothing, and it will matter once the
+envelope opens. But it fixed nothing today.
+
+**Consequence: the Rust port stops being a benchmark and becomes the unlock.**
+Not "the same thing, faster" — the difference between attempting 85% of the
+portfolio and attempting all of it. The kernel is two bitsets rather than a byte
+array, which is what makes the wider envelope affordable:
+
+    A = sums reachable at least one way
+    B = sums reachable at least two ways
+
+    A' = A | (A << w)
+    B' = B | (B << w) | (A & (A << w))
+
+`A & (A << w)` is exactly "reachable both with and without this order" — a second
+distinct explanation. Three bitwise operations per 64-bit word gives the same
+0/1/2 saturating count the verdict needs, at one thirty-second of the memory
+traffic. PROVEN / AMBIGUOUS / CONTRADICTED falls out of two bit arrays.
+
+**Lesson, repeated from D2 and apparently not learned: measure the failure before
+fixing it.** Two of the five days so far have opened with a confident wrong
+diagnosis, and both times the data answered in one query.
