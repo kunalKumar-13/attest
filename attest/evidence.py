@@ -65,6 +65,13 @@ def forced_members(finding: Finding) -> frozenset[str]:
     """
     if not finding.proofs:
         return frozenset()
+    if not finding.exhaustive:
+        # The enumerator stopped at its cap, so `proofs` is a sample of the
+        # explanations rather than all of them. "Present in every explanation"
+        # is then a claim about the sample, and an order absent from some
+        # unenumerated candidate would be forced onto the wrong settlement --
+        # poisoning every other pool it was struck from. Deduce nothing.
+        return frozenset()
     common = set(finding.proofs[0].order_ids)
     for p in finding.proofs[1:]:
         common &= set(p.order_ids)
@@ -103,7 +110,7 @@ def propagate(findings: list[Finding], claimed: dict[str, str]) -> Propagation:
 
         if len(survivors) == 1:
             findings[i] = Finding(f.settlement_id, Verdict.PROVEN, survivors,
-                                  layer=f.layer + "+prop")
+                                  exhaustive=f.exhaustive, layer=f.layer + "+prop")
             promoted += 1
         elif not survivors:
             findings[i] = Finding(
@@ -113,7 +120,7 @@ def propagate(findings: list[Finding], claimed: dict[str, str]) -> Propagation:
                 layer=f.layer + "+prop")
         else:
             findings[i] = Finding(f.settlement_id, Verdict.AMBIGUOUS, survivors,
-                                  layer=f.layer + "+prop")
+                                  exhaustive=f.exhaustive, layer=f.layer + "+prop")
 
     return Propagation(forced, killed, promoted)
 

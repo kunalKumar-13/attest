@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 data/
+native/target/
+*.so
+.maturin/

@@ -115,14 +115,20 @@ def _enumerate(nets: list[tuple[str, int]], target: int, tol: int,
     return out
 
 
-def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution]]:
-    """Decide how many subsets of `pool` explain `target`, and produce them."""
+def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution], bool]:
+    """Decide how many subsets of `pool` explain `target`, and produce them.
+
+    The third value reports whether the enumeration was **exhaustive** -- that
+    every explanation was found rather than the first `MAX_ENUM`. Downstream
+    deduction depends on it: a claim about *every* explanation is unsound if the
+    enumerator stopped early, and saying so is cheaper than the alternative.
+    """
     if target > MAX_TARGET_PAISE or len(pool) > MAX_POOL:
         raise OutOfEnvelope(f"target={target} pool={len(pool)}")
 
     usable = [(o.order_id, o.net) for o in pool if 0 < o.net <= target]
     if not usable:
-        return Verdict.CONTRADICTED, []
+        return Verdict.CONTRADICTED, [], True
 
     counts = _reachable([n for _, n in usable], target)
 
@@ -134,11 +140,16 @@ def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution]]:
     total = int(counts[lo : hi + 1].sum())
 
     if total == 0:
-        return Verdict.CONTRADICTED, []
+        return Verdict.CONTRADICTED, [], True
 
-    found = _enumerate(usable, target, band, MAX_ENUM)
+    # Ask for one more than needed: coming back short proves the search ran out
+    # of explanations rather than out of budget.
+    found = _enumerate(usable, target, band, MAX_ENUM + 1)
+    exhaustive = len(found) <= MAX_ENUM
+    found = found[:MAX_ENUM]
+
     if not found:
-        return Verdict.CONTRADICTED, []
+        return Verdict.CONTRADICTED, [], True
     if len(found) == 1:
-        return Verdict.PROVEN, found
-    return Verdict.AMBIGUOUS, found
+        return Verdict.PROVEN, found, exhaustive
+    return Verdict.AMBIGUOUS, found, exhaustive

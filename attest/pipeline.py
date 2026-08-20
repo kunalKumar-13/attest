@@ -16,6 +16,8 @@ recorded on the finding so escalation shows up in the audit trail.
 
 from __future__ import annotations
 
+import os
+
 from attest.blocking import LAG_LADDER, PoolIndex
 from attest.eval.harness import Prediction
 from attest.evidence import to_fixed_point
@@ -70,11 +72,11 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
                 p = _proof(s, members)
                 if check(p, s, by_id):
                     finding = Finding(s.settlement_id, Verdict.PROVEN, (p,),
-                                      layer=f"L2-single/r{rung}")
+                                      exhaustive=True, layer=f"L2-single/r{rung}")
                     break
 
             try:
-                verdict, sols = solve(pool, s.net_paise)
+                verdict, sols, exhaustive = solve(pool, s.net_paise)
             except OutOfEnvelope as exc:
                 finding = Finding(s.settlement_id, Verdict.AMBIGUOUS, (),
                                   unsat_core=(f"out-of-envelope: {exc}",),
@@ -93,7 +95,7 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
             finding = Finding(
                 s.settlement_id,
                 Verdict.PROVEN if len(proofs) == 1 else Verdict.AMBIGUOUS,
-                proofs, layer=f"L3-dp/r{rung}",
+                proofs, exhaustive=exhaustive, layer=f"L3-dp/r{rung}",
             )
             break
 
@@ -117,7 +119,12 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
 
     # L4 -- settlements are evidence about each other. Deducing across the whole
     # population resolves cases no single-settlement search can decide.
-    rounds = to_fixed_point(findings)
+    # Off by default. Measured at +3.2pp exact-set for +3.2pp WRONG: eight more
+    # correct answers bought with eight more false proofs. Under any cost model
+    # where a wrong auto-post exceeds the cost of a human review -- which is the
+    # only model this engine is built for -- that trade is negative. Enable with
+    # ATTEST_PROP=1 to reproduce the ablation. See FAILURES.md, D4.
+    rounds = to_fixed_point(findings) if os.environ.get("ATTEST_PROP") else []
     promoted = sum(r.promoted for r in rounds)
     if promoted:
         print(f"  propagation: {len(rounds)} rounds, "

@@ -76,6 +76,10 @@ class Finding:
     unsat_core: tuple[str, ...] = ()
     """For CONTRADICTED: the minimal set of constraints that cannot hold
     together. Extracted from the solver, not narrated by a model."""
+    exhaustive: bool = False
+    """True when every explanation was enumerated, not merely the first few.
+    Cross-settlement deduction is only sound when this holds."""
+
     layer: str = ""
 
     @property
