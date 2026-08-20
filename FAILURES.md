@@ -371,3 +371,66 @@ same mistake in a different costume.
 **Credit where it is due:** this was found by the adversarial worker whose entire
 brief was to prove the system wrong, and whose instructions said the seed sweep
 alone was worth more than everything else on its list. It was.
+
+---
+
+## D8 — 2026-08-21
+
+**Built the AI investigation loop. Measured it twice. Shipped it disabled.**
+
+197 of 250 settlements abstain because several disjoint subsets satisfy the
+amount constraint exactly. Arithmetic has said everything it can; the tie needs
+evidence of a different kind — narration, counterparty, capture batch — which is
+exactly what a model is good at reading and exactly what it must not be allowed
+to conclude from. So: the model proposes an anchor, the solver decides.
+
+**First version was architecturally wrong, and the mechanism is worth stating.**
+It subtracted the anchor from the target and solved the remainder over what was
+left. That resolved 92 abstentions across five seeds and got **32 of them wrong** —
+precision 0.652.
+
+    uniqueness inside a restricted space is not uniqueness.
+
+Restricting the search to subsets containing the anchor changes which problem is
+being solved. When the true explanation does not contain the anchor, the
+restricted problem can have exactly one solution — a wrong one — and it arrives
+wearing every mark of a proof: it balances, it clears the bound, the kernel
+accepts it. It *is* internally consistent. It is simply not true. The kernel
+cannot catch this, because the kernel checks arithmetic and the arithmetic is
+correct; what is wrong is the question that was asked.
+
+**Corrected: an anchor may only select among explanations arithmetic already
+found valid over the FULL pool.** It can recognise uniqueness, never create it.
+Re-measured:
+
+```
+                       resolved   correct   WRONG   precision
+anchor completes             92        60      32       0.652
+anchor selects only          73        38      35       0.521
+```
+
+Sound, and *worse*. That result is the useful one.
+
+**The real finding: there is no signal here to select on.** The stub proposer
+anchors on the densest same-day capture cluster, which has no causal link to any
+particular settlement — it is a plausible-sounding guess. Selecting among four
+candidate explanations with a guess lands near a coin flip, and 0.521 is a coin
+flip. Swapping in a language model would change which guess gets made, not
+whether it is a guess: the generator emits settlements carrying a UTR and nothing
+that names an order, so the semantic evidence the loop is built to consume **does
+not exist in this data**.
+
+**Shipped disabled** (`ATTEST_ANCHOR=1` reproduces the measurement). Turning it on
+would take the engine from 5 false proofs per 1,250 to roughly 40 while making
+the demo look better, which is the trade this project exists to refuse.
+
+What would make it work is not a better model. It is order-level references in
+the settlement report — which real gateway settlement reports carry and this
+generator does not. That is a data problem with a known shape, and naming it is
+worth more than a resolution rate bought with guesses.
+
+**Third time now** — D4 propagation, D6 envelope, D8 anchoring — that a feature
+which raised the headline number was measured, found to raise false proofs, and
+turned off. The pattern is not bad luck. Anything that resolves an abstention is
+by construction taking a position the evidence did not support, and the only
+defence is measuring against ground truth before believing it.
