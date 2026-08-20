@@ -15,6 +15,13 @@ Found a bug in one of these? **Report it to the inbox with a reproduction.** Do
 not patch it. A correctness bug caught and reported is worth more here than a
 silent fix, because the fix has to be understood by the person defending it.
 
+This is enforced, not requested. `.githooks/pre-commit` rejects any commit
+touching these paths. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## 2. `attest/generate/**` is frozen.
 
 The hazard taxonomy and generator were written before the matcher, deliberately,
