@@ -37,11 +37,11 @@ RESULTS = ROOT / "benchmark" / "results.json"
 def _run_seed(seed: int, n: int):
     ds = build(n, seed=seed)
     t0 = time.perf_counter()
-    _, _, findings = run(ds.settlements, ds.orders)
+    _, pools, findings = run(ds.settlements, ds.orders)
     return (findings,
             {t.settlement_id: set(t.order_ids) for t in ds.truth},
             {s.settlement_id: s for s in ds.settlements},
-            time.perf_counter() - t0)
+            time.perf_counter() - t0, pools)
 
 
 def benchmark(n: int = 250, costs: Costs = Costs()) -> dict[str, object]:
@@ -49,19 +49,20 @@ def benchmark(n: int = 250, costs: Costs = Costs()) -> dict[str, object]:
     risk = calibrate({s: (v[0], v[1]) for s, v in cal.items()})
 
     per_seed: dict[str, object] = {}
-    pooled = Metrics(*([0] * 19))
+    pooled = Metrics(*([0] * 22))
     seconds = 0.0
 
     for seed in EVALUATION_SEEDS:
-        findings, truth, settlements, took = _run_seed(seed, n)
-        m = measure(findings, settlements, truth, risk, costs)
+        findings, truth, settlements, took, pools = _run_seed(seed, n)
+        m = measure(findings, settlements, truth, risk, costs, pools)
         per_seed[str(seed)] = m.to_json()
         seconds += took
         for field in ("settlements", "proven", "ambiguous", "contradicted",
                       "insufficient", "exact_sets", "false_proofs", "pair_tp",
                       "pair_fp", "pair_fn", "processed_paise", "auto_posted_paise",
                       "protected_paise", "incorrectly_auto_posted_paise",
-                      "expected_loss_paise", "auto_post", "review", "block"):
+                      "expected_loss_paise", "auto_post", "review", "block",
+                      "settled_paise", "disputed_paise", "unexplained_paise"):
             setattr(pooled, field, getattr(pooled, field) + getattr(m, field))
         pooled.max_exposure_paise = max(pooled.max_exposure_paise, m.max_exposure_paise)
 

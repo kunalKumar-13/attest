@@ -35,6 +35,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from attest.model import Settlement
+from attest.exceptions import classify
 from attest.policy import Costs, Decision, RiskModel, decide
 from attest.verdict import Finding, Verdict
 
@@ -66,6 +67,14 @@ class Metrics:
     auto_post: int
     review: int
     block: int
+
+    settled_paise: int
+    """Value inside AMBIGUOUS settlements that every surviving explanation
+    agrees on. Not proven, not posted — but accounted for, and the single most
+    useful thing the engine can say while refusing."""
+
+    disputed_paise: int
+    unexplained_paise: int
 
     # -- rates, all named for what they actually measure -------------------
 
@@ -116,6 +125,20 @@ class Metrics:
         return self.incorrectly_auto_posted_paise / max(self.auto_posted_paise, 1)
 
     @property
+    def accounted_rate(self) -> float:
+        """Share of ALL processed value the engine can account for — proven
+        outright, or agreed by every surviving explanation.
+
+        The honest companion to exact-set recovery. 16% of settlements recovered
+        completely sounds like an engine that fails five times out of six; that
+        reading is wrong, and this is the figure that shows why. Most abstentions
+        are not "we do not know", they are "we know all but this part, and here
+        is the part".
+        """
+        return ((self.auto_posted_paise + self.settled_paise)
+                / max(self.processed_paise, 1))
+
+    @property
     def safe_resolution_rate(self) -> float:
         """§60. Resolved without a human, and allowed to be."""
         return self.auto_post / max(self.settlements, 1)
@@ -133,6 +156,7 @@ class Metrics:
             "pair_precision": round(self.pair_precision, 4),
             "financial_error_rate": round(self.financial_error_rate, 6),
             "safe_resolution_rate": round(self.safe_resolution_rate, 4),
+            "accounted_rate": round(self.accounted_rate, 4),
         })
         return d
 
@@ -165,6 +189,13 @@ class Metrics:
             f"  max single exposure   ₹{self.max_exposure_paise / 100:>12,.0f}",
             f"  financial error rate    {self.financial_error_rate:>8.4%}"
             f"   of posted value",
+            "", "  ACCOUNTED FOR", "-" * w,
+            f"  settled (undisputed)  ₹{self.settled_paise / 100:>12,.0f}"
+            f"   agreed by every explanation",
+            f"  disputed              ₹{self.disputed_paise / 100:>12,.0f}",
+            f"  unexplained           ₹{self.unexplained_paise / 100:>12,.0f}",
+            f"  accounted for           {self.accounted_rate:>8.1%}"
+            f"   of all processed value",
             "", "  NORTH STAR", "-" * w,
             f"  safe resolution rate    {self.safe_resolution_rate:>8.1%}"
             f"   resolved without a human", ""])
@@ -172,8 +203,8 @@ class Metrics:
 
 def measure(findings: list[Finding], settlements: dict[str, Settlement],
             truth: dict[str, set[str]], risk: RiskModel,
-            costs: Costs = Costs()) -> Metrics:
-    m = Metrics(*([0] * 19))
+            costs: Costs = Costs(), pools: dict | None = None) -> Metrics:
+    m = Metrics(*([0] * 22))
     m.settlements = len(findings)
     m.processed_paise = sum(s.net_paise for s in settlements.values())
 
@@ -199,6 +230,13 @@ def measure(findings: list[Finding], settlements: dict[str, Settlement],
         m.pair_tp += len(got & actual)
         m.pair_fp += len(got - actual)
         m.pair_fn += len(actual - got)
+
+        exc = classify(f, s, pools.get(f.settlement_id, []), 0) if pools else None
+        if exc is not None:
+            if exc.settled:
+                m.settled_paise += exc.settled.net_paise
+                m.disputed_paise += exc.settled.disputed_paise
+            m.unexplained_paise += exc.unexplained_paise if not exc.settled else 0
 
         j = decide(f, s, risk, costs)
         if j.decision is Decision.AUTO_POST:
