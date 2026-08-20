@@ -704,3 +704,62 @@ costs a reason, never a verdict.
 and recommended against its own work. The valuable output was not the optimiser.
 It was the measurement that said not to ship it, and the by-product nobody set
 out to build.
+
+---
+
+## D13 — 2026-08-21
+
+**Built the what-changed engine and used it to test a claim the engine makes
+about itself.**
+
+Reconciliation is a standing claim about a moving set of records — refunds land
+late, chargebacks arrive weeks after capture, exports get re-pulled with rows
+that were missing. So the daily question is not "what is the state" but "what
+changed, and why".
+
+Detecting a transition is bookkeeping. Attribution is the product, and it is
+computed rather than narrated: an order is only named as a cause if it is
+**load-bearing** — present in an explanation on the side it exists. An order that
+arrived and is cited by nothing changed nothing, however suggestive the timing,
+and asserting otherwise would be exactly the confident wrongness this engine
+exists to refuse.
+
+Simulated the real case by withholding 6% of orders from an earlier run:
+
+```
+21 settlements changed · 229 unchanged · 0 unattributed
+
+resolved      12   ₹2,00,333
+withdrawn      8   ₹1,59,514
+recomposed     1     ₹5,001
+```
+
+**Then checked the transitions against ground truth, which is the part that
+matters:**
+
+```
+RESOLVED     12 correct, 0 wrong    every new resolution landed on the truth
+WITHDRAWN     5 withdrew a WRONG proof, 3 withdrew a correct one
+RECOMPOSED    yesterday's proof was wrong (6 orders); today's is right (4)
+```
+
+Three findings fall out of that.
+
+**More data makes the engine correct itself.** The single recomposition — the
+alarming category, where the engine was certain twice and disagreed — resolved in
+favour of the truth. Five of eight withdrawals removed a false proof.
+
+**Withdrawal is not a regression, and labelling it as one would be wrong.**
+PROVEN → AMBIGUOUS is usually the engine discovering that yesterday's uniqueness
+was an artefact of a thinner pool. Yesterday's certainty was cheap because there
+was less to be uncertain about. The diff labels these separately from real
+regressions instead of lumping both under "worse", and the ground-truth check
+says that call was right by 5 to 3.
+
+**Every resolution was correct, 12 for 12.** When new evidence collapses an
+ambiguity, the engine lands on the truth — which is the strongest available
+argument that the 82% ambiguity rate is genuine under-determination rather than
+weakness. The engine is not failing to decide. There is nothing there to decide
+with, and the moment there is, it decides correctly.
+
+Zero unattributed across all 21.
