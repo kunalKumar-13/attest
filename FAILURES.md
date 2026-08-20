@@ -628,3 +628,79 @@ portfolio is a harder question, and the false-proof rate falls with it (0.80% to
 0.08%) precisely because the engine refuses more of it. Any single coverage
 figure quoted without its portfolio density is meaningless, and `results.json`
 now carries that caveat next to the number.
+
+---
+
+## D12 — 2026-08-21
+
+**Benchmarked CP-SAT set packing against the greedy cascade. Rejected the
+packing, shipped the cores.**
+
+`attest/partition.py` — 574 lines, written by an agent on the floor — formulates
+L4b properly: one boolean per (settlement, candidate), at most one true per
+settlement, each order claimed at most once, decomposed by connected component,
+with a soundness gate that posts a settlement only when its candidate is *forced*
+across every optimal packing.
+
+The comparison it made is the right one, and worth stating because it is easy to
+get wrong: the baseline is not "no packing". `PoolIndex.consume` already **is**
+set packing — solved greedily and early, disjointness enforced by irrevocable
+commitment in easiest-first order rather than by search. The question was never
+whether to pack. It was greedy packing against global packing.
+
+Reproduced independently, cell for cell, before acting on it:
+
+```
+seed        greedy exact  cpsat exact   greedy WRONG  cpsat WRONG
+20260821              52           53              0            1
+314159                56           57              0            1
+271828                43           45              1            1
+555001                37           34              2            4
+999983                43           50              2            2
+pooled (1,250)       231          239              5            9
+
+exact-set   18.48% -> 19.12%   (+0.64 pp)
+WRONG        0.40% ->  0.72%   (+0.32 pp)
+precision   0.9807 -> 0.9714
+```
+
+**+0.64 pp of exact match for +0.32 pp of false proofs**, with precision moving
+the wrong way and a straight regression at n=1200 (5.33% -> 2.42%). The gain is
+not even consistent in sign: seed 555001 goes *backwards* by three, and four of
+the eight extra false proofs land on that one seed. Shown only seed 999983
+(+7 exact, WRONG unchanged) a reader would conclude the opposite of what the five
+seeds say together — which is D7's lesson arriving for the fourth time.
+
+Same trade as D4 propagation and D8 anchoring. Refused for the same reason.
+
+**But the unsat cores are a different thing entirely, and they ship.** Set
+packing is trivially feasible — select nothing — so infeasibility has to be
+*asked for*: one assumption literal per settlement meaning "this one must be
+explained", then read `SufficientAssumptionsForInfeasibility`. What comes back is
+extracted by the solver's own conflict analysis, not reconstructed afterwards by
+a heuristic:
+
+```
+setl_000109 AMBIGUOUS
+  mutually unsatisfiable: setl_000109, setl_000155 cannot all be explained
+    setl_000109: 4 candidate subset(s), truncated at MAX_ENUM
+    setl_000155: 1 candidate subset(s), exhaustive
+    contested orders: ord_001451, ord_001453, ord_001455
+```
+
+That is a named conflict over named resources. It turns "no valid assignment"
+from a shrug into a work item, and it says something a single-settlement view
+structurally cannot: *this settlement is unresolved because another one is
+claiming its orders.*
+
+**Verified it changes nothing it should not.** Verdicts are identical with cores
+on and off; 80 findings gain an explanation and none gains an answer. It costs
+2.17x wall clock, which is why it is off in the CLI and on in the API, where an
+explanation is the product. `ortools` stays an optional import — a missing core
+costs a reason, never a verdict.
+
+**The measured shape of the whole exercise:** an agent wrote a rigorous
+574-line implementation, benchmarked it honestly against the shipping engine,
+and recommended against its own work. The valuable output was not the optimiser.
+It was the measurement that said not to ship it, and the by-product nobody set
+out to build.

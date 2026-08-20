@@ -61,7 +61,7 @@ def execute(n: int, seed: int) -> Run:
                           f"settlements · {len(ds.credits):,} bank credits")
 
     with Timer() as t:
-        preds, pools, findings = run(ds.settlements, ds.orders)
+        preds, pools, findings = run(ds.settlements, ds.orders, cores=True)
     _audit(log, "reconcile", f"{len(findings):,} settlements decided in {t.elapsed:.2f}s")
 
     # Calibrated on a DIFFERENT portfolio. Fitting the risk model on the run it

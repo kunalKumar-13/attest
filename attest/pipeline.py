@@ -44,7 +44,32 @@ def _proof(s: Settlement, members: list[Order]) -> Proof:
     )
 
 
-def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
+def _attach_cores(settlements: list[Settlement], orders: list[Order],
+                  findings: list[Finding]) -> None:
+    """Overlay solver-extracted conflict explanations onto unresolved findings.
+
+    Best-effort by design: ortools is an optional dependency and a missing core
+    costs an explanation, never a verdict. Failing a run because the *reason*
+    could not be computed would be the wrong trade.
+    """
+    try:
+        from attest.partition import pack
+        packed = pack(settlements, orders, forcing=True, extract_cores=True)
+    except Exception:
+        return
+
+    cores = {f.settlement_id: f.unsat_core for f in packed.findings if f.unsat_core}
+    for i, f in enumerate(findings):
+        core = cores.get(f.settlement_id)
+        if core and not f.unsat_core and f.verdict is not Verdict.PROVEN:
+            findings[i] = Finding(
+                f.settlement_id, f.verdict, f.proofs, unsat_core=core,
+                space=f.space, coincidence=f.coincidence,
+                exhaustive=f.exhaustive, layer=f.layer + "+core")
+
+
+def run(settlements: list[Settlement], orders: list[Order],
+        cores: bool = False) -> tuple[
     list[Prediction], dict[str, list[Order]], list[Finding]
 ]:
     index = PoolIndex(orders)
@@ -120,6 +145,24 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
             finding.layer,
             reason="" if finding.postable else finding.verdict.value,
         ))
+
+    # L4b -- name the conflicts, but do not resolve them.
+    #
+    # The CP-SAT packing itself was benchmarked against this greedy cascade and
+    # REJECTED: +0.64 pp exact-set match for +0.32 pp WRONG, pooled over 1,250
+    # settlements, with precision moving 0.9807 -> 0.9714 and a straight
+    # regression at n=1200. Same trade as D4 and D8, refused for the same reason.
+    # See hive reports/attest-cpsat.md and FAILURES.md D12.
+    #
+    # The unsat cores are a different matter. Set packing is trivially feasible
+    # -- select nothing -- so infeasibility has to be asked for, with one
+    # assumption literal per settlement meaning "this one must be explained".
+    # What comes back is extracted by the solver's own conflict analysis rather
+    # than reconstructed by a heuristic afterwards, and it converts "no valid
+    # assignment" into "these two settlements are fighting over these orders".
+    # It changes no verdict and moves no money; it only says why.
+    if cores:
+        _attach_cores(settlements, orders, findings)
 
     # L4 -- settlements are evidence about each other. Deducing across the whole
     # population resolves cases no single-settlement search can decide.
