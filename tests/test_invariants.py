@@ -1,0 +1,286 @@
+"""Property tests. §48.
+
+These are not unit tests of functions; they are the engine's promises, written so
+a change that breaks one fails loudly rather than quietly costing money. Each
+corresponds to something this project got wrong and paid for.
+
+They are stated as conditionals on purpose. "ATTEST must never produce a false
+PROVEN" is not a property this engine has — it produces them at roughly 0.8% and
+FAILURES.md D7 records what asserting otherwise cost. The true property is
+narrower and much more useful:
+
+    when blocking did not exclude the truth, a PROVEN result is correct.
+
+That conditional is the whole architecture in one line. It says the solver and
+the kernel are sound and that every remaining false proof enters through the
+search space — which is exactly what D3 and D8 measured, and exactly what
+`searchspace.py` was built to make visible.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from attest.blocking import PoolIndex
+from attest.generate.generator import build
+from attest.model import Method, fee_paise, net_paise, tolerance_paise
+from attest.pipeline import run
+from attest.searchspace import Integrity
+from attest.verdict import Verdict, check
+
+SEEDS = (20260821, 314159, 271828)
+N = 150
+
+
+def _runs():
+    for seed in SEEDS:
+        ds = build(N, seed=seed)
+        _, pools, findings = run(ds.settlements, ds.orders)
+        yield (seed, ds, findings, pools,
+               {t.settlement_id: set(t.order_ids) for t in ds.truth},
+               {s.settlement_id: s for s in ds.settlements},
+               {o.order_id: o for o in ds.orders})
+
+
+# --------------------------------------------------------------------------
+# Money
+# --------------------------------------------------------------------------
+
+def test_money_is_integral_and_lossless() -> None:
+    """Fee plus tax plus net reconstitutes gross exactly, for every method.
+
+    No float ever touches an amount, so this is an equality rather than a
+    tolerance — and if it ever stops being one, the tolerance derivation that
+    every proof depends on becomes meaningless.
+    """
+    for gross in (1, 99, 100, 12_345, 999_999, 45_00_000):
+        for m in Method:
+            f = fee_paise(gross, m)
+            net = net_paise(gross, m)
+            assert isinstance(net, int) and isinstance(f, int)
+            assert 0 <= net <= gross
+            assert gross - net >= f  # the remainder is GST on the fee
+
+
+def test_tolerance_is_derived_not_tuned() -> None:
+    """One paisa per order, from two independent half-up roundings."""
+    assert tolerance_paise(1) == 1
+    assert tolerance_paise(31) == 31
+    assert all(tolerance_paise(k + 1) > tolerance_paise(k) for k in range(1, 60))
+
+
+def test_upi_is_zero_mdr() -> None:
+    """The property AMBIGUOUS_SUBSET collisions are constructed from."""
+    for gross in (9_900, 1_00_000, 4_50_000):
+        assert net_paise(gross, Method.UPI) == gross
+
+
+# --------------------------------------------------------------------------
+# The conditional soundness property — the important one
+# --------------------------------------------------------------------------
+
+def _truth_is_expressible(actual, orders, settlement) -> bool:
+    """Does the true explanation satisfy the amount constraint at all?
+
+    For four hazard families it does not, by construction. A split settlement
+    pays out half an order; a refund nets off inside the credit; a chargeback
+    reverses an order from two periods back; an orphan settlement contains an
+    order the merchant never exported. In each case
+
+        credit != sum(net of the true orders)
+
+    so no exact-sum solver can reach the truth however wide the search. Those
+    are MODEL gaps — the constraint system has no term for the adjustment — and
+    they are a different problem from a search that looked in the wrong place.
+    """
+    net = sum(orders[o].net for o in actual)
+    return abs(settlement.net_paise - net) <= tolerance_paise(max(len(actual), 1))
+
+
+def test_proven_is_correct_when_the_truth_was_reachable() -> None:
+    """The engine's actual guarantee, stated precisely enough to be true.
+
+    A false PROVEN is permitted only where the truth was unreachable — either
+    blocking pruned it (a SEARCH-SPACE error, D3/D8) or the constraint model
+    cannot express it (a MODEL gap, D10). Anywhere the truth was both present
+    and expressible, a claim of proof must be correct, or the solver or the
+    kernel is unsound — a far worse class of bug than either.
+    """
+    violations = []
+    for seed, _ds, findings, pools, truth, sts, ords in _runs():
+        for f in findings:
+            if f.verdict is not Verdict.PROVEN or not f.proofs:
+                continue
+            actual = truth[f.settlement_id]
+            in_pool = actual <= {o.order_id for o in pools[f.settlement_id]}
+            expressible = _truth_is_expressible(actual, ords, sts[f.settlement_id])
+            if in_pool and expressible and set(f.proofs[0].order_ids) != actual:
+                violations.append((seed, f.settlement_id, f.layer))
+    assert not violations, (
+        f"{len(violations)} PROVEN results were wrong although the truth was "
+        f"both inside the pool and expressible under the constraints — the "
+        f"solver or the kernel is unsound: {violations[:5]}")
+
+
+def test_every_false_proof_has_an_attributable_cause() -> None:
+    """No false proof may be unexplained.
+
+    Each one must be attributable to a pruned candidate or to a truth the model
+    cannot express. An unattributable false proof means the engine is wrong in a
+    way nothing currently accounts for, and that is the finding worth failing a
+    build over.
+    """
+    causes = {"search space": 0, "model gap": 0, "unattributed": []}
+    for seed, _ds, findings, pools, truth, sts, ords in _runs():
+        for f in findings:
+            if f.verdict is not Verdict.PROVEN or not f.proofs:
+                continue
+            actual = truth[f.settlement_id]
+            if set(f.proofs[0].order_ids) == actual:
+                continue
+            if not _truth_is_expressible(actual, ords, sts[f.settlement_id]):
+                causes["model gap"] += 1
+            elif not actual <= {o.order_id for o in pools[f.settlement_id]}:
+                causes["search space"] += 1
+            else:
+                causes["unattributed"].append((seed, f.settlement_id))
+    assert not causes["unattributed"], causes
+
+
+def test_local_uniqueness_is_never_reported_as_global() -> None:
+    """§28. The D8 lesson, as an assertion.
+
+    Uniqueness found over a heuristically reduced space is local. The engine may
+    say so; it may never say plain 'unique'.
+    """
+    for _seed, _ds, findings, _pools, _truth, _sts, _ords in _runs():
+        for f in findings:
+            if f.verdict is not Verdict.PROVEN:
+                continue
+            claim = f.uniqueness_claim
+            if f.space is not None and f.space.integrity is Integrity.HEURISTIC:
+                assert "within" in claim, claim
+                assert not claim.startswith("unique —"), claim
+
+
+def test_compromised_space_never_posts() -> None:
+    from attest.searchspace import SearchSpace, date_window
+    from attest.verdict import Finding, Proof
+    sp = SearchSpace(universe=100)
+    sp.reductions.append(date_window(50, 0, (2,)))
+    sp.note_known_loss(1)
+    p = Proof("s", ("o",), 100, 0, 0, 0, 100, 0, 1)
+    f = Finding("s", Verdict.PROVEN, (p,), space=sp)
+    assert sp.integrity is Integrity.COMPROMISED
+    assert not f.postable
+
+
+# --------------------------------------------------------------------------
+# Verdict discipline
+# --------------------------------------------------------------------------
+
+def test_ambiguous_never_carries_one_explanation() -> None:
+    """AMBIGUOUS means several survived. One survivor is PROVEN or nothing."""
+    for _seed, _ds, findings, _p, _t, _s, _o in _runs():
+        for f in findings:
+            if f.verdict is Verdict.AMBIGUOUS and f.proofs:
+                assert len(f.proofs) > 1, f.settlement_id
+
+
+def test_contradicted_and_insufficient_carry_no_proof() -> None:
+    for _seed, _ds, findings, _p, _t, _s, _o in _runs():
+        for f in findings:
+            if f.verdict in (Verdict.CONTRADICTED, Verdict.INSUFFICIENT):
+                assert not f.proofs, f.settlement_id
+                assert not f.postable
+
+
+def test_every_proof_survives_the_independent_kernel() -> None:
+    """Nothing reaches a verdict without the 28-line verifier agreeing."""
+    for _seed, _ds, findings, _p, _t, sts, ords in _runs():
+        for f in findings:
+            for proof in f.proofs:
+                assert check(proof, sts[f.settlement_id], ords), (
+                    f"{f.settlement_id} carries a proof the kernel rejects")
+
+
+def test_kernel_rejects_a_fabricated_proof() -> None:
+    """The kernel must recompute, not trust the fields handed to it."""
+    from attest.verdict import Proof
+    ds = build(40, seed=20260821)
+    s = ds.settlements[0]
+    ords = {o.order_id: o for o in ds.orders}
+    real = next(iter(ords))
+    liar = Proof(s.settlement_id, (real,), gross_paise=s.net_paise, fee_paise=0,
+                 tax_paise=0, adjustment_paise=0, net_paise=s.net_paise,
+                 residual_paise=0, tolerance_paise=1)
+    assert not check(liar, s, ords)
+
+
+def test_kernel_rejects_a_duplicated_order() -> None:
+    from attest.verdict import Proof
+    ds = build(40, seed=20260821)
+    s, ords = ds.settlements[0], {o.order_id: o for o in ds.orders}
+    oid = next(iter(ords))
+    dup = Proof(s.settlement_id, (oid, oid), 0, 0, 0, 0, 0, 0, 2)
+    assert not check(dup, s, ords)
+
+
+# --------------------------------------------------------------------------
+# Search space
+# --------------------------------------------------------------------------
+
+def test_reductions_account_for_every_excluded_order() -> None:
+    """The audit must add up, or it is decoration."""
+    ds = build(120, seed=20260821)
+    idx = PoolIndex(ds.orders)
+    for s in ds.settlements[:40]:
+        pool, space = idx.audited_pool(s, 0)
+        assert space.candidates == len(pool), (space.candidates, len(pool))
+        assert sum(r.removed for r in space.reductions) == space.universe - len(pool)
+
+
+def test_amount_ceiling_is_deterministic_and_calendar_is_not() -> None:
+    ds = build(60, seed=20260821)
+    _, space = PoolIndex(ds.orders).audited_pool(ds.settlements[0], 0)
+    kinds = {r.name.split(" (")[0]: r.deterministic for r in space.reductions}
+    assert kinds["amount ceiling"] is True
+    assert kinds["settlement calendar"] is False
+    assert kinds["already claimed"] is False
+
+
+# --------------------------------------------------------------------------
+# Policy
+# --------------------------------------------------------------------------
+
+def test_uncalibrated_policy_posts_nothing() -> None:
+    from attest.policy import Decision, RiskModel, decide
+    for _seed, _ds, findings, _p, _t, sts, _o in _runs():
+        risk = RiskModel()
+        for f in findings[:40]:
+            assert decide(f, sts[f.settlement_id], risk).decision is not Decision.AUTO_POST
+        break
+
+
+def test_risk_is_priced_above_the_point_estimate() -> None:
+    """D9. The upper bound must be strictly more cautious than the observation."""
+    from attest.policy import _wilson_upper
+    for wrong, total in ((0, 100), (1, 152), (5, 500), (20, 1000)):
+        assert _wilson_upper(wrong, total) > wrong / total
+
+
+def test_threshold_moves_with_the_review_cost() -> None:
+    """No threshold is hardcoded, so raising the cost of a human must widen
+    what the engine is willing to automate."""
+    from attest.policy import Costs, Decision, calibrate, decide
+    runs = list(_runs())
+    risk = calibrate({s: (f, t) for s, _d, f, _p, t, _st, _o in runs})
+    seed, _ds, findings, _p, _t, sts, _o = runs[0]
+    cheap = sum(decide(f, sts[f.settlement_id], risk, Costs(review_paise=1_000)
+                       ).decision is Decision.AUTO_POST for f in findings)
+    dear = sum(decide(f, sts[f.settlement_id], risk, Costs(review_paise=500_000)
+                      ).decision is Decision.AUTO_POST for f in findings)
+    assert dear >= cheap

@@ -499,3 +499,66 @@ review cost    auto-post   posted        protected      realised loss
 
 That is the coverage/expected-loss frontier, measured rather than drawn. A
 merchant picks a point on it by naming what an analyst's hour is worth.
+
+---
+
+## D10 — 2026-08-21
+
+**A property test asserted the engine was sound and found out it is sound for a
+narrower reason than stated.**
+
+Wrote the invariant the architecture claims:
+
+    when blocking did not exclude the truth, a PROVEN result is correct
+
+One violation, seed 271828, `setl_000056`. A PROVEN result was wrong although
+the true explanation was sitting in the candidate pool — which, if the property
+were right, would mean the solver or the kernel is unsound. It is not.
+
+The settlement is a `split_order`. Half of one order's proceeds went to a
+different payout, so:
+
+```
+credit                    7,64,813 paise
+sum of the true 6 orders  8,32,887 paise
+difference                  68,074 paise
+```
+
+**The true explanation does not satisfy the amount constraint.** No exact-sum
+solver can reach it however wide the search, because the constraint system has no
+term for a split settlement. A different four-order subset happened to sum within
+2 paise of the credit, and it is arithmetically perfect, uniquely so, and wrong.
+
+**So false proofs have two sources, and conflating them hid one of them:**
+
+```
+search-space error   the truth was pruned before solving          D3, D8
+model gap            the truth is not expressible at all          D10
+```
+
+The second is the worse of the two, because widening the search cannot fix it.
+The engine will keep confidently explaining split settlements, refunds and
+chargebacks with coincidental subsets until the constraint model carries an
+adjustment term.
+
+Attributed every false proof in the panel:
+
+```
+5 across 1,250 settlements
+  model gap       3    chargeback_reversal x2, refund_offset x1
+  search space    2    timing_gap, missing_ref
+  unattributed    0
+```
+
+Zero unattributed is the number that matters. Every wrong answer this engine
+produces is now explained by a named mechanism rather than absorbed into a rate.
+
+`tests/test_invariants.py` states the property precisely — reachable means *in
+the pool AND expressible* — and a second test fails the build if any false proof
+becomes unattributable, because an unexplained wrong answer is a defect nothing
+currently accounts for.
+
+**The lesson is about the test, not the engine.** "ATTEST must never produce a
+false PROVEN" is not a property this engine has; asserting it is what D7 cost.
+The true property is conditional, and writing the condition down forced the
+discovery of a failure class nobody had named.
