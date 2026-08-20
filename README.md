@@ -158,5 +158,4 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[PRD.md](PRD.md)** — the problem, the algorithm, the tolerance derivation, the plan
 - **[FAILURES.md](FAILURES.md)** — what broke, daily. Four entries and counting
 - **[AGENTS.md](AGENTS.md)** — the working agreement, enforced by `.githooks/pre-commit`
-
-Built for the Razorpay AI Buildathon, Track 04 — AI Finance Controller.
+- **[native/BENCH.md](native/BENCH.md)** — parity methodology and benchmarks

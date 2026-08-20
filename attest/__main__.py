@@ -28,6 +28,12 @@ def main(argv: list[str]) -> int:
         preds, pools, findings = run(ds.settlements, ds.orders)
     rep = evaluate(ds.settlements, ds.truth, preds, pools, t.elapsed)
 
+    if "--html" in argv:
+        from attest.eval.report import render
+        out = DATA.parent / "report.html"
+        out.write_text(render(rep, findings, ds.settlements, ds.orders, seed))
+        print(f"  wrote {out}")
+
     label = "HELD-OUT" if holdout else "TRAIN"
     from collections import Counter
     print(rep.render(f"ATTEST  ·  D3 cascade  ·  {label}  ·  seed {seed}"))

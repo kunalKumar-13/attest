@@ -5,3 +5,4 @@ data/
 native/target/
 *.so
 .maturin/
+report.html
