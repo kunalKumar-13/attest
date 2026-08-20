@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from attest.eval.harness import Timer, evaluate
+from attest.graph import build as build_graph
 from attest.generate.generator import build
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
@@ -194,4 +195,5 @@ def detail(r: Run, sid: str) -> dict[str, Any] | None:
         "unsat_core": list(f.unsat_core),
         "checks": checks,
         "postable": f.postable,
+        "graph": build_graph(f, s, by_order).to_json(),
     }

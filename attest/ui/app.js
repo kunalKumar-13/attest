@@ -1,25 +1,20 @@
-/* ATTEST — investigation console.
+/* ATTEST — case file console.
  *
- * Holds no reconciliation logic. Every verdict, rupee and constraint on screen
- * is computed by the engine and fetched from /api. A front end that can decide a
- * verdict is one that can disagree with the ledger.
- *
- * The interaction model is a debugger, not a dashboard: the ledger and the proof
- * are on screen together, moving between settlements never navigates, and the
- * keyboard is the primary input because an investigator working a queue of two
- * hundred exceptions should never reach for a mouse.
+ * No reconciliation logic lives here. Every verdict, rupee, constraint and edge
+ * on screen is computed by the engine and fetched from /api, including the
+ * geometry of the flow diagram — laid out in Python so it is testable and so two
+ * clients cannot draw the same proof differently.
  */
 'use strict';
 
-const S = { run: null, rows: [], view: [], i: 0, filter: '', vf: null, cache: new Map() };
+const S = { run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
-const V = ['PROVEN', 'AMBIGUOUS', 'CONTRADICTED'];
-const vc = { PROVEN: 'var(--ok)', AMBIGUOUS: 'var(--warn)', CONTRADICTED: 'var(--dead)' };
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const VC = { PROVEN: 'var(--ok)', AMBIGUOUS: 'var(--warn)', CONTRADICTED: 'var(--dead)' };
 
-/* Indian grouping. 4738219 paise rendered "4,738,219" tells an Indian reader the
-   wrong number at a glance, so lakh/crore grouping is correctness, not polish. */
+/* Indian grouping — 4738219 paise shown as "4,738,219" reads as the wrong
+   magnitude to the person whose money it is. */
 function rs(paise, whole) {
   const neg = paise < 0, n = Math.abs(paise), p = n % 100;
   let r = String(Math.floor(n / 100));
@@ -32,19 +27,19 @@ function rs(paise, whole) {
 }
 const api = p => fetch(p).then(r => r.json());
 
-/* ------------------------------------------------------------------- run */
+/* --------------------------------------------------------------------- run */
 
 async function run() {
-  el('run').innerHTML = '<span class=spin></span>running';
-  el('ledger').innerHTML = '<div class=empty><span class=spin></span>normalise · block · match · solve · verify</div>';
+  el('run').innerHTML = '<span class=spin></span>Running';
+  el('ledger').innerHTML = '<div class=empty><span class=spin></span>normalise · block<br>match · solve · verify</div>';
   S.cache.clear();
   S.run = await api(`/api/run?n=${el('size').value}`);
   S.rows = await api(`/api/rows?run=${S.run.run_id}`);
-  el('run').textContent = 'run ⏎';
-  strip(); apply(); S.i = 0; select();
+  el('run').textContent = 'Run';
+  renderTop(); apply(); S.i = 0; open_();
 }
 
-function strip() {
+function renderTop() {
   const s = S.run, m = s.money;
   el('m-proc').textContent = rs(s.processed_paise, true);
   el('m-post').textContent = rs(m.PROVEN, true);
@@ -52,172 +47,225 @@ function strip() {
   el('m-unex').textContent = rs(m.CONTRADICTED, true);
   el('m-wrong').textContent = s.wrong;
   el('m-wrong').className = 'v ' + (s.wrong ? 'warn' : 'ok');
-  el('barmeta').innerHTML = `${s.run_id} · seed ${s.seed} · ` +
-    `<b>${s.seconds}s</b> · exact <b>${(s.exact * 100).toFixed(1)}%</b> · ` +
-    `precision <b>${s.precision.toFixed(3)}</b> · ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>`;
+  el('barmeta').innerHTML = `${s.run_id} · seed ${s.seed} · <b>${s.seconds}s</b> · ` +
+    `exact <b>${(s.exact * 100).toFixed(1)}%</b> · precision <b>${s.precision.toFixed(3)}</b> · ` +
+    `blocking ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>`;
 }
 
-/* ---------------------------------------------------------------- ledger */
+/* ------------------------------------------------------------------ ledger */
 
 function apply() {
-  const q = S.filter.toLowerCase();
-  S.view = S.rows.filter(r =>
-    (!S.vf || r.verdict === S.vf) &&
-    (!q || r.id.includes(q) || r.date.includes(q) || r.verdict.toLowerCase().startsWith(q)));
+  const q = S.q.toLowerCase();
+  S.view = S.rows.filter(r => (!S.vf || r.verdict === S.vf) &&
+    (!q || r.id.includes(q) || r.date.includes(q)));
   el('count').textContent = `${S.view.length}/${S.rows.length}`;
   paint();
 }
 
-function glyph(g) {
-  return `<span class=gly>${g.map(v =>
-    `<i class="${v === 1 ? 'y' : v === 0 ? 'n' : 'x'}"></i>`).join('')}</span>`;
-}
-
-/* Residual drawn against its own tolerance band, centred on zero. Width is the
-   fraction of the bound consumed; side is the sign. */
-function resbar(ratio, verdict) {
-  if (ratio === null || ratio === undefined) return '<span class=res><i class=tr></i></span>';
-  const f = Math.max(-1, Math.min(1, ratio));
-  const w = Math.abs(f) * 50;
-  const left = f < 0 ? 50 - w : 50;
-  return `<span class=res><i class=tr></i><i class=md></i>
-    <i class=fl style="left:${left}%;width:${Math.max(w, 1.2)}%;background:${vc[verdict]}"></i></span>`;
-}
+const gly = g => `<span class=gly>${g.map(v =>
+  `<i class="${v === 1 ? 'y' : v === 0 ? 'n' : 'x'}"></i>`).join('')}</span>`;
 
 function paint() {
-  if (!S.view.length) { el('ledger').innerHTML = '<div class=empty>no rows</div>'; return; }
+  if (!S.view.length) return void (el('ledger').innerHTML = '<div class=empty>no rows</div>');
   el('ledger').innerHTML = S.view.map((r, i) => `<div class="row${i === S.i ? ' sel' : ''}" data-i=${i}>
-    <span class=id>${r.id.replace('setl_', '')}</span>
-    ${glyph(r.glyph)}
+    <span class=id>${r.id.replace('setl_', '')}</span>${gly(r.glyph)}
     <span class=amt>${rs(r.amount)}</span>
-    <span class=cnt>${r.orders || '·'}</span>
-    <span class="vd v-${r.verdict}">${r.verdict.slice(0, 4)}</span>
-  </div>`).join('');
-  const sel = el('ledger').querySelector('.row.sel');
-  if (sel) sel.scrollIntoView({ block: 'nearest' });
+    <span class="vd v-${r.verdict}">${r.verdict.slice(0, 4)}</span></div>`).join('');
+  el('ledger').querySelector('.row.sel')?.scrollIntoView({ block: 'nearest' });
 }
 
-/* ----------------------------------------------------------------- proof */
+/* -------------------------------------------------------------- flow chart
+ * A Sankey. Width carries value, so composition is readable without reading a
+ * number: one order dominating a settlement looks different from thirty even
+ * ones, and both look different from a settlement whose fees are eating it.
+ * Geometry comes from the API; this only paints it.
+ */
+function flow(g) {
+  if (!g.nodes.length) return '';
+  const W = 860, H = g.height, PAD = 66;
+  const X = f => PAD + f * (W - PAD * 2);
+  const byId = Object.fromEntries(g.nodes.map(n => [n.id, n]));
+  const set = byId.settlement, bank = byId.bank;
+  if (!set || !bank) return '';
 
-async function select() {
+  const lanes = g.nodes.filter(n => n.kind === 'order' || n.kind === 'remainder');
+  const total = lanes.reduce((a, n) => a + n.paise, 0) || 1;
+
+  // Ribbons stack on the settlement bar in the same order as the lanes, so the
+  // eye can follow a single order across without tracing a line.
+  const span = lanes.reduce((a, n) => a + n.h, 0) || 1;
+  let acc = set.y;
+  const ribbons = lanes.map(n => {
+    // Scaled so the ribbons exactly fill the settlement bar: a ribbon that
+    // changes width in flight would be drawing value that does not exist.
+    const h = (n.h / span) * set.h;
+    const x1 = X(0) + 8, x2 = X(set.x), mid = (x1 + x2) / 2;
+    const y1 = n.y, y2 = acc; acc += h;
+    const d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2} ` +
+              `L${x2},${y2 + h} C${mid},${y2 + h} ${mid},${y1 + n.h} ${x1},${y1 + n.h} Z`;
+    const dim = n.kind === 'remainder';
+    return `<path d="${d}" fill="url(#${dim ? 'ribd' : 'rib'})" opacity="${dim ? .28 : .62}">
+      <title>${n.label} · ${rs(n.paise)}</title></path>`;
+  }).join('');
+
+  const laneRects = lanes.map(n => n.kind === 'remainder' ? `
+    <rect x="${X(0)}" y="${n.y}" width="8" height="${Math.max(n.h, 2)}" rx="2"
+      fill="none" stroke="var(--dim2)" stroke-width="1" stroke-dasharray="2 2"/>
+    <text x="${X(0) - 8}" y="${n.y + n.h / 2}" text-anchor=end class=fl-lbl
+      style="fill:var(--dim2)">${esc(n.label)}</text>
+    <text x="${X(0) - 8}" y="${n.y + n.h / 2 + 11}" text-anchor=end class=fl-cap>COLLAPSED</text>` : `
+    <rect x="${X(0)}" y="${n.y}" width="8" height="${Math.max(n.h, 2)}" rx="2" fill="var(--acc)"/>
+    ${n.h > 8 ? `<text x="${X(0) - 8}" y="${n.y + n.h / 2 + 3}" text-anchor="end"
+      class=fl-lbl>${esc(n.label)}</text>` : ''}`).join('');
+
+  const fee = byId.fee;
+  const feeArt = fee ? (() => {
+    const x1 = X(set.x), x2 = X(fee.x), y1 = set.y + 12, y2 = fee.y + 12;
+    return `<path d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}"
+      stroke="var(--warn)" stroke-width="1.4" fill=none opacity=".62" stroke-dasharray="3 3"/>
+      <text x="${x2 - 6}" y="${y2 + 3}" text-anchor=end class=fl-amt
+        style="fill:var(--warn)">−${rs(-fee.paise)}</text>
+      <text x="${x2 - 6}" y="${y2 + 15}" text-anchor=end class=fl-cap>FEES + GST</text>`;
+  })() : '';
+
+  const bars = `
+    <rect x="${X(set.x)}" y="${set.y}" width="11" height="${set.h}" rx="3" fill="var(--ok)" opacity=".82"/>
+    <text x="${X(set.x) + 18}" y="${set.y + 13}" class=fl-amt>${rs(set.paise)}</text>
+    <text x="${X(set.x) + 18}" y="${set.y + 25}" class=fl-cap>NET OF ${esc(set.sub.toUpperCase())}</text>
+    <path d="M${X(set.x) + 11},${set.y + set.h / 2 - 16} C${X(0.8)},${set.y + set.h / 2 - 16}
+      ${X(0.8)},${set.y + set.h / 2 - 16} ${X(1) - 11},${set.y + set.h / 2 - 16}
+      L${X(1) - 11},${set.y + set.h / 2 + 16} C${X(0.8)},${set.y + set.h / 2 + 16}
+      ${X(0.8)},${set.y + set.h / 2 + 16} ${X(set.x) + 11},${set.y + set.h / 2 + 16} Z"
+      fill="url(#rib2)" opacity=".55"/>
+    <rect x="${X(1) - 11}" y="${set.y}" width="11" height="${set.h}" rx="3" fill="var(--acc)" opacity=".85"/>
+    <text x="${X(1) - 18}" y="${set.y + 13}" text-anchor=end class=fl-amt>${rs(bank.paise)}</text>
+    <text x="${X(1) - 18}" y="${set.y + 25}" text-anchor=end class=fl-cap>BANK CREDIT</text>`;
+
+  return `<svg class=flow viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id=rib x1=0 x2=1><stop offset=0 stop-color="var(--acc)" stop-opacity=".55"/>
+        <stop offset=1 stop-color="var(--ok)" stop-opacity=".5"/></linearGradient>
+      <linearGradient id=rib2 x1=0 x2=1><stop offset=0 stop-color="var(--ok)" stop-opacity=".55"/>
+        <stop offset=1 stop-color="var(--acc)" stop-opacity=".55"/></linearGradient>
+      <linearGradient id=ribd x1=0 x2=1><stop offset=0 stop-color="var(--dim2)" stop-opacity=".5"/>
+        <stop offset=1 stop-color="var(--dim2)" stop-opacity=".35"/></linearGradient>
+    </defs>
+    ${ribbons}${laneRects}${feeArt}${bars}
+    <text x="${X(0)}" y="14" class=fl-cap>ORDERS</text></svg>`;
+}
+
+/* --------------------------------------------------------------- case file */
+
+async function open_() {
   const r = S.view[S.i];
-  if (!r) { el('proof').innerHTML = '<div class=empty>no selection</div>'; return; }
+  if (!r) return void (el('right').innerHTML = '<div class=empty>no selection</div>');
   paint();
   let d = S.cache.get(r.id);
-  if (!d) {
-    d = await api(`/api/settlement?run=${S.run.run_id}&id=${r.id}`);
-    S.cache.set(r.id, d);
-  }
-  if (S.view[S.i] && S.view[S.i].id !== r.id) return;  // moved on while fetching
-  renderProof(d); renderChecks(d);
+  if (!d) { d = await api(`/api/settlement?run=${S.run.run_id}&id=${r.id}`); S.cache.set(r.id, d); }
+  if (S.view[S.i]?.id !== r.id) return;
+  el('right').innerHTML = caseFile(d);
 }
 
-function renderProof(d) {
+function caseFile(d) {
   const p = d.proofs[0];
-  el('proofmeta').textContent = d.layer;
+  const gate = d.postable
+    ? `<div class="gate y"><span class="b ok">AUTO-POST ELIGIBLE</span>
+       <span class=w>Exactly one explanation satisfies every constraint, and the
+       kernel re-derived it from source records.</span></div>`
+    : `<div class="gate n"><span class="b warn">POSTING BLOCKED</span>
+       <span class=w>${d.verdict === 'AMBIGUOUS'
+         ? `${d.proofs.length} explanations satisfy every constraint. Arithmetic cannot choose between them, so the engine does not.`
+         : 'No subset of any candidate window satisfies the amount constraint.'}</span></div>`;
 
-  const head = `<div class=hdr><span class=sid>${d.id}</span>
-    <span class="vd v-${d.verdict}">${d.verdict}</span>
-    <span class=amt>${rs(d.amount)}</span></div>
-    <div class=sub>${d.date} · utr ${d.utr || '—'} · ${d.exhaustive ? 'search exhaustive' : 'search capped'}</div>`;
+  const hero = p ? `<div class=hero>
+    <h4>Evidence</h4>
+    <div class=hint>Ribbon width is value. ${p.orders.length} orders flow into the
+      settlement; fees leave it; the credit lands on the right.</div>
+    ${flow(d.graph)}</div>` : '';
 
-  if (!p) {
-    return void (el('proof').innerHTML = head + `
-      <h4>no accepted explanation</h4>
-      ${d.unsat_core.map(c => `<div class=alt><div class=ai>${esc(c)}</div></div>`).join('')
-        || '<div class=empty>out of envelope</div>'}
-      <p class=sub style="margin-top:14px;line-height:1.6">No subset of any
-      candidate window satisfies the amount constraint. The engine names the
-      constraint that fails rather than forcing a plausible answer.</p>`);
-  }
+  const ledger = p ? `<div class=blk><h4>Composition</h4><div class=lg>
+    <div class=l><span class=a>gross · ${p.orders.length} orders</span><span class=b>${rs(p.gross)}</span></div>
+    <div class=l><span class=a>fees + GST</span><span class="b neg">−${rs(p.fee)}</span></div>
+    <div class=l><span class=a>adjustments</span><span class=b>${p.adjustment ? rs(p.adjustment) : '₹0.00'}</span></div>
+    <div class="l t"><span class=a>net</span><span class=b>${rs(p.net)}</span></div>
+    <div class=l><span class=a>bank credit</span><span class=b>${rs(d.amount)}</span></div>
+    <div class=l><span class=a>residual</span><span class=b>${rs(p.residual)}</span></div>
+    <div class=l><span class=a>bound · ${p.orders.length} × 1 paisa</span><span class=b>±${p.tolerance} paise</span></div>
+    <div class=l><span class=a>bound consumed</span><span class=b>${p.tolerance ? ((Math.abs(p.residual) / p.tolerance) * 100).toFixed(0) : 0}%</span></div>
+  </div></div>` : '';
 
-  const eq = `<div class=eq>
-    <div class=l><span class=lb>gross · ${p.orders.length} orders</span><span class=vl>${rs(p.gross)}</span></div>
-    <div class=l><span class=lb>fees + GST</span><span class="vl neg">−${rs(p.fee)}</span></div>
-    <div class=l><span class=lb>adjustments</span><span class=vl>${p.adjustment ? rs(p.adjustment) : '₹0.00'}</span></div>
-    <div class="l t"><span class=lb>net</span><span class=vl>${rs(p.net)}</span></div>
-    <div class="l q"><span class=lb>bank credit</span><span class=vl>${rs(d.amount)}</span></div>
-    <div class=l><span class=lb>residual</span><span class=vl>${rs(p.residual)}</span></div>
-    <div class=l><span class=lb>bound · ${p.orders.length} × 1 paisa</span><span class=vl>±${p.tolerance} paise</span></div>
-  </div>`;
+  const checks = d.checks.length ? `<div class=blk><h4>Constraints</h4>
+    ${d.checks.map(c => `<div class=ck><div class=t>
+      <span class="mk ${c.ok ? 'ok' : 'warn'}">${c.ok ? '✓' : '✗'}</span>
+      <span>${c.name}</span></div><div class=d>${esc(c.detail)}</div></div>`).join('')}</div>` : '';
 
-  const orders = `<h4>orders in this explanation</h4><div class=ord>
+  const orders = p ? `<div class=blk><h4>Orders in this explanation</h4><div class=ords>
     <div class="o h"><span>order</span><span>method</span><span>gross</span><span>net</span></div>
     ${p.orders.map(o => `<div class=o><span>${o.id.replace('ord_', '')}</span>
       <span class=mth>${o.method}</span><span>${rs(o.gross)}</span><span>${rs(o.net)}</span></div>`).join('')}
-  </div>`;
+  </div></div>` : '';
 
-  const alts = d.proofs.length > 1 ? `<h4>competing explanations · ${d.proofs.length}</h4>
-    ${d.proofs.map((q, i) => `<div class=alt>
-      <div class=ah>#${i + 1} · ${q.orders.length} orders · net ${rs(q.net)} · residual ${rs(q.residual)}</div>
+  const alts = d.proofs.length > 1 ? `<div class=blk><h4>Competing explanations · ${d.proofs.length}</h4>
+    ${d.proofs.map((q, i) => `<div class=alt><div class=ah>#${i + 1} · ${q.orders.length} orders ·
+      net ${rs(q.net)} · residual ${rs(q.residual)}</div>
       <div class=ai>${q.orders.map(o => o.id.replace('ord_', '')).join(' ')}</div></div>`).join('')}
-    <p class=sub style="line-height:1.6">More than one subset satisfies every
-    constraint exactly. Arithmetic cannot choose between them, so the engine
-    reports the field rather than picking one. Resolving this needs evidence
-    beyond the amount — a reference, a counterparty — not a better search.</p>` : '';
+    <div class=note>Every one of these satisfies the amount constraint exactly.
+    Choosing between them needs evidence beyond the amount — a reference, a
+    counterparty — not a better search.</div></div>` : '';
 
-  el('proof').innerHTML = head + eq + orders + alts;
+  const core = (!p && d.unsat_core.length) ? `<div class=blk><h4>Contradiction</h4>
+    ${d.unsat_core.map(c => `<div class=ck><div class=t><span class="mk warn">✗</span>
+      <span>${esc(c)}</span></div></div>`).join('')}
+    <div class=note>The engine names the constraint that fails rather than forcing
+    a plausible answer.</div></div>` : '';
+
+  return `<div class=case>
+    <div class=chd><span class=sid>${d.id}</span>
+      <span class="tag v-${d.verdict}">${d.verdict}</span>
+      <span class="amt v-${d.verdict}">${rs(d.amount)}</span></div>
+    <div class=csub>${d.date} · utr ${d.utr || '—'} · resolved by ${esc(d.layer)}
+      · ${d.exhaustive ? 'search exhaustive' : 'search capped'}</div>
+    ${gate}${hero}
+    <div class=cols>${ledger}${checks}</div>
+    ${orders}${alts}${core}
+    <div class=note style="padding:14px 0 0">Every value above is recomputed from
+    the order records by <code>verdict.check</code> — 28 lines, sharing no code
+    with the solver that produced the proof. A bug in the prover can cost recall;
+    it cannot post a wrong entry.</div>
+  </div>`;
 }
 
-function renderChecks(d) {
-  const p = d.proofs[0];
-  const post = d.postable
-    ? `<div class=post><span class="b ok">AUTO-POST ELIGIBLE</span>
-       <div class=sub style="margin-top:4px">unique, kernel-checked</div></div>`
-    : `<div class=post><span class="b warn">POSTING BLOCKED</span>
-       <div class=sub style="margin-top:4px">${d.verdict === 'AMBIGUOUS'
-         ? 'explanation is not unique' : 'no explanation satisfies the constraints'}</div></div>`;
-
-  const stat = p ? `<div class=stat>
-    <div class=l><span>orders</span><span>${p.orders.length}</span></div>
-    <div class=l><span>residual</span><span>${p.residual} paise</span></div>
-    <div class=l><span>bound</span><span>±${p.tolerance} paise</span></div>
-    <div class=l><span>consumed</span><span>${p.tolerance ? ((Math.abs(p.residual) / p.tolerance) * 100).toFixed(0) : 0}% of bound</span></div>
-    <div class=l><span>candidates</span><span>${d.proofs.length}</span></div>
-    <div class=l><span>layer</span><span>${esc(d.layer)}</span></div>
-  </div>` : '';
-
-  const checks = d.checks.map(c => `<div class=ck>
-    <div class=t><span class="mk ${c.ok ? 'ok' : 'warn'}">${c.ok ? '✓' : '✗'}</span>
-      <span class=nm>${c.name}</span></div>
-    <div class=d>${esc(c.detail)}</div></div>`).join('');
-
-  el('checks').innerHTML = post + stat + (checks || '<div class=empty>—</div>');
-}
-
-/* -------------------------------------------------------------- keyboard */
+/* ------------------------------------------------------------------ input */
 
 function move(n) {
   if (!S.view.length) return;
-  S.i = Math.max(0, Math.min(S.view.length - 1, S.i + n));
-  select();
+  S.i = Math.max(0, Math.min(S.view.length - 1, S.i + n)); open_();
 }
-function setVF(v) { S.vf = v; S.i = 0; apply(); select(); }
-
+function setVF(v) {
+  S.vf = v; S.i = 0;
+  [...el('tabs').children].forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  apply(); open_();
+}
 el('run').onclick = run;
-el('ledger').onclick = e => {
-  const r = e.target.closest('.row'); if (!r) return;
-  S.i = +r.dataset.i; select();
-};
-el('filter').addEventListener('input', e => { S.filter = e.target.value; S.i = 0; apply(); select(); });
+el('tabs').onclick = e => { const b = e.target.closest('b'); if (b) setVF(b.dataset.v); };
+el('ledger').onclick = e => { const r = e.target.closest('.row'); if (r) { S.i = +r.dataset.i; open_(); } };
+el('filter').addEventListener('input', e => { S.q = e.target.value; S.i = 0; apply(); open_(); });
 el('filter').addEventListener('keydown', e => {
-  if (e.key === 'Escape') { e.target.value = ''; S.filter = ''; e.target.blur(); apply(); select(); }
+  if (e.key === 'Escape') { e.target.value = ''; S.q = ''; e.target.blur(); apply(); open_(); }
   e.stopPropagation();
 });
-
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
   if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); move(1); }
   else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); move(-1); }
-  else if (k === 'g') { S.i = 0; select(); }
-  else if (k === 'G') { S.i = S.view.length - 1; select(); }
+  else if (k === 'g') { S.i = 0; open_(); }
+  else if (k === 'G') { S.i = S.view.length - 1; open_(); }
   else if (k === '/') { e.preventDefault(); el('filter').focus(); }
   else if (k === '1') setVF('PROVEN');
   else if (k === '2') setVF('AMBIGUOUS');
   else if (k === '3') setVF('CONTRADICTED');
-  else if (k === '0') setVF(null);
+  else if (k === '0') setVF('');
   else if (k === 'Enter') run();
 });
-
 run();
