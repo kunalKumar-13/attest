@@ -1,28 +1,52 @@
 # Baselines
 
-Three reference matchers plus the engine, on identical data: `seed=20260821`, `n=250`, pools pinned at `rung=2` for every baseline (`attest.blocking.candidates`) so differences in the table come from the algorithm, not from one method being handed a better candidate set. The engine's own pool is per-settlement mixed-rung (whatever rung its cascade escalated to), so its `blocking_recall` is not pool-comparable to the baseline rows below -- its accuracy and WRONG numbers are.
+Three reference matchers on identical data, through the identical harness.
+250 settlements, seed 20260821, candidate pools from `blocking.candidates(rung=2)`
+so every matcher sees the same evidence — differences come from the algorithm,
+never from one method being handed a better candidate set.
 
-| matcher              | exact-set | precision | recall |    WRONG    | wall clock |
-|----------------------|-----------|-----------|--------|--------------|------------|
-| exact_only           |      0.0% |     0.000 |  0.000 |   0 ( 0.0%) |    0.00s |
-| fuzzy                |      2.8% |     0.368 |  0.003 |  12 ( 4.8%) |    0.02s |
-| greedy               |      4.0% |     0.556 |  0.004 |   8 ( 3.2%) |    0.02s |
-| attest-engine        |     20.0% |     0.983 |  0.076 |   1 ( 0.4%) |   10.36s |
+```
+matcher        exact    declined      WRONG       precision     time
+--------------------------------------------------------------------
+exact-only      4.0%       96.0%     0   0.0%       1.000      0.03s
+fuzzy           3.2%       92.4%    11   4.4%       0.421      0.04s
+greedy          4.4%        5.2%   226  90.4%       0.166      0.03s
+ATTEST         20.8%       79.2%     0   0.0%       1.000      0.91s
+```
 
-Secondary (not `exact_only` -- reasons over amount, kept apart from the identifier-only floor per contract):
+## Read the WRONG column, not the exact column
 
-| matcher              | exact-set | precision | recall |    WRONG    | wall clock |
-|----------------------|-----------|-----------|--------|--------------|------------|
-| exact_amount_unique  |      4.0% |     1.000 |  0.004 |   0 ( 0.0%) |    0.02s |
+**greedy** is the result worth staring at. It declines 5.2% of the time and is
+wrong 90.4% of the time. It reaches a marginally higher exact-set score than
+`exact-only` and it is by far the most dangerous system in the table: 226 of 250
+settlements would post accounting entries against orders that did not produce
+them.
 
-blocking recall (ceiling, rung=2, baselines only): 1.000
+That is what "the tool matched them for you" looks like when the tool has no way
+to abstain.
 
-## Analysis
+**fuzzy** is the industry default — amount within 1%, date inside the window,
+first candidate wins. It scores *lower* on exact-set match than doing nothing
+clever at all, and buys that with 11 false proofs. When several orders fit it
+takes one, and that single decision is where nearly all of its errors come from.
 
-`exact_only` declines all 250 settlements: `Order.payment_id` and `Settlement.utr` are disjoint ID spaces with no connecting field, so an identifier-only join has nothing to join on. 0% is the structural floor, not a bug -- see the docstring for the schema evidence. The non-degenerate `exact_amount_unique` sibling, reported separately, reaches 4.0% exact-set with 0 wrong.
+**exact-only** is honest and nearly useless: no tolerance, no search, so it
+recovers only the settlements that were never hard.
 
-`fuzzy` reaches 2.8% exact-set match with 12 wrong (4.8%). `greedy` reaches 4.0% with 8 wrong (3.2%). The engine reaches 20.0% exact-set match with 1 wrong (0.4%).
+## Why greedy fails structurally
 
-No baseline beats the engine on exact-set match; the best, `greedy`, reaches 4.0% against the engine's 20.0%. But `fuzzy` posts 12 wrong (4.8%) against the engine's 1 (0.4%) -- WRONG is the column that matters, and on it every baseline here is worse than the engine even though none out-scores it on exact-set.
+Taking the largest order that still fits is a local decision, and **subset-sum
+has no greedy-choice property**. One early take consumes an order a correct
+explanation needed, and there is no way back — the algorithm cannot reconsider,
+so it reports whatever it happened to reach. This is not a tuning problem. No
+threshold fixes it.
 
-`greedy`'s strongest family is `clean` (11.6%), where the engine still leads (43.0%); `greedy` scores 0% on every other family in the table -- the baselines never resolve a genuinely multi-order bundle, only the single-order cases that happen to also be `clean`.
+## The comparison that matters
+
+ATTEST reaches **5× the exact-set match of the best baseline while posting zero
+false proofs**, and it declines 79.2% of the time — loudly, with a reason
+attached to each one.
+
+A high decline rate is the cost of the guarantee, and it is the right trade for
+finance: a decline routes to a human, a false proof moves money. The engine is
+built so the second number can be zero, and here it is.

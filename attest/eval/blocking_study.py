@@ -1044,7 +1044,7 @@ def report(ds: Dataset, out_path: Path, confirm_n: int = 0) -> str:
     w("|---|---:|---:|---:|---:|---:|---|")
     for name, verdict in (("(2)>(3)>(4)", "**shipped -- keep**"),
                           ("(2)", "-1 exact, lower ceiling"),
-                          ("(2)>(4)", "**+1 false proof**"),
+                          ("(2)>(4)", "+1 false proof (does not replicate, S10)"),
                           ("(2+4)", "-32 exact for no gain"),
                           ("(2+3+4)", "-39 exact for no gain"),
                           ("(1)>(2)>(3)>(4)", "**+9 false proofs**")):
@@ -1063,11 +1063,16 @@ def report(ds: Dataset, out_path: Path, confirm_n: int = 0) -> str:
       f"is one false proof: WRONG {shipped.rep.wrong} -> {drop3.rep.wrong}, precision "
       f"{shipped.rep.precision:.3f} -> {drop3.rep.precision:.3f}.**")
     w("")
-    w("A 3% pool saving is not worth a false proof. This is the study's main practical "
+    w("The false proof in that sentence is a single event and **it does not replicate "
+      "at n=1000, where the signs reverse** -- see section 10 before quoting it. What "
+      "survives both samples is the first clause, and it is the study's main practical "
       "warning: **the STATIC sweep and the LIVE run disagree about the value of a "
-      "rung, and the LIVE run is the one that posts entries.** Any future ladder "
-      "change argued from terminal-rung pool sizes is arguing from a measurement the "
-      "engine does not take.")
+      "rung, and the LIVE run is the one that posts entries.** A rung reached by 1 "
+      f"settlement in {n} cannot be worth 26% of anything. Any future ladder change "
+      "argued from terminal-rung pool sizes is arguing from a measurement the engine "
+      "does not take. Dropping lag 3 is not harmful on this evidence; it is simply not "
+      "*worth* anything, and an unmeasurable change to a frozen file is not a change "
+      "worth defending in review.")
     w("")
     w("### Tried and rejected: a union rung 0, `LAG_LADDER = ((2, 4),)`")
     w("")

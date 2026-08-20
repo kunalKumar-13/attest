@@ -73,6 +73,29 @@ benchmark cannot be tuned to flatter the engine.
 **A decline is a correct outcome.** The engine is built to refuse rather than
 guess, so `declined` is a feature and `WRONG` is the only real failure.
 
+### Against reference matchers, same data, same pools
+
+```
+matcher        exact    declined      WRONG       precision
+-----------------------------------------------------------
+exact-only      4.0%       96.0%     0   0.0%       1.000
+fuzzy           3.2%       92.4%    11   4.4%       0.421
+greedy          4.4%        5.2%   226  90.4%       0.166
+ATTEST         20.8%       79.2%     0   0.0%       1.000
+```
+
+**Read the WRONG column.** `greedy` declines 5% of the time and is wrong 90% of
+the time — 226 of 250 settlements posted against orders that did not produce
+them. That is what a matcher with no way to abstain actually does. `fuzzy`, the
+industry default, scores *below* doing nothing clever and buys it with 11 false
+proofs.
+
+Greedy fails structurally, not by tuning: taking the largest order that fits is a
+local decision, and subset-sum has no greedy-choice property. One early take
+consumes an order a correct explanation needed and there is no way back.
+
+Full methodology in [eval/BASELINES.md](attest/eval/BASELINES.md).
+
 ### A feature that was measured and then disabled
 
 Cross-settlement constraint propagation (`attest/evidence.py`) works — an order
