@@ -16,11 +16,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from attest.certificate import issue
 from attest.eval.harness import Timer, evaluate
+from attest.exceptions import classify
 from attest.graph import build as build_graph
 from attest.generate.generator import build
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
+from attest.policy import Costs, RiskModel, calibrate, decide
 from attest.verdict import Finding, Verdict
 
 #: Runs are held in memory and addressed by id so the UI can drill into a
@@ -38,6 +41,9 @@ class Run:
     truth: list[TrueMatch]
     findings: list[Finding]
     report: Any
+    pools: dict[str, list[Order]] = field(default_factory=dict)
+    risk: Any = None
+    exceptions: dict[str, Any] = field(default_factory=dict)
     audit: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -58,6 +64,17 @@ def execute(n: int, seed: int) -> Run:
         preds, pools, findings = run(ds.settlements, ds.orders)
     _audit(log, "reconcile", f"{len(findings):,} settlements decided in {t.elapsed:.2f}s")
 
+    # Calibrated on a DIFFERENT portfolio. Fitting the risk model on the run it
+    # then judges would report the policy's memory as its accuracy.
+    cal = build(max(n, 250), seed=seed ^ 0x5EED)
+    _, _, cal_findings = run(cal.settlements, cal.orders)
+    risk = calibrate({0: (cal_findings,
+                          {t_.settlement_id: set(t_.order_ids) for t_ in cal.truth})})
+    _audit(log, "calibrate",
+           f"risk model fitted on {risk.calibrated_on} proven results from a "
+           f"held-out portfolio; strata: "
+           + ", ".join(f"{'/'.join(k)}={v[0]}/{v[1]}" for k, v in risk.rates.items()))
+
     rep = evaluate(ds.settlements, ds.truth, preds, pools, t.elapsed)
     counts = {v: sum(1 for f in findings if f.verdict is v) for v in Verdict}
     _audit(log, "verdicts",
@@ -68,8 +85,23 @@ def execute(n: int, seed: int) -> Run:
     _audit(log, "policy", "auto-post eligible: PROVEN only — a unique, "
                           "kernel-checked explanation")
 
-    r = Run(f"run_{len(_RUNS) + 1:04d}", seed, ds.settlements, ds.orders,
-            ds.truth, findings, rep, log)
+    settle_by_id = {x.settlement_id: x for x in ds.settlements}
+    exceptions = {}
+    for i, f in enumerate(findings):
+        e = classify(f, settle_by_id[f.settlement_id], pools[f.settlement_id], i)
+        if e is not None:
+            exceptions[f.settlement_id] = e
+    _audit(log, "exceptions",
+           f"{len(exceptions):,} settlements carry a work item with a reason "
+           f"code and a stated residual")
+
+    # Keyword-constructed on purpose: this dataclass has grown fields in the
+    # middle more than once, and positional construction silently rebinds every
+    # argument after the insertion point rather than failing.
+    r = Run(run_id=f"run_{len(_RUNS) + 1:04d}", seed=seed,
+            settlements=ds.settlements, orders=ds.orders, truth=ds.truth,
+            findings=findings, report=rep, audit=log, pools=pools,
+            risk=risk, exceptions=exceptions)
     _RUNS[r.run_id] = r
     return r
 
@@ -81,6 +113,10 @@ def get(run_id: str) -> Run | None:
 # --------------------------------------------------------------------------
 # Serialisation
 # --------------------------------------------------------------------------
+
+
+def _judge(r: Run, f: Finding, s: Settlement):
+    return decide(f, s, r.risk or RiskModel(), Costs())
 
 
 def summary(r: Run) -> dict[str, Any]:
@@ -106,7 +142,36 @@ def summary(r: Run) -> dict[str, Any]:
         "seconds": round(r.report.seconds, 3),
         "by_case": {k: {"hit": v[0], "n": v[1]} for k, v in r.report.by_case.items()},
         "audit": r.audit,
+        "settled_paise": sum(e.settled.net_paise for e in r.exceptions.values()
+                             if e.settled),
+        "disputed_paise": sum(e.settled.disputed_paise for e in r.exceptions.values()
+                              if e.settled),
+        "unexplained_paise": sum(e.unexplained_paise for e in r.exceptions.values()
+                                 if not e.settled),
+        "by_reason": _by_reason(r),
+        "decisions": _decisions(r),
     }
+
+
+def _by_reason(r: Run) -> list[dict[str, Any]]:
+    agg: dict[str, dict[str, Any]] = {}
+    for e in r.exceptions.values():
+        a = agg.setdefault(e.reason.value,
+                           {"reason": e.reason.value, "n": 0, "unexplained": 0,
+                            "amount": 0, "high": 0, "next_step": e.next_step})
+        a["n"] += 1
+        a["unexplained"] += e.unexplained_paise
+        a["amount"] += e.amount_paise
+        a["high"] += int(e.severity.value == "HIGH")
+    return sorted(agg.values(), key=lambda x: -x["amount"])
+
+
+def _decisions(r: Run) -> dict[str, int]:
+    st = {x.settlement_id: x for x in r.settlements}
+    out = {"AUTO_POST": 0, "REVIEW": 0, "BLOCK": 0}
+    for f in r.findings:
+        out[_judge(r, f, st[f.settlement_id]).decision.value] += 1
+    return out
 
 
 def rows(r: Run) -> list[dict[str, Any]]:
@@ -140,8 +205,22 @@ def rows(r: Run) -> list[dict[str, Any]]:
             "ratio": (p.residual_paise / p.tolerance_paise) if p and p.tolerance_paise else None,
             "glyph": glyph,
             "layer": f.layer,
+            "reason": (r.exceptions[s.settlement_id].reason.value
+                       if s.settlement_id in r.exceptions else None),
+            "severity": (r.exceptions[s.settlement_id].severity.value
+                         if s.settlement_id in r.exceptions else None),
+            "unexplained": (r.exceptions[s.settlement_id].unexplained_paise
+                            if s.settlement_id in r.exceptions else 0),
         })
     return out
+
+
+def _judgement_json(r: Run, f: Finding, s: Settlement) -> dict[str, Any]:
+    j = _judge(r, f, s)
+    return {"decision": j.decision.value,
+            "expected_loss_paise": j.expected_loss_paise,
+            "p_error": j.p_error,
+            "reasons": list(j.reasons)}
 
 
 def detail(r: Run, sid: str) -> dict[str, Any] | None:
@@ -199,4 +278,7 @@ def detail(r: Run, sid: str) -> dict[str, Any] | None:
         "space": f.space.to_json() if hasattr(f.space, "to_json") else None,
         "uniqueness": f.uniqueness_claim,
         "coincidence": f.coincidence.to_json() if hasattr(f.coincidence, "to_json") else None,
+        "exception": (r.exceptions[sid].to_json() if sid in r.exceptions else None),
+        "judgement": _judgement_json(r, f, s),
+        "certificate": issue(f, s, _judge(r, f, s)).to_json(),
     }

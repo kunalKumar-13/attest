@@ -11,6 +11,14 @@ const S = { run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map()
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SHORT = {
+  MULTIPLE_VALID_ASSIGNMENTS: 'multi', NO_VALID_ASSIGNMENT: 'none',
+  UNKNOWN_ADJUSTMENT: 'adj', REFUND_MISMATCH: 'refund', CHARGEBACK: 'cb',
+  PARTIAL_SETTLEMENT: 'split', MISSING_TRANSACTION: 'missing',
+  DUPLICATE_AMOUNT: 'dup', TIMING_MISMATCH: 'timing',
+  INSUFFICIENT_EVIDENCE: 'insuff', SEARCH_SPACE_UNCERTAIN: 'local',
+  DATA_QUALITY: 'data',
+};
 const VC = { PROVEN: 'var(--ok)', AMBIGUOUS: 'var(--warn)', CONTRADICTED: 'var(--dead)' };
 
 /* Indian grouping — 4738219 paise shown as "4,738,219" reads as the wrong
@@ -46,9 +54,11 @@ function renderTop() {
   el('m-post').textContent = rs(m.PROVEN, true);
   el('s-post').textContent = `${c.PROVEN} proven`;
   el('b-post').style.width = (m.PROVEN / T * 100).toFixed(2) + '%';
-  el('m-held').textContent = rs(m.AMBIGUOUS + m.CONTRADICTED, true);
-  el('s-held').textContent = `${c.AMBIGUOUS} ambiguous · ${c.CONTRADICTED} contradicted`;
-  el('b-held').style.width = ((m.AMBIGUOUS + m.CONTRADICTED) / T * 100).toFixed(2) + '%';
+  const acct = (m.PROVEN + (s.settled_paise || 0)) / T;
+  el('m-held').textContent = rs(s.settled_paise || 0, true);
+  el('s-held').textContent = `agreed by every explanation · ${(acct * 100).toFixed(1)}% accounted for`;
+  el('b-held').style.width = (acct * 100).toFixed(2) + '%';
+  el('k-held').textContent = 'settled, not proven';
   el('m-wrong').textContent = s.wrong;
   el('s-wrong').textContent = `precision ${s.precision.toFixed(3)} · this seed`;
   el('b-wrong').style.width = Math.max(s.wrong / s.settlements * 100, 0.6).toFixed(2) + '%';
@@ -76,7 +86,10 @@ function paint() {
   el('ledger').innerHTML = S.view.map((r, i) => `<div class="row${i === S.i ? ' sel' : ''}" data-i=${i}>
     <span class=id>${r.id.replace('setl_', '')}</span>${gly(r.glyph)}
     <span class=amt>${rs(r.amount)}</span>
-    <span class="vd v-${r.verdict}">${r.verdict.slice(0, 4)}</span></div>`).join('');
+    <span class="vd v-${r.verdict}">${r.verdict.slice(0, 4)}</span>
+    <span class=rc title="${esc(r.reason || '')}">${r.unexplained
+      ? `<b class=warn>${rs(r.unexplained, true)}</b>`
+      : (r.reason ? SHORT[r.reason] || '' : '')}</span></div>`).join('');
   el('ledger').querySelector('.row.sel')?.scrollIntoView({ block: 'nearest' });
 }
 
@@ -174,14 +187,16 @@ async function open_() {
 
 function caseFile(d) {
   const p = d.proofs[0];
-  const gate = d.postable
-    ? `<div class="gate y"><span class="b ok">AUTO-POST ELIGIBLE</span>
-       <span class=w>Exactly one explanation satisfies every constraint, and the
-       kernel re-derived it from source records.</span></div>`
-    : `<div class="gate n"><span class="b warn">POSTING BLOCKED</span>
-       <span class=w>${d.verdict === 'AMBIGUOUS'
-         ? `${d.proofs.length} explanations satisfy every constraint. Arithmetic cannot choose between them, so the engine does not.`
-         : 'No subset of any candidate window satisfies the amount constraint.'}</span></div>`;
+  const j = d.judgement || {};
+  const gate = j.decision === 'AUTO_POST'
+    ? `<div class="gate y"><span class="b ok">AUTO-POST APPROVED</span>
+       <span class=w>${esc((j.reasons || []).slice(-1)[0] || '')}</span></div>`
+    : `<div class="gate n">
+       <span class="b warn">WHY ATTEST REFUSED</span>
+       <ol class=whys>${(j.reasons || ['no judgement recorded'])
+         .map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+       ${d.exception ? `<div class=nxt><b>Next step</b> ${esc(d.exception.next_step)}</div>` : ''}
+       </div>`;
 
   const hero = p ? `<div class=hero>
     <h4>Evidence</h4>
@@ -199,6 +214,40 @@ function caseFile(d) {
     <div class=l><span class=a>bound · ${p.orders.length} × 1 paisa</span><span class=b>±${p.tolerance} paise</span></div>
     <div class=l><span class=a>bound consumed</span><span class=b>${p.tolerance ? ((Math.abs(p.residual) / p.tolerance) * 100).toFixed(0) : 0}%</span></div>
   </div></div>` : '';
+
+  const ex = d.exception, st = ex && ex.settled;
+  const settled = st && st.order_ids.length ? `<div class=blk>
+    <h4>What is already settled</h4>
+    <div class=lg>
+      <div class=l><span class=a>${st.order_ids.length} orders in ${st.certain ? 'every' : 'every known'} explanation</span><span class=b>${rs(st.net_paise)}</span></div>
+      <div class=l><span class=a>${st.differing_orders} orders in dispute</span><span class="b neg">${rs(st.disputed_paise)}</span></div>
+    </div>
+    <div class=note>${st.certain
+      ? 'These orders belong to this settlement whichever explanation turns out to be right. That part is not in dispute.'
+      : 'The enumerator reached its cap, so these are common to the explanations found rather than to all of them — likely settled, not certainly.'}
+      ${esc(ex.next_step)}</div></div>` : '';
+
+  const partial = ex && ex.partial ? `<div class=blk>
+    <h4>Closest partial explanation</h4>
+    <div class=lg>
+      <div class=l><span class=a>${ex.partial.order_ids.length} orders explain</span><span class=b>${rs(ex.partial.net_paise)}</span></div>
+      <div class=l><span class=a>unexplained</span><span class="b neg">${rs(ex.partial.unexplained_paise)}</span></div>
+    </div>
+    <div class=note>${esc(ex.next_step)}</div></div>` : '';
+
+  const sp = d.space ? `<div class=blk><h4>Search space</h4>
+    <div class=lg>
+      <div class=l><span class=a>input universe</span><span class=b>${d.space.universe.toLocaleString()}</span></div>
+      ${d.space.reductions.map(r => `<div class=l>
+        <span class=a>− ${esc(r.name)} <i class="${r.deterministic ? 'ok' : 'warn'}">${r.deterministic ? 'deterministic' : 'heuristic'}</i></span>
+        <span class=b>${r.removed.toLocaleString()}</span></div>`).join('')}
+      <div class="l t"><span class=a>candidates</span><span class=b>${d.space.candidates.toLocaleString()}</span></div>
+    </div>
+    <div class=note><b class="${d.space.integrity === 'validated' ? 'ok' : 'warn'}">${d.space.integrity.toUpperCase()}</b> — ${esc(d.space.claim)}</div>
+    ${d.coincidence ? `<div class=note style="padding-top:0">
+      <b class="${d.coincidence.cheapness === 'sparse' ? 'ok' : 'warn'}">${d.coincidence.cheapness.toUpperCase()} neighbourhood</b>
+      — ${esc(d.coincidence.note)}</div>` : ''}
+    </div>` : '';
 
   const checks = d.checks.length ? `<div class=blk><h4>Constraints</h4>
     ${d.checks.map(c => `<div class=ck><div class=t>
@@ -234,6 +283,7 @@ function caseFile(d) {
       · ${d.exhaustive ? 'search exhaustive' : 'search capped'}</div>
     ${gate}${hero}
     <div class=cols>${ledger}${checks}</div>
+    ${settled}${partial}${sp}
     ${orders}${alts}${core}
     <div class=note style="padding:14px 0 0">Every value above is recomputed from
     the order records by <code>verdict.check</code> — 28 lines, sharing no code

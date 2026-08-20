@@ -55,6 +55,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.rows(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/exceptions":
+            r = api.get(q.get("run", [""])[0])
+            self._json([e.to_json() for e in r.exceptions.values()] if r
+                       else {"error": "unknown run"}, 200 if r else 404)
+
         elif u.path == "/api/settlement":
             r = api.get(q.get("run", [""])[0])
             d = api.detail(r, q.get("id", [""])[0]) if r else None
