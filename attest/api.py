@@ -114,6 +114,17 @@ def rows(r: Run) -> list[dict[str, Any]]:
     for f in r.findings:
         s = st[f.settlement_id]
         p = f.proofs[0] if f.proofs else None
+        # Five constraint marks, carried on the row itself so the ledger can be
+        # scanned without a request per line. 1 = holds, 0 = fails, -1 = not
+        # reached. Reading WHICH constraint failed down a column is faster than
+        # reading two hundred verdicts.
+        if f.verdict is Verdict.PROVEN:
+            glyph = [1, 1, 1, 1, 1]
+        elif f.verdict is Verdict.AMBIGUOUS:
+            glyph = [1, 1, 1, 0, 1] if f.proofs else [-1, -1, -1, -1, -1]
+        else:
+            glyph = [0, -1, -1, -1, -1]
+
         out.append({
             "id": s.settlement_id,
             "date": s.settled_on.isoformat(),
@@ -122,6 +133,11 @@ def rows(r: Run) -> list[dict[str, Any]]:
             "orders": len(p.order_ids) if p else 0,
             "candidates": len(f.proofs),
             "residual": p.residual_paise if p else s.net_paise,
+            # How much of its own tolerance the proof consumed. A proof sitting
+            # at 3% of its bound and one at 97% both pass; only one of them
+            # should let you sleep, and the ledger shows which.
+            "ratio": (p.residual_paise / p.tolerance_paise) if p and p.tolerance_paise else None,
+            "glyph": glyph,
             "layer": f.layer,
         })
     return out

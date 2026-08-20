@@ -2,213 +2,204 @@
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>ATTEST</title>
 <style>
+/* ATTEST — an investigation console.
+ *
+ * Not a dashboard. A dashboard answers "how are we doing"; an investigator asks
+ * "why do you believe this", and that question is answered by evidence sitting
+ * next to the claim, not two clicks away. So the proof is always on screen, the
+ * ledger is always on screen, and moving between settlements never navigates.
+ *
+ * Monospace dominates because this is a ledger. Numbers must align vertically or
+ * the eye cannot compare them, and comparing them is the entire job.
+ */
 :root{
-  --bg:#0b0d10; --panel:#12151a; --panel2:#171b21; --line:#232831; --line2:#2e343e;
-  --ink:#e7eaf0; --dim:#8a93a3; --dim2:#5d6674;
-  --proven:#3ecf8e; --ambiguous:#e0a33e; --contradicted:#7a838f;
-  --accent:#5b9dd9; 
-  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
-  --sans:ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
+  --bg:#0a0c0f; --rail:#0d1014; --pane:#101419; --pane2:#141a20; --edge:#1c232b;
+  --edge2:#28313b; --ink:#dfe5ec; --dim:#7d8894; --dim2:#4e5866;
+  --ok:#3fcf8e; --warn:#dda43c; --dead:#6b7684; --acc:#5ba3e0;
+  --m:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --s:ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
 }
-@media (prefers-color-scheme:light){:root{
-  --bg:#f7f8fa; --panel:#fff; --panel2:#fafbfc; --line:#e3e6ea; --line2:#d5d9df;
-  --ink:#12151a; --dim:#5f6875; --dim2:#8b94a1;
-  --proven:#12805a; --ambiguous:#8a6410; --contradicted:#5f6875; --accent:#1f6fb8;}}
+@media(prefers-color-scheme:light){:root{
+  --bg:#f4f6f8; --rail:#eceff2; --pane:#fff; --pane2:#f7f9fa; --edge:#dfe4e9;
+  --edge2:#c9d1d9; --ink:#10161d; --dim:#5a6572; --dim2:#8b95a1;
+  --ok:#0f7a52; --warn:#8a6208; --dead:#5a6572; --acc:#15619f;}}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
--webkit-font-smoothing:antialiased;display:flex;height:100vh;overflow:hidden}
-.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--s);
+-webkit-font-smoothing:antialiased;overflow:hidden}
+.n{font-family:var(--m);font-variant-numeric:tabular-nums}
 
-/* ---- sidebar ---- */
-aside{width:212px;flex:0 0 212px;background:var(--panel);border-right:1px solid var(--line);
-display:flex;flex-direction:column;padding:18px 0}
-.brand{padding:0 18px 4px;font-size:16px;font-weight:700;letter-spacing:.14em}
-.brand small{display:block;font-size:10.5px;font-weight:500;letter-spacing:.04em;
-color:var(--dim2);margin-top:3px;text-transform:none}
-nav{margin-top:26px;flex:1}
-nav a{display:flex;align-items:center;gap:9px;padding:7px 18px;color:var(--dim);
-cursor:pointer;font-size:13.5px;border-left:2px solid transparent;user-select:none}
-nav a:hover{color:var(--ink);background:var(--panel2)}
-nav a.on{color:var(--ink);border-left-color:var(--accent);background:var(--panel2)}
-nav a i{width:14px;text-align:center;font-style:normal;opacity:.65;font-size:12px}
-.side-foot{padding:12px 18px 0;border-top:1px solid var(--line);color:var(--dim2);
-font-size:11px;line-height:1.7}
-kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line2);
-border-radius:3px;padding:1px 4px;color:var(--dim)}
+/* ---------- shell ---------- */
+#app{display:grid;grid-template-rows:38px 1fr 22px;height:100vh}
 
-/* ---- main ---- */
-main{flex:1;overflow-y:auto;overflow-x:hidden}
-header{position:sticky;top:0;z-index:5;background:var(--bg);
-border-bottom:1px solid var(--line);padding:16px 26px;display:flex;
-align-items:center;gap:14px}
-h1{font-size:17px;font-weight:600;letter-spacing:-.01em}
-.crumb{color:var(--dim2);font-size:13px}
-.spacer{flex:1}
-button{font:inherit;font-size:13px;border:1px solid var(--line2);background:var(--panel);
-color:var(--ink);padding:6px 13px;border-radius:6px;cursor:pointer}
-button:hover{border-color:var(--accent);color:var(--accent)}
-button.primary{background:var(--accent);border-color:var(--accent);color:#04121f;
-font-weight:600}
-button.primary:hover{opacity:.9;color:#04121f}
-input[type=number],select{font:inherit;font-size:13px;background:var(--panel);
-color:var(--ink);border:1px solid var(--line2);border-radius:6px;padding:6px 9px;width:88px}
-.body{padding:24px 26px 80px}
+/* top strip: money, always visible, never a card */
+#strip{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--edge);
+background:var(--rail);padding:0 12px;overflow-x:auto}
+#strip .logo{font-weight:700;letter-spacing:.2em;font-size:12px;padding-right:16px;
+margin-right:4px;border-right:1px solid var(--edge);color:var(--ink)}
+.m{display:flex;align-items:baseline;gap:7px;padding:0 14px;white-space:nowrap;
+border-right:1px solid var(--edge);height:100%;align-items:center}
+.m .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2)}
+.m .v{font-family:var(--m);font-variant-numeric:tabular-nums;font-size:13px}
+.m.big .v{font-size:14px;font-weight:600}
+#strip .sp{flex:1;border:0}
+#strip button{font:inherit;font-size:11.5px;font-family:var(--m);background:transparent;
+border:1px solid var(--edge2);color:var(--dim);padding:3px 9px;border-radius:4px;
+cursor:pointer;margin-left:7px}
+#strip button:hover{color:var(--acc);border-color:var(--acc)}
+#strip select{font:inherit;font-family:var(--m);font-size:11.5px;background:transparent;
+border:1px solid var(--edge2);color:var(--dim);border-radius:4px;padding:3px 5px}
 
-/* ---- stat grid ---- */
-.grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
-border-radius:9px;overflow:hidden;margin-bottom:22px}
-.g5{grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
-.cell{background:var(--panel);padding:15px 17px}
-.cell .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
-.cell .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:23px;
-margin-top:6px;letter-spacing:-.02em}
-.cell .s{font-size:11.5px;color:var(--dim2);margin-top:3px}
+/* three panes */
+#panes{display:grid;grid-template-columns:minmax(360px,1fr) minmax(400px,1.15fr) 330px;
+overflow:hidden}
+.pane{overflow-y:auto;border-right:1px solid var(--edge);background:var(--pane)}
+.pane:last-child{border-right:0}
+.ph{position:sticky;top:0;z-index:3;background:var(--pane);border-bottom:1px solid var(--edge);
+padding:7px 12px;display:flex;align-items:center;gap:9px;font-size:9.5px;
+text-transform:uppercase;letter-spacing:.11em;color:var(--dim2)}
+.ph .r{margin-left:auto;font-family:var(--m);text-transform:none;letter-spacing:0;
+font-size:11px}
+.ph input{background:transparent;border:0;outline:0;color:var(--ink);font:inherit;
+font-family:var(--m);font-size:11.5px;text-transform:none;letter-spacing:0;width:110px}
 
-/* ---- verdict bar ---- */
-.vbar{display:flex;height:7px;border-radius:4px;overflow:hidden;margin:6px 0 11px}
-.vbar i{display:block}
-.vlegend{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);
-margin-bottom:26px}
-.vlegend b{color:var(--ink);font-family:var(--mono);font-weight:600}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}
+/* ---------- ledger ---------- */
+.led{font-family:var(--m);font-size:12px;font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:96px 46px 1fr 34px 52px;gap:9px;
+padding:4px 12px;cursor:pointer;align-items:center;border-left:2px solid transparent}
+.row:hover{background:var(--pane2)}
+.row.sel{background:var(--pane2);border-left-color:var(--acc)}
+.row .id{color:var(--dim)}
+.row.sel .id{color:var(--ink)}
+.row .amt{text-align:right}
+.row .cnt{text-align:right;color:var(--dim2);font-size:11px}
 
-h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2);
-margin:30px 0 11px;font-weight:600}
-h2:first-child{margin-top:0}
+/* the constraint glyph — five marks, one per constraint, scannable down a column.
+   This is the piece that makes 250 settlements readable at a glance: you do not
+   read the verdict, you read WHICH constraint failed. */
+.gly{display:flex;gap:2px}
+.gly i{width:5px;height:11px;border-radius:1px;background:var(--edge2);display:block}
+.gly i.y{background:var(--ok)}
+.gly i.n{background:var(--warn)}
+.gly i.x{background:var(--dead);opacity:.45}
 
-/* ---- tables ---- */
-.tw{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-color:var(--dim2);font-weight:600;padding:9px 13px;background:var(--panel2);
-border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:8px 13px;border-bottom:1px solid var(--line);font-size:13px}
-tbody tr:last-child td{border-bottom:none}
-tbody tr{cursor:pointer}
-tbody tr:hover td{background:var(--panel2)}
-.r{text-align:right}
-td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.pill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.07em;
-padding:2.5px 7px;border-radius:4px;border:1px solid currentColor}
-.p-PROVEN{color:var(--proven)} .p-AMBIGUOUS{color:var(--ambiguous)}
-.p-CONTRADICTED{color:var(--contradicted)}
+/* residual against tolerance — how close to the edge this proof sits.
+   A proof at 3% of its bound and one at 97% both "pass"; only one of them
+   should let you sleep. */
+.res{position:relative;height:11px;display:flex;align-items:center}
+.res .tr{position:absolute;inset:0 0;background:var(--edge);border-radius:1px;height:3px;
+top:4px}
+.res .fl{position:absolute;height:3px;top:4px;border-radius:1px}
+.res .md{position:absolute;left:50%;width:1px;height:9px;top:1px;background:var(--edge2)}
 
-/* ---- detail ---- */
-.two{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
-@media(max-width:1080px){.two{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-padding:17px 19px;margin-bottom:16px}
-.card h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2);
-margin-bottom:13px;font-weight:600}
-.chk{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);
-font-size:13px;align-items:baseline}
-.chk:last-child{border-bottom:none}
-.chk .m{font-family:var(--mono);font-size:12px}
-.chk .nm{min-width:118px;color:var(--ink)}
-.chk .dt{color:var(--dim);font-size:12px;flex:1}
-.ok{color:var(--proven)} .no{color:var(--ambiguous)}
-.flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:4px 0 2px}
-.node{background:var(--panel2);border:1px solid var(--line2);border-radius:7px;
-padding:9px 13px;min-width:104px}
-.node .l{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2)}
-.node .a{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px;
-margin-top:3px}
-.arrow{color:var(--dim2);padding:0 9px;font-size:15px}
-.sum-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;
-border-bottom:1px solid var(--line)}
-.sum-row:last-child{border-bottom:none}
-.sum-row.tot{font-weight:700;border-top:1.5px solid var(--line2);margin-top:4px;
-padding-top:9px;border-bottom:none}
-.sum-row span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.muted{color:var(--dim)}
-.note{color:var(--dim);font-size:12.5px;line-height:1.65;margin-top:12px}
-.alt{border:1px dashed var(--line2);border-radius:7px;padding:11px 13px;margin-top:9px}
-.alt .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2);
-margin-bottom:6px}
-.ids{font-family:var(--mono);font-size:11.5px;color:var(--dim);word-break:break-all;
-line-height:1.75}
-.audit{font-family:var(--mono);font-size:12px;line-height:2}
-.audit b{color:var(--accent);font-weight:500}
-.audit .t{color:var(--dim2);margin-right:12px}
+.vd{font-size:9.5px;letter-spacing:.08em;font-weight:700;text-align:right}
+.v-PROVEN{color:var(--ok)} .v-AMBIGUOUS{color:var(--warn)} .v-CONTRADICTED{color:var(--dead)}
 
-/* ---- panels & charts ---- */
-.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(288px,1fr));gap:14px;
-margin-bottom:26px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 17px}
-.ph{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
-.ph h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2);
-font-weight:600}
-.pm{font-size:11px;color:var(--dim2);font-family:var(--mono)}
-.donutwrap{display:flex;align-items:center;gap:16px}
-.donut{width:126px;height:126px;flex:0 0 126px}
-.dc-t{fill:var(--ink);font-size:23px;font-family:var(--mono);font-weight:600;
-letter-spacing:-.03em}
-.dc-s{fill:var(--dim2);font-size:10px;letter-spacing:.09em;text-transform:uppercase}
-.dlegend{flex:1;display:flex;flex-direction:column;gap:9px}
-.dl{display:flex;align-items:center;gap:8px;font-size:12.5px}
-.dl .dln{color:var(--dim);flex:1}
-.dl b{font-size:13px}
-.dl .dlp{color:var(--dim2);font-size:11.5px;font-family:var(--mono);min-width:42px;
-text-align:right}
-.spark{width:100%;height:92px;display:block}
-.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--dim2);
-font-family:var(--mono);margin-top:7px}
-.bigpct{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.035em;
-line-height:1.1}
-.meter{height:7px;border-radius:4px;background:var(--line);overflow:hidden;margin:9px 0 0}
-.meter i{display:block;height:100%}
-.bars{display:flex;align-items:flex-end;gap:5px;height:62px;margin-top:4px}
-.bar{display:flex;align-items:flex-end;justify-content:center;height:100%;position:relative}
-.bar i{width:100%;border-radius:3px 3px 0 0;min-height:3px;display:block;position:relative}
-.bar i span{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
-background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:2px 6px;
-font-size:10.5px;font-family:var(--mono);white-space:nowrap;color:var(--ink);margin-bottom:4px}
-.bar:hover i span{display:block}
-.bar::after{content:attr(data-k)}
+/* ---------- proof pane ---------- */
+.pb{padding:13px 15px}
+.hdr{display:flex;align-items:baseline;gap:11px;margin-bottom:3px}
+.hdr .sid{font-family:var(--m);font-size:16px}
+.hdr .amt{margin-left:auto;font-family:var(--m);font-size:19px;
+font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sub{color:var(--dim2);font-size:11px;font-family:var(--m);margin-bottom:15px}
 
-/* ---- palette ---- */
-.pal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
-align-items:flex-start;justify-content:center;padding-top:16vh;z-index:50}
-.pal.on{display:flex}
-.pal .box{background:var(--panel);border:1px solid var(--line2);border-radius:11px;
-width:min(540px,92vw);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.45)}
-.pal input{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;
-color:var(--ink);font:inherit;font-size:15px;padding:15px 17px;outline:none}
-.pal .it{padding:10px 17px;cursor:pointer;font-size:13.5px;display:flex;gap:11px}
-.pal .it:hover,.pal .it.sel{background:var(--panel2)}
-.pal .it small{color:var(--dim2);margin-left:auto}
-.empty{color:var(--dim2);padding:40px 0;text-align:center;font-size:13px}
-.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line2);
-border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;
-vertical-align:-1px;margin-right:7px}
+.eq{font-family:var(--m);font-size:12.5px;font-variant-numeric:tabular-nums;
+border:1px solid var(--edge);border-radius:6px;overflow:hidden;margin-bottom:15px}
+.eq .l{display:flex;padding:5px 12px;border-bottom:1px solid var(--edge)}
+.eq .l:last-child{border-bottom:0}
+.eq .l .lb{color:var(--dim);flex:1}
+.eq .l .vl{text-align:right}
+.eq .l.t{border-top:1px solid var(--edge2);font-weight:600;background:var(--pane2)}
+.eq .l.q{background:var(--pane2)}
+.eq .l .neg{color:var(--warn)}
+
+h4{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--dim2);
+margin:16px 0 7px;font-weight:600}
+.ord{font-family:var(--m);font-size:11.5px;font-variant-numeric:tabular-nums;
+max-height:260px;overflow-y:auto;border:1px solid var(--edge);border-radius:6px}
+.ord .o{display:grid;grid-template-columns:88px 52px 1fr 1fr;gap:8px;padding:3px 11px;
+border-bottom:1px solid var(--edge)}
+.ord .o:last-child{border-bottom:0}
+.ord .o.h{position:sticky;top:0;background:var(--pane2);color:var(--dim2);font-size:9.5px;
+text-transform:uppercase;letter-spacing:.09em}
+.ord .o span:nth-child(3),.ord .o span:nth-child(4){text-align:right}
+.ord .o .mth{color:var(--dim2)}
+
+.alt{border:1px solid var(--edge);border-left:2px solid var(--warn);border-radius:5px;
+padding:8px 11px;margin-bottom:7px;font-family:var(--m);font-size:11px}
+.alt .ah{color:var(--dim);margin-bottom:4px;font-size:10.5px}
+.alt .ai{color:var(--dim2);word-break:break-all;line-height:1.65}
+
+/* ---------- right rail: constraints ---------- */
+.ck{padding:8px 13px;border-bottom:1px solid var(--edge);font-size:11.5px}
+.ck:last-child{border-bottom:0}
+.ck .t{display:flex;align-items:center;gap:8px;font-family:var(--m);font-size:11.5px}
+.ck .t .mk{width:13px}
+.ck .t .nm{flex:1}
+.ck .d{color:var(--dim2);font-size:10.5px;margin-top:3px;padding-left:21px;line-height:1.55}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .dead{color:var(--dead)}
+.stat{padding:11px 13px;border-bottom:1px solid var(--edge);font-family:var(--m);
+font-size:11.5px}
+.stat .l{display:flex;justify-content:space-between;padding:2px 0}
+.stat .l span:first-child{color:var(--dim2)}
+.post{padding:11px 13px;font-family:var(--m);font-size:11px;border-bottom:1px solid var(--edge)}
+.post .b{font-size:12px;font-weight:700;letter-spacing:.07em}
+
+/* ---------- status bar ---------- */
+#bar{display:flex;align-items:center;gap:16px;background:var(--rail);
+border-top:1px solid var(--edge);padding:0 12px;font-family:var(--m);font-size:10.5px;
+color:var(--dim2)}
+#bar b{color:var(--dim);font-weight:500}
+#bar .sp{flex:1}
+kbd{font-family:var(--m);font-size:9.5px;border:1px solid var(--edge2);border-radius:3px;
+padding:0 4px;color:var(--dim)}
+.empty{color:var(--dim2);padding:44px 16px;text-align:center;font-family:var(--m);font-size:12px}
+.spin{display:inline-block;width:9px;height:9px;border:1.5px solid var(--edge2);
+border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;
+margin-right:7px;vertical-align:-1px}
 @keyframes sp{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:5px}
+::-webkit-scrollbar-track{background:transparent}
 </style></head><body>
-<aside>
-  <div class=brand>ATTEST<small>verification engine</small></div>
-  <nav id=nav>
-    <a data-v=overview class=on><i>◧</i>Overview</a>
-    <a data-v=reconciliation><i>≡</i>Reconciliation</a>
-    <a data-v=exceptions><i>△</i>Exceptions</a>
-    <a data-v=evaluation><i>▤</i>Evaluation</a>
-    <a data-v=audit><i>⟐</i>Audit log</a>
-  </nav>
-  <div class=side-foot>
-    <kbd>⌘K</kbd> command palette<br>
-    <span id=runmeta>no run</span>
-  </div>
-</aside>
-<main>
-  <header>
-    <h1 id=title>Overview</h1><span class=crumb id=crumb></span>
-    <span class=spacer></span>
+<div id=app>
+  <div id=strip>
+    <span class=logo>ATTEST</span>
+    <div class="m big"><span class=k>processed</span><span class=v id=m-proc>—</span></div>
+    <div class=m><span class=k>posted</span><span class="v ok" id=m-post>—</span></div>
+    <div class=m><span class=k>held</span><span class="v warn" id=m-held>—</span></div>
+    <div class=m><span class=k>unexplained</span><span class="v dead" id=m-unex>—</span></div>
+    <div class="m big"><span class=k>false proofs</span><span class=v id=m-wrong>—</span></div>
+    <span class=sp></span>
     <select id=size><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
-    <button class=primary id=runbtn>Run reconciliation</button>
-  </header>
-  <div class=body id=view><div class=empty>Run a reconciliation to begin.</div></div>
-</main>
-<div class=pal id=pal><div class=box>
-  <input id=palq placeholder="Search settlements, or type a command…" autocomplete=off>
-  <div id=palr></div>
-</div></div>
+    <button id=run>run ⏎</button>
+  </div>
+
+  <div id=panes>
+    <div class=pane id=p1>
+      <div class=ph><span>ledger</span>
+        <span>/</span><input id=filter placeholder="filter…" autocomplete=off>
+        <span class=r id=count></span></div>
+      <div class=led id=ledger><div class=empty>press run</div></div>
+    </div>
+    <div class=pane id=p2>
+      <div class=ph><span>proof</span><span class=r id=proofmeta></span></div>
+      <div class=pb id=proof><div class=empty>select a settlement</div></div>
+    </div>
+    <div class=pane id=p3>
+      <div class=ph><span>constraints</span></div>
+      <div id=checks><div class=empty>—</div></div>
+    </div>
+  </div>
+
+  <div id=bar>
+    <span><kbd>j</kbd><kbd>k</kbd> move</span>
+    <span><kbd>/</kbd> filter</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> proven · ambiguous · contradicted</span>
+    <span><kbd>0</kbd> all</span>
+    <span class=sp></span>
+    <span id=barmeta></span>
+  </div>
+</div>
 <script src=app.js></script>
 </body></html>
