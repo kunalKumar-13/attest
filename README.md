@@ -62,12 +62,12 @@ benchmark cannot be tuned to flatter the engine.
 ```
 250 settlements · seed 20260821
 
-  exact set match             20.0%
-  declined to a human         79.6%
-  WRONG (moved money)          0.4%     ← the number that matters
-  pair precision              0.983
+  exact set match             20.8%
+  declined to a human         79.2%
+  WRONG (moved money)          0.0%     ← zero false proofs
+  pair precision              1.000
   blocking recall (ceiling)   0.956
-  wall clock                  10.5s
+  wall clock                   1.06s
 ```
 
 **A decline is a correct outcome.** The engine is built to refuse rather than
@@ -81,12 +81,13 @@ It is off by default:
 
 ```
                   exact     WRONG    precision
-off               20.0%      0.4%      0.983
-on                23.2%      3.6%      0.807
+off               20.8%      0.0%      1.000
+on                24.0%      3.6%      0.829
 ```
 
-Eight more correct answers, eight more wrong ones. One false proof seeds error
-amplification across the population. A change that raises exact-set match by
+Three points of exact-set match, bought by going from **zero** false proofs to
+nine. One bad seed amplifies across the population, because propagation is only
+as sound as what it propagates from. A change that raises exact-set match by
 three points is not an improvement if it raises false proofs by the same amount.
 See [FAILURES.md](FAILURES.md), D4.
 
@@ -112,6 +113,45 @@ attest/generate/       hazard taxonomy + generator — FROZEN
 eval/                  harness, baselines, ablations
 native/                Rust port of the DP hot path
 ```
+
+## The kernel
+
+The DP is three ALU ops per cell and re-reads an array the width of the credit
+once per order. It is bandwidth-bound, not compute-bound, so the only
+optimisation that matters is **making the array smaller**.
+
+Two bits is the floor — the verdict only distinguishes none / one / more than
+one. Rather than interleaving 2-bit lanes, which forces lane-masking on every
+shift, the counter is split into two **bitplanes** of one bit per sum: `one[s]`
+and `many[s]`, mutually exclusive, so together they encode 0/1/2 exactly and each
+shifts with a plain bit-shift. The saturating add becomes six bitwise operations
+over 64 sums at a time:
+
+```
+both  = (one | many) & (s_one | s_many)     // both sides non-zero ⇒ ≥ 2
+many' = many | s_many | both
+one'  = (one | s_one) & !both
+```
+
+```
+credit        numpy      native    speedup
+₹20,000      275.6 ms   17.11 ms     16.1×
+₹80,000    1,342.8 ms   25.46 ms     52.7×
+
+DP footprint at ₹200,000:  4.8 MB   (one byte per sum would be 19.5 MB)
+```
+
+The speedup widens with credit size, which is what a bandwidth-bound kernel
+should do. **Verified byte-identical to the numpy reference over 1,777 instances
+and 1.32 × 10¹¹ DP cells, across all fifteen hazard families** — `tobytes()`
+compared, not `array_equal`, because `solve` sums a slice of this array and a
+dtype difference would change the sum.
+
+This is not a benchmark flourish. The Python reference could only afford a
+₹30,000 envelope, which silently skipped **14.8% of the portfolio** — including
+*every* large bundle — before a single subset was examined. The port is what made
+those settlements reachable at all. Without the extension the engine falls back
+to numpy and a narrower envelope, and still runs correctly.
 
 ## Documents
 

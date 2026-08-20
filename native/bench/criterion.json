@@ -1,0 +1,50 @@
+{
+ "n107_t1365000": {
+  "bytes_unbounded": 97.6621355,
+  "bytes": 106.80241675,
+  "packed2bit_unbounded": 2.2255991585714288,
+  "packed2bit": 2.255948604761905
+ },
+ "n91_t1365000": {
+  "bytes_unbounded": 78.05910416666666,
+  "bytes": 76.16470133333334,
+  "packed2bit_unbounded": 1.7996202555555556,
+  "packed2bit": 1.6684028883928572
+ },
+ "n8_t50000": {
+  "bytes_unbounded": 0.0007047273905613577,
+  "bytes": 0.0008476786954864976,
+  "packed2bit_unbounded": 0.0002396335954221572,
+  "packed2bit": 0.0031006928723728297
+ },
+ "n430_t3000000": {
+  "bytes_unbounded": 983.594146,
+  "bytes": 1617.854625,
+  "packed2bit_unbounded": 20.503884880514704,
+  "packed2bit": 20.69689364035088
+ },
+ "n900_t3000000": {
+  "bytes_unbounded": 2173.3534165,
+  "bytes": 2207.015542,
+  "packed2bit_unbounded": 46.0220365,
+  "packed2bit": 54.6018055
+ },
+ "n45_t1365000": {
+  "bytes_unbounded": 38.814245899999996,
+  "bytes": 36.8079875,
+  "packed2bit_unbounded": 0.8593236474840948,
+  "packed2bit": 0.8177915423742924
+ },
+ "n199_t3000000": {
+  "bytes_unbounded": 429.0143745,
+  "bytes": 461.0434585,
+  "packed2bit_unbounded": 9.675233660130719,
+  "packed2bit": 9.575036586309524
+ },
+ "n32_t200000": {
+  "bytes_unbounded": 1.2570314680622654,
+  "bytes": 1.2615922067901235,
+  "packed2bit_unbounded": 0.02645584129464286,
+  "packed2bit": 0.0349312457704479
+ }
+}

@@ -567,7 +567,7 @@ def _live_table(rows: list[tuple[str, LiveRow]]) -> list[str]:
     return out
 
 
-def report(ds: Dataset, out_path: Path) -> str:
+def report(ds: Dataset, out_path: Path, confirm_n: int = 0) -> str:
     lines: list[str] = []
     w = lines.append
 
@@ -655,7 +655,8 @@ def report(ds: Dataset, out_path: Path) -> str:
     keys = [(2,), (2, 3), (2, 4), LAG_LADDER, (1, 2, 3, 4, 5, 6)]
     hz = {L: score(study_candidates(ds.settlements, ds.orders, L, len(L) - 1),
                    ds.truth, L, "STATIC", True) for L in keys}
-    w("| hazard | true pairs | " + " | ".join(f"`{_fmt_ladder(_rungs(L))}`" for L in keys) + " |")
+    heads = " | ".join(f"`{_fmt_ladder(_rungs(L))}`" for L in keys)
+    w(f"| hazard | true pairs | {heads} |")
     w("|---|---:|" + "---:|" * len(keys))
     for case in sorted(hz[keys[0]].by_case):
         n = hz[keys[0]].by_case[case][1]
@@ -865,10 +866,45 @@ def report(ds: Dataset, out_path: Path) -> str:
           f"| {rp.blocking_recall:.4f} | {r.seconds:.1f} |")
     w("")
     clean = [(n, r) for n, r in curve if r.rep.wrong == 0]
-    w(f"**{len(clean)} of {len(curve)} rung-0 windows post zero wrong entries.** "
-      "Every one of them has a ceiling of 1.0000; every window with a ceiling below "
-      "1.0000 posts at least one. On this portfolio the relationship between rung-0 "
-      "recall and false proofs is not a correlation, it is a step function.")
+    dirty = [(n, r) for n, r in curve if r.rep.wrong > 0]
+    w(f"**{len(clean)} of {len(curve)} rung-0 windows post zero wrong entries.**")
+    w("")
+    w(f"| | windows | median p50 | median posts | median WRONG |")
+    w("|---|---:|---:|---:|---:|")
+    for label, group in (("WRONG = 0", clean), ("WRONG > 0", dirty)):
+        if not group:
+            continue
+        ps = sorted(r.p50 for _, r in group)
+        posts = sorted(r.rep.n_settlements - r.rep.declined for _, r in group)
+        wr = sorted(r.rep.wrong for _, r in group)
+        w(f"| {label} | {len(group)} | {ps[len(ps) // 2]} | {posts[len(posts) // 2]} "
+          f"| {wr[len(wr) // 2]} |")
+    w("")
+    narrow = [r for _, r in curve if r.p50 < 30]
+    w(f"The driver is not ceiling alone, and it is not pool size alone. Two "
+      "regularities hold across all 63 windows.")
+    w("")
+    w(f"**Narrow windows manufacture proofs.** All {len(narrow)} windows with p50 under "
+      f"30 post at least {min(r.rep.wrong for r in narrow)} wrong entries "
+      f"(max {max(r.rep.wrong for r in narrow)}). A small pool with the truth removed "
+      "still contains just enough orders for exactly one wrong subset to close within "
+      "tolerance -- which is the definition of a manufactured proof. Widen the same "
+      "pool and a second subset appears, the verdict flips to AMBIGUOUS, and the "
+      "engine declines instead of posting.")
+    w("")
+    w("**A wide window is not automatically safe.** Adding a lag that carries no true "
+      "orders adds only decoys: " + ", ".join(
+          f"`{n}` posts {r.rep.wrong} wrong at p50 {r.p50}"
+          for n, r in curve if r.rep.wrong >= 4 and r.p50 >= 50)
+      + ". Ceiling and pool size have to move together, and only lag 2 and lag 4 move "
+        "the ceiling on this portfolio.")
+    w("")
+    best = max(clean, key=lambda kv: (kv[1].rep.exact_sets, -kv[1].p50))
+    also = [n for n, r in clean if r.rep.blocking_recall >= 1.0]
+    w(f"The Pareto point is **`{best[0]}`**: the most correct answers "
+      f"({best[1].rep.exact_sets}) available at zero false proofs, at p50 "
+      f"{best[1].p50}. Zero-WRONG windows that also reach a 1.0000 ceiling: "
+      + (", ".join(f"`{n}`" for n in also) if also else "none") + ".")
     w("")
 
     # ---- bug -------------------------------------------------------------
@@ -906,18 +942,139 @@ def report(ds: Dataset, out_path: Path) -> str:
       f"{cap}`.")
     w("")
 
+    # ---- recommendation --------------------------------------------------
+    shipped = dict(live_rows)["(2)>(3)>(4)"]
+    union = dict(live_rows)["(2+4)"]
+    drop3 = dict(live_rows)["(2)>(4)"]
+    st_ship = score(study_candidates(ds.settlements, ds.orders, LAG_LADDER, 2),
+                    ds.truth, LAG_LADDER, "STATIC", True)
+    st_drop = score(study_candidates(ds.settlements, ds.orders, (2, 4), 1),
+                    ds.truth, (2, 4), "STATIC", True)
+    n = len(ds.settlements)
+
+    d_exact = (union.rep.exact_sets - shipped.rep.exact_sets) / n
+    d_pool = (union.p50 - shipped.p50) / shipped.p50
+    d_ceil = union.rep.blocking_recall - shipped.rep.blocking_recall
+    d_wrong = (union.rep.wrong - shipped.rep.wrong) / n
+    breakeven = ((shipped.rep.exact_sets - union.rep.exact_sets)
+                 / max(shipped.rep.wrong - union.rep.wrong, 1))
+
+    w("## 9. Recommendation")
+    w("")
+    w("### Recommended: make rung 0 a union window, `LAG_LADDER = ((2, 4),)`")
+    w("")
+    w("In the contract's own form:")
+    w("")
+    w(f"> **This ladder costs {abs(d_exact):.1%} exact-set match and "
+      f"{d_pool:+.1%} pool size to buy {abs(d_wrong):.1%} WRONG and "
+      f"{d_ceil:+.4f} realised ceiling.**")
+    w("")
+    w("| | shipped `(2)>(3)>(4)` | recommended `(2+4)` | delta |")
+    w("|---|---:|---:|---:|")
+    for label, a, b, fmt in (
+        ("exact set match", shipped.rep.exact_sets, union.rep.exact_sets, "d"),
+        ("WRONG (posted, false)", shipped.rep.wrong, union.rep.wrong, "d"),
+        ("declined to a human", shipped.rep.declined, union.rep.declined, "d"),
+        ("pair precision", shipped.rep.precision, union.rep.precision, ".3f"),
+        ("LIVE ceiling", shipped.rep.blocking_recall, union.rep.blocking_recall, ".4f"),
+        ("pool p50", shipped.p50, union.p50, "d"),
+        ("pool p90", shipped.p90, union.p90, "d"),
+        ("wall clock (s)", shipped.seconds, union.seconds, ".1f"),
+    ):
+        delta = f"{b - a:+{fmt}}" if fmt == "d" else f"{b - a:+{fmt}}"
+        w(f"| {label} | {a:{fmt}} | {b:{fmt}} | {delta} |")
+    w("")
+    w("The case is the mechanism, not the count. One false proof in 250 is a thin "
+      "signal and this study does not pretend otherwise. What the study does "
+      "establish is *why* it happens and that widening the ladder cannot fix it: "
+      "escalation is gated on `CONTRADICTED`, a pruned pool returns `PROVEN` of a "
+      "substitute, and the cascade therefore never reaches the rung that holds the "
+      "answer. A union rung 0 is the only change in this study's search space that "
+      "closes that path, because it removes the gate rather than adding rungs behind "
+      "it.")
+    w("")
+    w(f"**The break-even.** The recommendation trades "
+      f"{shipped.rep.exact_sets - union.rep.exact_sets} auto-posted correct answers "
+      f"for {shipped.rep.wrong - union.rep.wrong} avoided false proof -- "
+      f"**{breakeven:.0f} extra human reviews per wrong entry avoided**. It is "
+      "correct if and only if one wrongly posted settlement costs more than "
+      f"{breakeven:.0f} manual reconciliations. `PRD.md` and `harness.py` both assert "
+      "that direction (\"a decline routes to a human, a wrong match moves money\"), "
+      "and D4 already rejected constraint propagation at a ratio of 1:1. This is a "
+      f"much steeper ask than 1:1, so the decision is a judgement about cost, not "
+      "about the measurement. **Not applied. Flagged for a human.**")
+    w("")
+    w("### Recommended against: dropping lag 3 to `(2, 4)`")
+    w("")
+    w("This is the change the STATIC table appears to argue for, and it is a trap. "
+      f"Lag 3 buys zero true pairs, and dropping it cuts the terminal-rung pool from "
+      f"p50 {st_ship.p50} to {st_drop.p50} -- "
+      f"{(st_ship.p50 - st_drop.p50) / st_ship.p50:.1%}, at 0.0% ceiling cost. In the "
+      "contract's form that reads as a free win.")
+    w("")
+    w(f"Measured live it is not. The terminal rung is reached by 1 settlement in "
+      f"{n}, so the realised saving is p50 {shipped.p50} -> {drop3.p50} and p90 "
+      f"{shipped.p90} -> {drop3.p90} -- "
+      f"{(shipped.p90 - drop3.p90) / shipped.p90:.1%} of p90, not "
+      f"{(st_ship.p50 - st_drop.p50) / st_ship.p50:.0%} of p50. And it costs a false "
+      f"proof: WRONG {shipped.rep.wrong} -> {drop3.rep.wrong}, precision "
+      f"{shipped.rep.precision:.3f} -> {drop3.rep.precision:.3f}, because the wider "
+      "rung-1 window admits enough decoys for a wrong subset to become uniquely "
+      "satisfiable on `setl_000016`. **A 3% pool saving is not worth a false proof.** "
+      "Keep lag 3, or remove it as part of the union-rung change above, where rung 1 "
+      "stops mattering at all.")
+    w("")
+    w("### Not recommended, and the reason is worth recording")
+    w("")
+    w("Widening to catch `CHARGEBACK_REVERSAL` (section 3). It costs 9.8x the median "
+      "pool and buys nothing, because the family is a *sign* problem, not a *window* "
+      "problem. The contract expected this family to be the case that justifies a "
+      "wide ladder. It is the case that proves a wide ladder is the wrong instrument.")
+    w("")
+
+    # ---- sample size -----------------------------------------------------
+    w("## 10. Sample size")
+    w("")
+    w(f"One wrong entry in {n} is a thin signal, and the honest reading is that this "
+      f"study cannot distinguish a WRONG rate of {shipped.rep.wrong / n:.1%} from "
+      f"{drop3.rep.wrong / n:.1%} on {n} settlements. The mechanism (section 6) is "
+      "what carries the recommendation; the count is corroboration.")
+    w("")
+    if confirm_n:
+        w(f"Re-measured at `n={confirm_n}`, same seed:")
+        w("")
+        w("| ladder | n | p50 | exact set | WRONG | declined | pair prec. | ceiling |")
+        w("|---|---:|---:|---:|---:|---:|---:|---:|")
+        big = build(confirm_n, seed=SEED_TRAIN)
+        for name, L in (("(2)>(3)>(4)", LAG_LADDER), ("(2)>(4)", (2, 4)),
+                        ("(2+4)", ((2, 4),))):
+            r = live(big, L)
+            rp = r.rep
+            w(f"| `{name}` | {confirm_n} | {r.p50} | {rp.exact_sets} "
+              f"({_pct(rp.set_accuracy)}) | **{rp.wrong}** "
+              f"({_pct(rp.wrong / confirm_n)}) | {rp.declined} | {rp.precision:.3f} "
+              f"| {rp.blocking_recall:.4f} |")
+        w("")
+    w("Note that exact-set match *falls* with portfolio size (20.0% at n=250) while "
+      "the pool grows: more settlements per capture date means more subsets satisfy "
+      "the same credit, so uniqueness -- not search -- is the binding constraint. That "
+      "is the same conclusion `FAILURES.md` reaches on D3 from a different direction, "
+      "and it is the reason a blocking change can only ever move this metric a little.")
+    w("")
+
     out_path.write_text("\n".join(lines) + "\n")
     return "\n".join(lines)
 
 
 def main(argv: list[str]) -> int:
     n = int(argv[1]) if len(argv) > 1 else 250
+    confirm_n = int(argv[2]) if len(argv) > 2 else 0
     ds = build(n, seed=SEED_TRAIN)
     print(f"anchoring against attest.blocking / attest.pipeline at n={n} ...", flush=True)
     anchor(ds)
     print("anchor OK", flush=True)
     out = Path(__file__).resolve().parent / "BLOCKING.md"
-    report(ds, out)
+    report(ds, out, confirm_n)
     print(f"wrote {out}", flush=True)
     return 0
 

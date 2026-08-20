@@ -4,17 +4,20 @@
 //! credits run p50 1.37e6 / p90 6.03e6 paise -- the latter above
 //! `MAX_TARGET_PAISE`, which is itself part of the finding.
 //!
-//! Four series, because two effects are being separated. `packed2bit` and
-//! `bytes` both carry the reachability bound, so their ratio isolates the
-//! packing. The `_unbounded` pair drops the bound and so has the same shape as
-//! the numpy reference, which makes the Python-side comparison attributable
-//! rather than a single number covering both changes.
+//! Five series, because three effects are being separated. `packed2bit` and
+//! `bytes` both carry the reachability bound and both return one u8 per sum, so
+//! their ratio isolates the packing. The `_unbounded` pair drops the bound and
+//! so has the same shape as the numpy reference, which makes the Python-side
+//! comparison attributable rather than one number covering every change.
+//! `packed2bit_noexpand` stops at the bitplanes, so the gap to `packed2bit` is
+//! exactly what the u8 output format costs.
 //!
 //! The `python` feature is off here on purpose -- linking libpython would put
 //! interpreter noise into a measurement whose whole point is cache behaviour.
 
 use attest_native::reachable::{
-    reachable, reachable_packed_unbounded, reachable_u8, reachable_u8_unbounded,
+    expand, reachable, reachable_packed, reachable_packed_unbounded, reachable_u8,
+    reachable_u8_unbounded,
 };
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
@@ -62,7 +65,12 @@ fn bench(c: &mut Criterion) {
             b.iter(|| reachable_u8(std::hint::black_box(v), target))
         });
         g.bench_with_input(BenchmarkId::new("packed2bit_unbounded", &id), &v, |b, v| {
-            b.iter(|| reachable_packed_unbounded(std::hint::black_box(v), target))
+            b.iter(|| expand(&reachable_packed_unbounded(std::hint::black_box(v), target)))
+        });
+        // Same DP, expansion dropped. The gap to `packed2bit` is the cost of
+        // materialising one u8 per sum purely so `solve` can sum a slice of it.
+        g.bench_with_input(BenchmarkId::new("packed2bit_noexpand", &id), &v, |b, v| {
+            b.iter(|| reachable_packed(std::hint::black_box(v), target))
         });
         g.bench_with_input(BenchmarkId::new("bytes_unbounded", &id), &v, |b, v| {
             b.iter(|| reachable_u8_unbounded(std::hint::black_box(v), target))

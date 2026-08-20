@@ -31,9 +31,14 @@ from __future__ import annotations
 
 import html
 import sys
+from datetime import date
 from pathlib import Path
 
-from attest.blocking import LAG_LADDER, PoolIndex
+# _capture_dates_for is private, and the alternative -- reading dates off the
+# pool -- would report only the dates that happened to contain orders. The
+# contradiction panel needs the window the engine was *willing* to consider,
+# which is a property of the settlement calendar and not of the order file.
+from attest.blocking import LAG_LADDER, PoolIndex, _capture_dates_for
 from attest.eval.harness import Report
 from attest.model import FEE_BPS, GST_BPS, Order, Settlement, fee_paise, tax_paise
 from attest.subsetsum import MAX_ENUM, MAX_POOL, MAX_TARGET_PAISE
@@ -322,8 +327,8 @@ pre.core{background:var(--mark);border:1px solid var(--rule-2);padding:12px 14px
 
 /* Listing ---------------------------------------------------------------- */
 details.row{border-bottom:1px solid var(--rule)}
-details.row > summary{cursor:pointer;list-style:none;padding:7px 0;display:grid;
-  grid-template-columns:126px 122px 132px 178px 1fr;gap:12px;align-items:baseline;
+details.row > summary{cursor:pointer;list-style:none;padding:6px 0;display:grid;
+  grid-template-columns:126px 122px 132px 196px 1fr;gap:12px;align-items:baseline;
   font-size:13px}
 details.row > summary::-webkit-details-marker{display:none}
 details.row > summary:hover{background:var(--mark)}
@@ -331,10 +336,11 @@ details.row[open] > summary{font-weight:600}
 summary .amt{text-align:right}
 details.row > summary .verdict{letter-spacing:.06em;font-size:11px;color:var(--ink-2)}
 summary .lay{color:var(--ink-3);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+details.row > summary > span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 details.row .panel{border-left:2px solid var(--rule-2);border-right:none;
   border-top:none;border-bottom:none;margin:4px 0 18px;padding:8px 0 8px 18px;
   background:transparent}
-.legend{display:grid;grid-template-columns:126px 122px 132px 178px 1fr;gap:12px;
+.legend{display:grid;grid-template-columns:126px 122px 132px 196px 1fr;gap:12px;
   font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
   padding-bottom:6px;border-bottom:1px solid var(--rule-2)}
 .legend .amt{text-align:right}
@@ -579,32 +585,39 @@ def _separators(finding: Finding, settlement: Settlement,
     method_sets = [{by_id[o].method.value for o in s} for s in sets]
     if len({frozenset(m) for m in method_sets}) > 1:
         items.append(
-            "<b>Different payment methods:</b> "
-            + " vs ".join(
+            "<b>Method mixes in play:</b> "
+            + " &middot; ".join(
                 f"{_LETTERS[i]} {'/'.join(sorted(m))}" for i, m in enumerate(method_sets)
             )
-            + " &mdash; so the method mix on the payout separates them."
+            + " &mdash; UPI is zero-MDR, so where the mixes differ the fee line on the "
+            "payout separates them."
         )
 
     # A one-order swap is the sharpest case: two explanations that differ by a
     # single pair of orders with the same net cannot be told apart by arithmetic
     # at all, and saying exactly which pair is more useful than saying "ambiguous".
+    swaps: dict[tuple[str, str], list[str]] = {}
     for i in range(len(sets)):
         for j in range(i + 1, len(sets)):
             only_i, only_j = sets[i] - sets[j], sets[j] - sets[i]
             if len(only_i) == 1 and len(only_j) == 1:
-                a, b = by_id[next(iter(only_i))], by_id[next(iter(only_j))]
-                same_net = "the same net to the paisa" if a.net == b.net else "different nets"
-                items.append(
-                    f"<b>{_LETTERS[i]} and {_LETTERS[j]} differ by one order.</b> "
-                    f"<code>{_esc(a.order_id)}</code> ({a.customer_name}, "
-                    f"ref {_esc(a.payment_id or 'absent')}) against "
-                    f"<code>{_esc(b.order_id)}</code> ({b.customer_name}, "
-                    f"ref {_esc(b.payment_id or 'absent')}), with {same_net} "
-                    f"&mdash; {_rupees(a.net)} and {_rupees(b.net)}. "
-                    "Only a reference or a name can separate these two; no amount of "
-                    "solver time can."
+                pair = (next(iter(only_i)), next(iter(only_j)))
+                swaps.setdefault(tuple(sorted(pair)), []).append(
+                    f"{_LETTERS[i]}/{_LETTERS[j]}"
                 )
+    for (x, y), where in swaps.items():
+        a, b = by_id[x], by_id[y]
+        same_net = "the same net to the paisa" if a.net == b.net else "different nets"
+        items.append(
+            f"<b>{' and '.join(where)} differ by a single order.</b> "
+            f"<code>{_esc(a.order_id)}</code> ({a.customer_name}, "
+            f"ref {_esc(a.payment_id or 'absent')}) against "
+            f"<code>{_esc(b.order_id)}</code> ({b.customer_name}, "
+            f"ref {_esc(b.payment_id or 'absent')}), with {same_net} "
+            f"&mdash; {_rupees(a.net)} and {_rupees(b.net)}. "
+            "Only a reference or a name can separate those two; no amount of solver "
+            "time can."
+        )
 
     missing_ref = [o for s in sets for o in s if not by_id[o].payment_id]
     if missing_ref:
@@ -633,11 +646,15 @@ def _separators(finding: Finding, settlement: Settlement,
 
 def _ambiguous_panel(finding: Finding, settlement: Settlement,
                      by_id: dict[str, Order], *, full: bool = True) -> str:
+    if finding.proofs:
+        count = (f"{len(finding.proofs)} explanations"
+                 f"{'' if finding.exhaustive else ' so far'}")
+    else:
+        count = "declined before any search"
     head = (
         "<div class='head'><span class='verdict'>AMBIGUOUS</span>"
         f"<span class='sid mono'>{_esc(finding.settlement_id)}</span>"
-        f"<span class='fact'>{len(finding.proofs)} explanations"
-        f"{'' if finding.exhaustive else ' so far'} &middot; "
+        f"<span class='fact'>{count} &middot; "
         f"credit {_rupees(settlement.net_paise)} &middot; "
         f"{_esc(finding.layer)}</span></div>"
     )
@@ -766,10 +783,8 @@ def _contradicted_panel(finding: Finding, settlement: Settlement,
     )
 
 
-def _dates(settlement: Settlement, rung: int) -> set:
-    from attest.blocking import _capture_dates_for
-
-    days: set = set()
+def _dates(settlement: Settlement, rung: int) -> set[date]:
+    days: set[date] = set()
     for lag in LAG_LADDER[: rung + 1]:
         days |= _capture_dates_for(settlement.settled_on, lag)
     return days
@@ -909,9 +924,9 @@ def _listing(findings: list[Finding], by_settlement: dict[str, Settlement],
             note = f"{len(f.proofs[0].order_ids)} orders"
         elif f.proofs:
             note = (f"{len(f.proofs)} explanations"
-                    f"{'' if f.exhaustive else ', enumeration capped'}")
+                    f"{'' if f.exhaustive else ', capped'}")
         elif f.verdict is Verdict.AMBIGUOUS:
-            note = "not attempted &mdash; out of envelope"
+            note = "out of envelope"
         else:
             note = "no explanation"
         rows.append(

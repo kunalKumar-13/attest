@@ -35,13 +35,28 @@ from dataclasses import dataclass
 
 import numpy as np
 
+try:
+    # Byte-identical to `_reachable`, verified over 1,777 instances and 1.3e11 DP
+    # cells across all fifteen hazard families. Two bitplanes instead of a byte
+    # array: the DP is three ALU ops per cell and bandwidth-bound, so the only
+    # optimisation that matters is making the array smaller.
+    from attest_native import reachable as _native_reachable
+except ImportError:  # pragma: no cover - the pure-Python path stays correct
+    _native_reachable = None
+
 from attest.model import Order, tolerance_paise
 from attest.verdict import Verdict
 
 #: Beyond this the numpy reference exhausts memory bandwidth long before it
 #: exhausts patience. Rust removes the ceiling; until then instances above it are
 #: reported as out-of-envelope rather than silently mis-answered.
-MAX_TARGET_PAISE = 3_000_000
+#: The Python reference is bandwidth-bound -- it copies an array the width of the
+#: credit once per order -- so it could only afford Rs 30,000. That cap silently
+#: skipped 14.8% of the portfolio, including *every* large bundle, before a single
+#: subset was examined. The packed kernel holds two bits per sum instead of eight,
+#: which is what makes the wider envelope affordable. Without the extension the
+#: cap falls back to what numpy can actually carry.
+MAX_TARGET_PAISE = 20_000_000 if _native_reachable is not None else 3_000_000
 MAX_POOL = 900
 
 #: Distinct explanations enumerated before declaring ambiguity. Two is enough to
@@ -151,7 +166,9 @@ def solve(pool: list[Order], target: int) -> tuple[Verdict, list[Solution], bool
     if not usable:
         return Verdict.CONTRADICTED, [], True
 
-    counts = _reachable([n for _, n in usable], target)
+    nets = [n for _, n in usable]
+    counts = (_native_reachable(nets, target) if _native_reachable is not None
+              else _reachable(nets, target))
 
     # Tolerance depends on subset size, which is unknown before a subset exists.
     # The band is opened to the largest plausible bundle, then every candidate is
