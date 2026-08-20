@@ -117,6 +117,17 @@ fn step(one: &mut [u64], many: &mut [u64], net: usize, top: usize) {
 /// caller in `solve` already filters those, so the branch is about being a
 /// drop-in replacement rather than about correctness of the engine.
 pub fn reachable_packed(nets: &[u64], target: u64) -> Packed {
+    dp_packed(nets, target, true)
+}
+
+/// Same DP with the reachability bound switched off, so the benchmark can
+/// attribute the speedup. The numpy reference does not carry the bound, and
+/// without this variant the packing and the bound would be credited together.
+pub fn reachable_packed_unbounded(nets: &[u64], target: u64) -> Packed {
+    dp_packed(nets, target, false)
+}
+
+fn dp_packed(nets: &[u64], target: u64, bounded: bool) -> Packed {
     let target = target as usize;
     let words = target / WORD_BITS + 1;
 
@@ -124,9 +135,10 @@ pub fn reachable_packed(nets: &[u64], target: u64) -> Packed {
     let mut many = vec![0u64; words];
     one[0] = 1; // the empty subset reaches 0, exactly one way
 
-    // Highest reachable sum so far. Early orders leave most of the array
-    // provably zero, and touching it would be pure bandwidth spent on zeros --
-    // on a 900-order pool this skips the majority of all word visits.
+    // Highest reachable sum so far. Everything above it is provably zero, and
+    // on real pools -- order nets of a few thousand rupees against a credit of
+    // a few lakh -- the bound stays below `target` for the whole pass, so most
+    // word visits are skipped outright.
     let mut hi: usize = 0;
 
     for &net in nets {
@@ -135,7 +147,7 @@ pub fn reachable_packed(nets: &[u64], target: u64) -> Packed {
         }
         let net = net as usize;
         let reach = (hi + net).min(target);
-        let top = reach / WORD_BITS;
+        let top = if bounded { reach / WORD_BITS } else { words - 1 };
         step(&mut one, &mut many, net, top);
         mask_tail(&mut one, target);
         mask_tail(&mut many, target);
@@ -188,6 +200,14 @@ pub fn reachable(nets: &[u64], target: u64) -> Vec<u8> {
 /// claim. If this ever beats `reachable`, the contract's premise about memory
 /// bandwidth is wrong and that is the finding worth reporting.
 pub fn reachable_u8(nets: &[u64], target: u64) -> Vec<u8> {
+    dp_u8(nets, target, true)
+}
+
+pub fn reachable_u8_unbounded(nets: &[u64], target: u64) -> Vec<u8> {
+    dp_u8(nets, target, false)
+}
+
+fn dp_u8(nets: &[u64], target: u64, bounded: bool) -> Vec<u8> {
     let target = target as usize;
     let mut c = vec![0u8; target + 1];
     c[0] = 1;
@@ -199,7 +219,8 @@ pub fn reachable_u8(nets: &[u64], target: u64) -> Vec<u8> {
         }
         let net = net as usize;
         let reach = (hi + net).min(target);
-        for s in (net..=reach).rev() {
+        let top = if bounded { reach } else { target };
+        for s in (net..=top).rev() {
             // Max 2 + 2 = 4, so the u8 add cannot wrap before the clamp.
             c[s] = (c[s] + c[s - net]).min(2);
         }

@@ -36,6 +36,7 @@ reported: easiest-first (the engine's own order) and chronological.
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from collections.abc import Iterable, Sequence
@@ -67,10 +68,34 @@ SWEEP_LAGS: tuple[int, ...] = (1, 2, 3, 4, 5, 6)
 #: frozen module: same inputs, same outputs, no behaviour change.
 _dates = lru_cache(maxsize=None)(_capture_dates_for)
 
+#: `_capture_dates_for`'s own default. A lag of L business days spans up to
+#: ceil(7L/5) + 2 calendar days once weekends fan in, so 12 covers lag 8 and no
+#: more -- at lag 11 the function returns the empty set and a ladder rung
+#: silently becomes a no-op. Measured in `span_cap()`; see BLOCKING.md.
+DEFAULT_SPAN = 12
+
 
 # --------------------------------------------------------------------------
 # Parameterised blocking
 # --------------------------------------------------------------------------
+
+
+Rung = tuple[int, ...]
+
+
+def _rungs(ladder: Sequence[int] | Sequence[Sequence[int]]) -> tuple[Rung, ...]:
+    """Normalise a ladder to one lag-set per rung.
+
+    `attest.blocking` spells a ladder as a flat tuple of ints, which forces
+    exactly one new lag per rung. The sweep needs to ask a question that spelling
+    cannot express -- *what if rung 0 already covered two lags?* -- so a rung may
+    also be given as a tuple. `(2, 3, 4)` and `((2,), (3,), (4,))` are the same
+    ladder; `((2, 4),)` is a single rung that no flat tuple can write.
+    """
+    out: list[Rung] = []
+    for item in ladder:
+        out.append((item,) if isinstance(item, int) else tuple(item))
+    return tuple(out)
 
 
 class StudyIndex(PoolIndex):
@@ -78,15 +103,18 @@ class StudyIndex(PoolIndex):
 
     Subclassing is the sanctioned way to vary a frozen module: the date
     arithmetic, the bucketing and the spent-set semantics are inherited
-    unchanged, and only the three knobs under study are overridden.
+    unchanged, and only the knobs under study are overridden.
     """
 
-    def __init__(self, orders: list[Order], ladder: Sequence[int] = LAG_LADDER,
-                 *, amount_filter: bool = True, consumption: bool = True) -> None:
+    def __init__(self, orders: list[Order],
+                 ladder: Sequence[int] | Sequence[Sequence[int]] = LAG_LADDER,
+                 *, amount_filter: bool = True, consumption: bool = True,
+                 span: int = DEFAULT_SPAN) -> None:
         super().__init__(orders)
-        self.ladder = tuple(ladder)
+        self.ladder = _rungs(ladder)
         self.amount_filter = amount_filter
         self.consumption = consumption
+        self.span = span
 
     def consume(self, order_ids: tuple[str, ...] | list[str]) -> None:
         if self.consumption:
@@ -94,8 +122,9 @@ class StudyIndex(PoolIndex):
 
     def pool(self, s: Settlement, rung: int = 0) -> list[Order]:
         days: set[date] = set()
-        for lag in self.ladder[: rung + 1]:
-            days |= _dates(s.settled_on, lag)
+        for step in self.ladder[: rung + 1]:
+            for lag in step:
+                days |= _dates(s.settled_on, lag, self.span)
         out: list[Order] = []
         for d in days:
             for o in self._by_day.get(d, ()):
@@ -111,9 +140,12 @@ class StudyIndex(PoolIndex):
 
 
 def study_candidates(settlements: list[Settlement], orders: list[Order],
-                     ladder: Sequence[int] = LAG_LADDER, rung: int = 0,
-                     *, amount_filter: bool = True) -> dict[str, list[Order]]:
-    idx = StudyIndex(orders, ladder, amount_filter=amount_filter, consumption=False)
+                     ladder: Sequence[int] | Sequence[Sequence[int]] = LAG_LADDER,
+                     rung: int = 0,
+                     *, amount_filter: bool = True,
+                     span: int = DEFAULT_SPAN) -> dict[str, list[Order]]:
+    idx = StudyIndex(orders, ladder, amount_filter=amount_filter, consumption=False,
+                     span=span)
     return {s.settlement_id: idx.pool(s, rung) for s in settlements}
 
 
@@ -123,8 +155,9 @@ def study_candidates(settlements: list[Settlement], orders: list[Order],
 
 
 def study_run(settlements: list[Settlement], orders: list[Order],
-              ladder: Sequence[int] = LAG_LADDER, *, amount_filter: bool = True,
-              consumption: bool = True) -> tuple[
+              ladder: Sequence[int] | Sequence[Sequence[int]] = LAG_LADDER,
+              *, amount_filter: bool = True,
+              consumption: bool = True, span: int = DEFAULT_SPAN) -> tuple[
                   list[Prediction], dict[str, list[Order]], list[Finding]]:
     """`pipeline.run` with `LAG_LADDER` replaced by `ladder`.
 
@@ -134,7 +167,7 @@ def study_run(settlements: list[Settlement], orders: list[Order],
     the original at the default settings.
     """
     index = StudyIndex(orders, ladder, amount_filter=amount_filter,
-                       consumption=consumption)
+                       consumption=consumption, span=span)
     by_id = {o.order_id: o for o in orders}
     order_of_work = sorted(settlements, key=lambda s: len(index.pool(s, 0)))
 
@@ -193,12 +226,13 @@ def study_run(settlements: list[Settlement], orders: list[Order],
         if finding.postable:
             index.consume(finding.proofs[0].order_ids)
 
-    # L4 mirrors `pipeline.run` at HEAD. It matters to a blocking study for a
-    # reason that is not obvious: propagation promotes AMBIGUOUS to PROVEN by
-    # elimination, so an explanation that only survives because the true one was
-    # pruned can be promoted to a posted entry. Blocking loss and false proofs
-    # are coupled *through* this layer, not just through the solver.
-    to_fixed_point(findings)
+    # L4 mirrors `pipeline.run` at HEAD, including its default: off. It matters
+    # to a blocking study because propagation promotes AMBIGUOUS to PROVEN by
+    # elimination, so an explanation that survives only because the true one was
+    # pruned can be promoted into a posted entry -- blocking loss and false
+    # proofs are coupled through this layer, not just through the solver.
+    if os.environ.get("ATTEST_PROP"):
+        to_fixed_point(findings)
 
     preds = [
         Prediction(
@@ -215,6 +249,19 @@ def study_run(settlements: list[Settlement], orders: list[Order],
 # --------------------------------------------------------------------------
 # Anchor
 # --------------------------------------------------------------------------
+
+
+def span_cap(probe: date = date(2026, 6, 15)) -> int:
+    """Largest lag `_capture_dates_for` can still answer at its default span.
+
+    A rung whose lag exceeds this returns no capture dates at all, so widening
+    `LAG_LADDER` past it is a silent no-op rather than a wider window. Computed
+    rather than asserted, because the bound moves if the default span does.
+    """
+    lag = 1
+    while _dates(probe, lag, DEFAULT_SPAN) == _dates(probe, lag, 60):
+        lag += 1
+    return lag - 1
 
 
 def anchor(ds: Dataset) -> None:
@@ -250,7 +297,7 @@ def anchor(ds: Dataset) -> None:
 
 @dataclass(frozen=True)
 class Row:
-    ladder: tuple[int, ...]
+    ladder: tuple[Rung, ...]
     mode: str
     """STATIC | ORACLE-easiest | ORACLE-chrono | LIVE."""
     amount_filter: bool
@@ -273,8 +320,9 @@ def _percentile(sorted_vals: list[int], q: float) -> int:
     return sorted_vals[i]
 
 
-def score(pools: dict[str, list[Order]], truth: list[TrueMatch], ladder: tuple[int, ...],
-          mode: str, amount_filter: bool) -> Row:
+def score(pools: dict[str, list[Order]], truth: list[TrueMatch],
+          ladder: Sequence[int] | Sequence[Sequence[int]], mode: str,
+          amount_filter: bool) -> Row:
     sizes = sorted(len(v) for v in pools.values())
     by_case: dict[str, list[int]] = {}
     reachable = total = 0
@@ -288,7 +336,7 @@ def score(pools: dict[str, list[Order]], truth: list[TrueMatch], ladder: tuple[i
         slot[1] += len(t.order_ids)
     cases = {k: (v[0], v[1]) for k, v in by_case.items()}
     return Row(
-        ladder=ladder, mode=mode, amount_filter=amount_filter,
+        ladder=_rungs(ladder), mode=mode, amount_filter=amount_filter,
         p50=_percentile(sizes, 0.50), p90=_percentile(sizes, 0.90),
         pmax=sizes[-1] if sizes else 0,
         recall=reachable / total if total else 0.0,
@@ -297,8 +345,8 @@ def score(pools: dict[str, list[Order]], truth: list[TrueMatch], ladder: tuple[i
     )
 
 
-def oracle_pools(ds: Dataset, ladder: Sequence[int], *, amount_filter: bool,
-                 order: str) -> dict[str, list[Order]]:
+def oracle_pools(ds: Dataset, ladder: Sequence[int] | Sequence[Sequence[int]], *,
+                 amount_filter: bool, order: str) -> dict[str, list[Order]]:
     """Pools under perfect consumption, in a stated evaluation order.
 
     The true bundles are pairwise disjoint by construction, so consuming them
@@ -401,8 +449,8 @@ def reversals(ds: Dataset) -> list[Reversal]:
 # --------------------------------------------------------------------------
 
 
-def _fmt_ladder(l: tuple[int, ...]) -> str:
-    return "(" + ",".join(str(x) for x in l) + ")"
+def _fmt_ladder(rungs: tuple[Rung, ...]) -> str:
+    return " > ".join("+".join(str(x) for x in r) for r in rungs)
 
 
 def _table(rows: Iterable[Row]) -> list[str]:
@@ -410,7 +458,7 @@ def _table(rows: Iterable[Row]) -> list[str]:
            "|---|---:|---:|---:|---:|---:|---|"]
     for r in rows:
         hurt = ", ".join(r.hurt) if r.hurt else "--"
-        mark = " **" if r.ladder == LAG_LADDER else ""
+        mark = " **" if r.ladder == _rungs(LAG_LADDER) else ""
         name = f"`{_fmt_ladder(r.ladder)}`{mark}"
         out.append(f"| {name} | {r.p50} | {r.p90} | {r.pmax} | {r.recall:.4f} "
                    f"| {r.lost_pairs} | {hurt} |")
@@ -419,9 +467,10 @@ def _table(rows: Iterable[Row]) -> list[str]:
 
 @dataclass(frozen=True)
 class LiveRow:
-    ladder: tuple[int, ...]
+    ladder: tuple[Rung, ...]
     amount_filter: bool
     consumption: bool
+    span: int
     rep: Report
     verdicts: dict[str, int]
     p50: int
@@ -429,22 +478,47 @@ class LiveRow:
     pmax: int
     seconds: float
     chargeback_exact: tuple[int, int]
+    false_proofs: tuple[tuple[str, str, bool], ...] = ()
+    """(settlement_id, hazard, true-bundle-was-inside-the-pool) for every posted
+    entry that did not equal the truth. The third field is the whole point of
+    this study: True means blocking was innocent and the engine had the right
+    answer available; False means blocking pruned the truth and the engine then
+    proved a substitute."""
 
 
-def live(ds: Dataset, ladder: tuple[int, ...], *, amount_filter: bool = True,
-         consumption: bool = True) -> LiveRow:
+def live(ds: Dataset, ladder: Sequence[int] | Sequence[Sequence[int]], *,
+         amount_filter: bool = True,
+         consumption: bool = True, span: int = DEFAULT_SPAN) -> LiveRow:
+    import contextlib
+    import io
     from collections import Counter
 
-    with Timer() as t:
+    # `pipeline.run`'s propagation line goes to stdout; the sweep prints its own
+    # table and one line per configuration would drown it.
+    with contextlib.redirect_stdout(io.StringIO()), Timer() as t:
         preds, pools, findings = study_run(ds.settlements, ds.orders, ladder,
                                            amount_filter=amount_filter,
-                                           consumption=consumption)
+                                           consumption=consumption, span=span)
     rep = evaluate(ds.settlements, ds.truth, preds, pools, t.elapsed)
     sizes = sorted(len(v) for v in pools.values())
     cb = rep.by_case.get("chargeback_reversal", (0, 0))
+
+    truth_by_id = {t_.settlement_id: t_ for t_ in ds.truth}
+    bad: list[tuple[str, str, bool]] = []
+    for p in preds:
+        if p.order_ids is None:
+            continue
+        t_ = truth_by_id[p.settlement_id]
+        if set(p.order_ids) == set(t_.order_ids):
+            continue
+        ids = {o.order_id for o in pools.get(p.settlement_id, ())}
+        bad.append((p.settlement_id, t_.case, all(o in ids for o in t_.order_ids)))
+
     return LiveRow(
-        ladder=ladder, amount_filter=amount_filter, consumption=consumption, rep=rep,
-        verdicts=dict(Counter(f.verdict.value for f in findings)),
+        ladder=_rungs(ladder), amount_filter=amount_filter, consumption=consumption,
+        span=span,
+        rep=rep, verdicts=dict(Counter(f.verdict.value for f in findings)),
         p50=_percentile(sizes, 0.50), p90=_percentile(sizes, 0.90),
         pmax=sizes[-1] if sizes else 0, seconds=t.elapsed, chargeback_exact=cb,
+        false_proofs=tuple(bad),
     )

@@ -17,7 +17,7 @@ mod py {
     /// Drop-in for `attest.subsetsum._reachable`. Returns `uint8[target + 1]`
     /// with byte-for-byte the values the numpy reference produces.
     ///
-    /// The GIL is dropped for the DP itself: the kernel touches no Python
+    /// The interpreter is detached for the DP itself: the kernel touches no Python
     /// object once `nets` is copied out, and settlements are independent, so a
     /// caller is free to thread over them.
     #[pyfunction]
@@ -30,7 +30,7 @@ mod py {
         if target > u32::MAX as u64 {
             return Err(PyValueError::new_err(format!("target {target} exceeds addressable range")));
         }
-        let counts = py.allow_threads(|| core::reachable(&nets, target));
+        let counts = py.detach(|| core::reachable(&nets, target));
         Ok(counts.into_pyarray(py))
     }
 
@@ -43,7 +43,7 @@ mod py {
         nets: Vec<u64>,
         target: u64,
     ) -> PyResult<Bound<'py, PyArray1<u8>>> {
-        let counts = py.allow_threads(|| core::reachable_u8(&nets, target));
+        let counts = py.detach(|| core::reachable_u8(&nets, target));
         Ok(counts.into_pyarray(py))
     }
 
@@ -64,7 +64,7 @@ mod py {
     #[pyfunction]
     #[pyo3(signature = (nets, target, lo, hi))]
     fn band_total(py: Python<'_>, nets: Vec<u64>, target: u64, lo: u64, hi: u64) -> u64 {
-        py.allow_threads(|| {
+        py.detach(|| {
             let p = core::reachable_packed(&nets, target);
             let (lo, hi) = (lo as usize, (hi as usize).min(p.target));
             let mut total = 0u64;

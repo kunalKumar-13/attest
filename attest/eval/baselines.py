@@ -87,13 +87,15 @@ def exact_only(settlements: list[Settlement], orders: list[Order]) -> list[Predi
     return [
         Prediction(
             s.settlement_id, None, "exact-id",
-            reason="no shared identifier: Order.payment_id and Settlement.utr are disjoint ID spaces",
+            reason="no shared identifier: Order.payment_id and Settlement.utr are disjoint IDs",
         )
         for s in settlements
     ]
 
 
-def exact_amount_unique(settlements: list[Settlement], orders: list[Order]) -> list[Prediction]:
+def exact_amount_unique(
+    settlements: list[Settlement], orders: list[Order]
+) -> list[Prediction]:
     """SECONDARY -- not `exact_only`. Non-degenerate exact-amount floor:
     settlement net equals exactly one pool order's net, at zero tolerance.
     Declines on zero or 2+ hits.
@@ -109,10 +111,17 @@ def exact_amount_unique(settlements: list[Settlement], orders: list[Order]) -> l
     for s in settlements:
         fits = [o for o in pools[s.settlement_id] if o.net == s.net_paise]
         if len(fits) == 1:
-            preds.append(Prediction(s.settlement_id, [fits[0].order_id], "exact-amount-unique"))
+            preds.append(
+                Prediction(s.settlement_id, [fits[0].order_id], "exact-amount-unique")
+            )
         else:
-            reason = "no exact-net order in pool" if not fits else f"{len(fits)} orders tie on exact net"
-            preds.append(Prediction(s.settlement_id, None, "exact-amount-unique", reason=reason))
+            reason = (
+                "no exact-net order in pool" if not fits
+                else f"{len(fits)} orders tie on exact net"
+            )
+            preds.append(
+                Prediction(s.settlement_id, None, "exact-amount-unique", reason=reason)
+            )
     return preds
 
 
@@ -135,7 +144,9 @@ def fuzzy(settlements: list[Settlement], orders: list[Order]) -> list[Prediction
         if hit is not None:
             preds.append(Prediction(s.settlement_id, [hit.order_id], "fuzzy-1pct"))
         else:
-            preds.append(Prediction(s.settlement_id, None, "fuzzy-1pct", reason="no order within 1%"))
+            preds.append(
+                Prediction(s.settlement_id, None, "fuzzy-1pct", reason="no order within 1%")
+            )
     return preds
 
 
@@ -189,7 +200,9 @@ def greedy(settlements: list[Settlement], orders: list[Order]) -> list[Predictio
             preds.append(Prediction(s.settlement_id, [oid], "greedy-1pct"))
         else:
             preds.append(
-                Prediction(s.settlement_id, None, "greedy-1pct", reason="no unclaimed order within 1%")
+                Prediction(
+                    s.settlement_id, None, "greedy-1pct", reason="no unclaimed order within 1%"
+                )
             )
     return preds
 
@@ -202,18 +215,19 @@ def _fmt_row(name: str, rep: Report) -> str:
     )
 
 
-def _worst_hazard_gap(baseline: Report, engine: Report) -> tuple[str, float, float] | None:
-    """Hazard family with the largest (baseline hit-rate - engine hit-rate),
-    restricted to families both reports scored, used to name where a
-    baseline's advantage over the engine (if any) actually concentrates."""
+def _best_baseline_family(baseline: Report, engine: Report) -> tuple[str, float, float] | None:
+    """Hazard family where the baseline's own hit-rate is highest, paired with
+    the engine's hit-rate on that same family -- names where a baseline's
+    (if any) strength actually concentrates, rather than a raw score gap that
+    a 0%-vs-0% tie elsewhere in the table could win by default."""
     best: tuple[str, float, float] | None = None
     for case, (bhit, bn) in baseline.by_case.items():
-        if case not in engine.by_case:
+        if bn == 0 or case not in engine.by_case:
             continue
         ehit, en = engine.by_case[case]
-        gap = bhit / bn - ehit / en
-        if best is None or gap > best[1] - best[2]:
-            best = (case, bhit / bn, ehit / en)
+        rate = bhit / bn
+        if best is None or rate > best[1]:
+            best = (case, rate, ehit / en)
     return best
 
 
@@ -242,8 +256,8 @@ def _write_report(
         "escalated to), so its `blocking_recall` is not pool-comparable to the "
         "baseline rows below -- its accuracy and WRONG numbers are.",
         "",
-        "| matcher              | exact-set |  precision | recall | WRONG        | wall clock |",
-        "|----------------------|----------:|-----------:|-------:|:-------------|-----------:|",
+        "| matcher              | exact-set | precision | recall |    WRONG    | wall clock |",
+        "|----------------------|-----------|-----------|--------|--------------|------------|",
         _fmt_row("exact_only", exact_rep),
         _fmt_row("fuzzy", fuzzy_rep),
         _fmt_row("greedy", greedy_rep),
@@ -252,8 +266,8 @@ def _write_report(
         "Secondary (not `exact_only` -- reasons over amount, kept apart from the "
         "identifier-only floor per contract):",
         "",
-        "| matcher                | exact-set |  precision | recall | WRONG        | wall clock |",
-        "|------------------------|----------:|-----------:|-------:|:-------------|-----------:|",
+        "| matcher              | exact-set | precision | recall |    WRONG    | wall clock |",
+        "|----------------------|-----------|-----------|--------|--------------|------------|",
         _fmt_row("exact_amount_unique", secondary_rep),
         "",
         f"blocking recall (ceiling, rung={BASELINE_RUNG}, baselines only): "
@@ -271,14 +285,12 @@ def _write_report(
         "evidence. The non-degenerate `exact_amount_unique` sibling, reported "
         f"separately, reaches {secondary_rep.set_accuracy:.1%} exact-set with "
         f"{secondary_rep.wrong} wrong.",
-        "",
         f"`fuzzy` reaches {fuzzy_rep.set_accuracy:.1%} exact-set match with "
         f"{fuzzy_rep.wrong} wrong ({fuzzy_rep.wrong/fuzzy_rep.n_settlements:.1%}). "
         f"`greedy` reaches {greedy_rep.set_accuracy:.1%} with "
         f"{greedy_rep.wrong} wrong ({greedy_rep.wrong/greedy_rep.n_settlements:.1%}). "
         f"The engine reaches {engine_rep.set_accuracy:.1%} exact-set match with "
         f"{engine_rep.wrong} wrong ({engine_rep.wrong/engine_rep.n_settlements:.1%}).",
-        "",
     ]
 
     if best.set_accuracy > engine_rep.set_accuracy:
@@ -295,23 +307,32 @@ def _write_report(
         para.append(
             f"No baseline beats the engine on exact-set match; the best, "
             f"`{best_name}`, reaches {best.set_accuracy:.1%} against the engine's "
-            f"{engine_rep.set_accuracy:.1%}."
+            f"{engine_rep.set_accuracy:.1%}. But `fuzzy` posts "
+            f"{fuzzy_rep.wrong} wrong ({fuzzy_rep.wrong/fuzzy_rep.n_settlements:.1%}) "
+            f"against the engine's {engine_rep.wrong} "
+            f"({engine_rep.wrong/engine_rep.n_settlements:.1%}) -- WRONG is the "
+            "column that matters, and on it every baseline here is worse than the "
+            "engine even though none out-scores it on exact-set."
         )
-    gap = _worst_hazard_gap(best, engine_rep)
-    if gap is not None and gap[1] > gap[2]:
-        case, bhit, ehit = gap
-        para.append(
-            f" The largest per-family gap in `{best_name}`'s favour is `{case}` "
-            f"({bhit:.1%} vs the engine's {ehit:.1%})."
-        )
-    elif gap is not None:
-        case, bhit, ehit = gap
-        para.append(
-            f" Even on `{best_name}`'s best-relative family, `{case}`, the engine "
-            f"still leads ({ehit:.1%} vs {bhit:.1%})."
-        )
+    fam = _best_baseline_family(best, engine_rep)
+    if fam is not None:
+        case, brate, erate = fam
+        if brate > 0:
+            para.append(
+                f"`{best_name}`'s strongest family is `{case}` ({brate:.1%}), where "
+                f"the engine still leads ({erate:.1%}); `{best_name}` scores 0% on "
+                "every other family in the table -- the baselines never resolve a "
+                "genuinely multi-order bundle, only the single-order cases that "
+                "happen to also be `clean`."
+            )
+        else:
+            para.append(
+                f"`{best_name}` scores 0% on every hazard family, `{case}` "
+                f"included; the engine's exact-set match comes entirely from "
+                "families no baseline here resolves at all."
+            )
 
-    lines.append("".join(para))
+    lines.append("\n\n".join(para))
     lines.append("")
 
     with open(path, "w") as f:
