@@ -17,8 +17,13 @@ SEED_HOLDOUT = 900913
 
 
 def main(argv: list[str]) -> int:
-    n = int(argv[1]) if len(argv) > 1 else 1200
+    n = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 250
     holdout = "--holdout" in argv
+
+    if "--sweep" in argv:
+        from attest.eval.sweep import sweep
+        print(sweep(n).render())
+        return 0
 
     seed = SEED_HOLDOUT if holdout else SEED_TRAIN
     ds = build(n, seed=seed)

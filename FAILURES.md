@@ -326,3 +326,48 @@ is the mechanism the D3 diagnosis already described as "under-constrained, not
 under-searched" — correctly downgrades PROVEN to AMBIGUOUS once a second
 explanation exists. The unsafe zone is not "more adversarial," it's "adversarial
 enough to break uniqueness, not enough to break it twice."
+
+---
+
+## D7 — 2026-08-21
+
+**Published "precision 1.000" for six days. It was one seed.**
+
+The engine reported zero false proofs on seed 20260821, and that number went into
+the README, the PRD, the UI status bar and every summary written since D6. An
+adversarial sweep re-ran the *untouched* generator across five seeds:
+
+```
+seed        20260821  314159  271828  555001  999983
+WRONG/250          0       0       1       2       2
+```
+
+Reproduced independently before changing anything — the agent's numbers and mine
+agree exactly. Pooled across 1,250 settlements: **5 false proofs, precision
+0.981, exact-set 18.5%.** Not 1.000, and not 20.8%.
+
+**The mechanism is not interesting. The process failure is.** D3 already recorded
+that blocking errors manufacture false proofs rather than merely costing recall,
+so a seed whose portfolio lands more true explanations outside the lag ladder
+will produce more of them. That was known. What was not done was checking whether
+the headline survived a second draw.
+
+**This is exactly the failure the project exists to prevent, committed by the
+project.** ATTEST's entire argument is that a plausible answer is not a proven
+one, and that verification — not generation — is the scarce thing. A number
+measured once and repeated confidently is a plausible answer. Six days of
+documentation asserted a property of the engine on evidence that only supported a
+property of one portfolio.
+
+**Fix.** `attest/eval/sweep.py` runs a fixed five-seed panel and reports the
+POOLED figure — pairs counted, not per-seed precisions averaged, because a mean
+weights a small run identically to a large one and flatters whichever was small.
+The worst seed is printed beside the aggregate. Every claim in README.md and
+PRD.md now carries its panel, and single-seed numbers are labelled as such.
+
+The panel is fixed. Adding a seed because the numbers came out badly would be the
+same mistake in a different costume.
+
+**Credit where it is due:** this was found by the adversarial worker whose entire
+brief was to prove the system wrong, and whose instructions said the seed sweep
+alone was worth more than everything else on its list. It was.

@@ -214,6 +214,14 @@ Reported metrics:
 - **published baselines** — exact-only, fuzzy, and greedy matchers implemented in
   `eval/baselines.py` and run on identical data, so every claim is comparative
 
+### Every claim is pooled across a fixed seed panel
+
+A single seed is an anecdote. `python -m attest 250 --sweep` runs five fixed
+seeds and reports the pooled figure plus the worst seed. Current:
+**18.5% exact, 5 false proofs across 1,250 settlements, pooled precision 0.981**,
+worst seed 555001 at 2. The earlier "precision 1.000" was seed 20260821 alone
+and did not survive the panel.
+
 ### D1 measured baseline — deterministic floor, no search, no model
 
 ```

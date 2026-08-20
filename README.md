@@ -60,15 +60,23 @@ settlements derived *from* them. Fifteen hazard families
 benchmark cannot be tuned to flatter the engine.
 
 ```
-250 settlements · seed 20260821
+5 seeds × 250 settlements · pooled
 
-  exact set match             20.8%
-  declined to a human         79.2%
-  WRONG (moved money)          0.0%     ← zero false proofs
-  pair precision              1.000
+  exact set match             18.5%
+  WRONG (moved money)             5      0.4%
+  pair precision              0.981
   blocking recall (ceiling)   0.956
-  wall clock                   1.06s
+  wall clock                  0.70s per seed
+
+  seed        20260821  314159  271828  555001  999983
+  WRONG              0       0       1       2       2
 ```
+
+**Every figure here is pooled across a fixed five-seed panel, and the worst seed
+is reported alongside it.** This project spent six days claiming precision 1.000
+on the strength of seed 20260821 alone; an adversarial sweep found four other
+seeds producing 0, 1, 2 and 2 false proofs. A single seed is an anecdote. See
+[FAILURES.md](FAILURES.md), D7 — it is the most useful entry in the file.
 
 **A decline is a correct outcome.** The engine is built to refuse rather than
 guess, so `declined` is a feature and `WRONG` is the only real failure.
@@ -76,13 +84,17 @@ guess, so `declined` is a feature and `WRONG` is the only real failure.
 ### Against reference matchers, same data, same pools
 
 ```
-matcher        exact    declined      WRONG       precision
+matcher        exact    declined      WRONG       precision   (seed 20260821)
 -----------------------------------------------------------
 exact-only      4.0%       96.0%     0   0.0%       1.000
 fuzzy           3.2%       92.4%    11   4.4%       0.421
 greedy          4.4%        5.2%   226  90.4%       0.166
 ATTEST         20.8%       79.2%     0   0.0%       1.000
 ```
+
+Baselines are still single-seed and are being re-run across the panel; the
+comparison holds directionally but the ATTEST row should be read as 18.5% / 0.981
+pooled, not 20.8% / 1.000.
 
 **Read the WRONG column.** `greedy` declines 5% of the time and is wrong 90% of
 the time — 226 of 250 settlements posted against orders that did not produce
@@ -103,7 +115,7 @@ belongs to exactly one settlement, so settlements are evidence about each other.
 It is off by default:
 
 ```
-                  exact     WRONG    precision
+                  exact     WRONG    precision      (seed 20260821)
 off               20.8%      0.0%      1.000
 on                24.0%      3.6%      0.829
 ```
@@ -122,7 +134,8 @@ See [FAILURES.md](FAILURES.md), D4.
 python3.13 -m venv .venv && ./.venv/bin/pip install -e .
 
 ./.venv/bin/python -m attest.web        # local UI on :8420, opens a browser
-./.venv/bin/python -m attest 250        # CLI
+./.venv/bin/python -m attest 250 --sweep   # the five-seed panel — report THIS
+./.venv/bin/python -m attest 250        # a single seed
 ./.venv/bin/python -m attest 250 --html # emit report.html
 ATTEST_PROP=1 ./.venv/bin/python -m attest 250   # reproduce the D4 ablation
 ```
