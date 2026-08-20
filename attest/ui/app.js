@@ -40,13 +40,19 @@ async function run() {
 }
 
 function renderTop() {
-  const s = S.run, m = s.money;
+  const s = S.run, m = s.money, c = s.counts, T = s.processed_paise || 1;
   el('m-proc').textContent = rs(s.processed_paise, true);
+  el('s-proc').textContent = `${s.settlements.toLocaleString()} settlements · ${s.orders.toLocaleString()} orders`;
   el('m-post').textContent = rs(m.PROVEN, true);
-  el('m-held').textContent = rs(m.AMBIGUOUS, true);
-  el('m-unex').textContent = rs(m.CONTRADICTED, true);
+  el('s-post').textContent = `${c.PROVEN} proven`;
+  el('b-post').style.width = (m.PROVEN / T * 100).toFixed(2) + '%';
+  el('m-held').textContent = rs(m.AMBIGUOUS + m.CONTRADICTED, true);
+  el('s-held').textContent = `${c.AMBIGUOUS} ambiguous · ${c.CONTRADICTED} contradicted`;
+  el('b-held').style.width = ((m.AMBIGUOUS + m.CONTRADICTED) / T * 100).toFixed(2) + '%';
   el('m-wrong').textContent = s.wrong;
-  el('m-wrong').className = 'v ' + (s.wrong ? 'warn' : 'ok');
+  el('s-wrong').textContent = `precision ${s.precision.toFixed(3)} · this seed`;
+  el('b-wrong').style.width = Math.max(s.wrong / s.settlements * 100, 0.6).toFixed(2) + '%';
+  el('b-wrong').style.background = s.wrong ? 'var(--warn)' : 'var(--ok)';
   el('barmeta').innerHTML = `${s.run_id} · seed ${s.seed} · <b>${s.seconds}s</b> · ` +
     `exact <b>${(s.exact * 100).toFixed(1)}%</b> · precision <b>${s.precision.toFixed(3)}</b> · ` +
     `blocking ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>`;
@@ -206,9 +212,10 @@ function caseFile(d) {
   </div></div>` : '';
 
   const alts = d.proofs.length > 1 ? `<div class=blk><h4>Competing explanations · ${d.proofs.length}</h4>
-    ${d.proofs.map((q, i) => `<div class=alt><div class=ah>#${i + 1} · ${q.orders.length} orders ·
-      net ${rs(q.net)} · residual ${rs(q.residual)}</div>
-      <div class=ai>${q.orders.map(o => o.id.replace('ord_', '')).join(' ')}</div></div>`).join('')}
+    ${d.proofs.map((q, i) => `<div class=alt><span class=nn>#${i + 1}</span>
+      <span class=kk>${q.orders.length} orders</span>
+      <span class=n style="width:118px;text-align:right">${rs(q.net)}</span>
+      <span class=ii>${q.orders.map(o => o.id.replace('ord_', '')).join(' ')}</span></div>`).join('')}
     <div class=note>Every one of these satisfies the amount constraint exactly.
     Choosing between them needs evidence beyond the amount — a reference, a
     counterparty — not a better search.</div></div>` : '';
@@ -221,7 +228,7 @@ function caseFile(d) {
 
   return `<div class=case>
     <div class=chd><span class=sid>${d.id}</span>
-      <span class="tag v-${d.verdict}">${d.verdict}</span>
+      <span class="pill v-${d.verdict}">${d.verdict}</span>
       <span class="amt v-${d.verdict}">${rs(d.amount)}</span></div>
     <div class=csub>${d.date} · utr ${d.utr || '—'} · resolved by ${esc(d.layer)}
       · ${d.exhaustive ? 'search exhaustive' : 'search capped'}</div>
