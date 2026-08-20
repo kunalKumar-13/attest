@@ -63,7 +63,7 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
         finding: Finding | None = None
 
         for rung in range(len(LAG_LADDER)):
-            pool = index.pool(s, rung)
+            pool, space = index.audited_pool(s, rung)
             pools_used[s.settlement_id] = pool
 
             single = match_single_order(s, pool)
@@ -72,15 +72,16 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
                 p = _proof(s, members)
                 if check(p, s, by_id):
                     finding = Finding(s.settlement_id, Verdict.PROVEN, (p,),
-                                      exhaustive=True, layer=f"L2-single/r{rung}")
+                                      exhaustive=True, space=space,
+                                      layer=f"L2-single/r{rung}")
                     break
 
             try:
                 verdict, sols, exhaustive = solve(pool, s.net_paise)
             except OutOfEnvelope as exc:
-                finding = Finding(s.settlement_id, Verdict.AMBIGUOUS, (),
+                finding = Finding(s.settlement_id, Verdict.INSUFFICIENT, (),
                                   unsat_core=(f"out-of-envelope: {exc}",),
-                                  layer=f"L3-skipped/r{rung}")
+                                  space=space, layer=f"L3-skipped/r{rung}")
                 break
 
             if verdict is Verdict.CONTRADICTED:
@@ -95,15 +96,17 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
             finding = Finding(
                 s.settlement_id,
                 Verdict.PROVEN if len(proofs) == 1 else Verdict.AMBIGUOUS,
-                proofs, exhaustive=exhaustive, layer=f"L3-dp/r{rung}",
+                proofs, exhaustive=exhaustive, space=space,
+                layer=f"L3-dp/r{rung}",
             )
             break
 
         if finding is None:
+            _, space = index.audited_pool(s, len(LAG_LADDER) - 1)
             finding = Finding(
                 s.settlement_id, Verdict.CONTRADICTED, (),
                 unsat_core=("no subset of any window satisfies the amount constraint",),
-                layer="L3-dp/exhausted",
+                space=space, layer="L3-dp/exhausted",
             )
 
         findings.append(finding)

@@ -434,3 +434,68 @@ which raised the headline number was measured, found to raise false proofs, and
 turned off. The pattern is not bad luck. Anything that resolves an abstention is
 by construction taking a position the evidence did not support, and the only
 defence is measuring against ground truth before believing it.
+
+---
+
+## D9 — 2026-08-21
+
+**The policy under-priced its own risk by five times, and the point estimate was
+the reason.**
+
+The action policy computes `P(error) × cost(wrong post) < cost(review)`, so
+everything rests on `P(error)`. Calibrated it against ground truth on three
+seeds: **1 false proof in 152 PROVEN results, a rate of 0.0066.** Then ran it on
+two held-out seeds and compared the predicted loss against what auto-posting
+actually cost:
+
+```
+seed 555001    predicted ₹2,342    realised ₹13,211    5.64x
+seed 999983    predicted ₹2,877    realised ₹13,906    4.83x
+```
+
+Five times under. Not a modelling subtlety — the policy would have been posting
+money on a risk estimate that was wrong by most of an order of magnitude.
+
+**Mechanism: a proportion measured once is an anecdote about one draw.** The
+three calibration portfolios happened to be kind. This is D7 arriving in a second
+place, and it arrived because the point estimate was used as though the sample
+size did not matter. 1-in-152 and 7-in-1064 are the same ratio and emphatically
+not the same evidence, and only one of them supports posting a merchant's money.
+
+**Fix: price at the 95% Wilson upper bound, not the observed rate.** For 1/152
+that is 0.0363 against a point estimate of 0.0066 — roughly five times more
+cautious, which is almost exactly the size of the error. Wilson rather than the
+normal approximation because these rates are small and the counts modest, which
+is where the normal interval misbehaves; for a stratum with no observed errors it
+can reach below zero and price the stratum as risk-free.
+
+```
+                predicted   realised   ratio
+seed 555001       ₹2,273     ₹3,036    1.34x   within tolerance
+seed 999983       ₹2,171         ₹0    0.00x   over-estimates
+```
+
+Auto-post rate fell from 15.2% to 7.6%. That is the cost and it is the right
+trade: **being wrong about your own error rate is acceptable in exactly one
+direction.**
+
+**A second thing fell out of it.** The first predicted-vs-realised comparison
+showed 12x, which sent me looking for a modelling flaw that was not there — I had
+compared a modelled loss against a raw misposted amount. An accounting mismatch
+in the instrument, not a defect in the thing being measured. Every comparison now
+prices both sides with the same cost function, and `Simulation` reports the ratio
+on every run so a miscalibrated policy announces itself instead of waiting to be
+noticed.
+
+The sweep this makes possible is the useful artefact:
+
+```
+review cost    auto-post   posted        protected      realised loss
+     ₹50               0   ₹0            ₹1,02,04,412   ₹0
+     ₹150             37   ₹99,571       ₹1,01,04,841   ₹3,036
+     ₹500             82   ₹6,96,826     ₹95,07,586     ₹27,117
+     ₹1,500           84   ₹8,04,849     ₹93,99,563     ₹27,117
+```
+
+That is the coverage/expected-loss frontier, measured rather than drawn. A
+merchant picks a point on it by naming what an analyst's hour is worth.

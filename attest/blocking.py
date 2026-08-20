@@ -81,6 +81,31 @@ class PoolIndex:
     def spent(self) -> int:
         return len(self._spent)
 
+    def audited_pool(self, s: Settlement, rung: int = 0):
+        """The pool, plus an account of everything excluded to produce it.
+
+        A solver result is not a claim about the world until you also know what
+        was removed before solving and on whose authority — see
+        attest/searchspace.py and FAILURES.md D8.
+        """
+        from attest.searchspace import (SearchSpace, amount_ceiling, consumption,
+                                        date_window)
+        days = set()
+        for lag in LAG_LADDER[: rung + 1]:
+            days |= _capture_dates_for(s.settled_on, lag)
+
+        in_window = [o for d in days for o in self._by_day.get(d, ())]
+        universe = sum(len(v) for v in self._by_day.values())
+        unspent = [o for o in in_window if o.order_id not in self._spent]
+        pool = [o for o in unspent if 0 < o.net <= s.net_paise]
+
+        space = SearchSpace(universe=universe)
+        space.reductions.append(date_window(
+            universe - len(in_window), rung, LAG_LADDER[: rung + 1]))
+        space.reductions.append(consumption(len(in_window) - len(unspent)))
+        space.reductions.append(amount_ceiling(len(unspent) - len(pool), s.net_paise))
+        return pool, space
+
     def pool(self, s: Settlement, rung: int = 0) -> list[Order]:
         """Candidates for `s` at ladder position `rung` (0 = tightest).
 

@@ -36,6 +36,15 @@ class Verdict(str, Enum):
     AMBIGUOUS = "AMBIGUOUS"
     CONTRADICTED = "CONTRADICTED"
 
+    INSUFFICIENT = "INSUFFICIENT"
+    """Not enough trustworthy data to make any claim at all.
+
+    Distinct from AMBIGUOUS, and the distinction is not cosmetic. AMBIGUOUS says
+    the evidence was examined and does not decide; INSUFFICIENT says the evidence
+    was never there to examine. Collapsing the second into the first would report
+    a missing-data problem as a solver outcome, and a merchant would go looking
+    for the wrong fix.""" 
+
 
 @dataclass(frozen=True)
 class Proof:
@@ -76,6 +85,10 @@ class Finding:
     unsat_core: tuple[str, ...] = ()
     """For CONTRADICTED: the minimal set of constraints that cannot hold
     together. Extracted from the solver, not narrated by a model."""
+
+    space: object | None = None
+    """The `SearchSpace` the solver was given. A verdict without it is a claim
+    about a search, not about the world — see attest/searchspace.py."""
     exhaustive: bool = False
     """True when every explanation was enumerated, not merely the first few.
     Cross-settlement deduction is only sound when this holds."""
@@ -84,8 +97,28 @@ class Finding:
 
     @property
     def postable(self) -> bool:
-        """Only a unique, kernel-checked explanation may post automatically."""
-        return self.verdict is Verdict.PROVEN
+        """Only a unique, kernel-checked explanation over an intact space.
+
+        A COMPROMISED space is disqualifying regardless of the verdict: the
+        arithmetic may be perfect and still answer a question that excluded the
+        truth. That is D8, encoded rather than remembered.
+        """
+        if self.verdict is not Verdict.PROVEN:
+            return False
+        from attest.searchspace import Integrity, SearchSpace
+        if isinstance(self.space, SearchSpace):
+            return self.space.integrity is not Integrity.COMPROMISED
+        return True
+
+    @property
+    def uniqueness_claim(self) -> str:
+        """What this finding has earned the right to say about uniqueness."""
+        from attest.searchspace import SearchSpace
+        if self.verdict is not Verdict.PROVEN:
+            return ""
+        if isinstance(self.space, SearchSpace):
+            return self.space.uniqueness_claim()
+        return "unique within the candidate space (space integrity unrecorded)"
 
 
 # --------------------------------------------------------------------------
