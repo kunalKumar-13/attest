@@ -184,13 +184,24 @@ def render(rep: Report, findings: list[Finding], settlements: list[Settlement],
         f"<b>{counts[v]}</b> {v.value.lower()}</span>"
         for v in (Verdict.PROVEN, Verdict.AMBIGUOUS, Verdict.CONTRADICTED))
 
-    stats = "".join(f"<div class=stat><div class=k>{k}</div><div class=v>{v}</div></div>"
-                    for k, v in [
-                        ("settlements", f"{rep.n_settlements:,}"),
-                        ("processed", _rs(rep.rupees_total)),
-                        ("pair precision", f"{rep.precision:.3f}"),
-                        ("false proofs", f"{rep.wrong}"),
-                        ("wall clock", f"{rep.seconds:.2f}s"),
+    # Money first. A settlement is not worth its row count, and a finance page
+    # that leads with percentages is answering a question nobody asked.
+    money = {v: 0 for v in Verdict}
+    for f in findings:
+        money[f.verdict] += st_by_id[f.settlement_id].net_paise
+
+    stats = "".join(f"<div class=stat><div class=k>{k}</div>"
+                    f"<div class=v{c}>{v}</div></div>"
+                    for k, v, c in [
+                        ("processed", _rs(rep.rupees_total), ""),
+                        ("auto-reconciled", _rs(money[Verdict.PROVEN]),
+                         " style='color:var(--proven)'"),
+                        ("needs review", _rs(money[Verdict.AMBIGUOUS]),
+                         " style='color:var(--ambiguous)'"),
+                        ("unexplained", _rs(money[Verdict.CONTRADICTED]),
+                         " style='color:var(--contradicted)'"),
+                        ("false proofs", f"{rep.wrong}", ""),
+                        ("wall clock", f"{rep.seconds:.2f}s", ""),
                     ])
 
     order = {Verdict.PROVEN: 0, Verdict.AMBIGUOUS: 1, Verdict.CONTRADICTED: 2}

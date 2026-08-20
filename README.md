@@ -120,8 +120,31 @@ See [FAILURES.md](FAILURES.md), D4.
 
 ```bash
 python3.13 -m venv .venv && ./.venv/bin/pip install -e .
-./.venv/bin/python -m attest 250
-ATTEST_PROP=1 ./.venv/bin/python -m attest 250    # reproduce the D4 ablation
+
+./.venv/bin/python -m attest.web        # local UI on :8420, opens a browser
+./.venv/bin/python -m attest 250        # CLI
+./.venv/bin/python -m attest 250 --html # emit report.html
+ATTEST_PROP=1 ./.venv/bin/python -m attest 250   # reproduce the D4 ablation
+```
+
+The UI runs a generated portfolio or takes your own `orders.csv` and
+`settlements.csv`. Stdlib only — no framework, no build step, and nothing leaves
+the machine. It leads with rupees rather than row counts, because the question a
+merchant has is never "what is your exact-set match rate", it is **how much of my
+money is accounted for, and what happened to the rest.**
+
+```
+processed         ₹53,02,702.35
+auto-reconciled    ₹4,99,574.15     proven — arithmetic you can check by hand
+needs review      ₹47,96,812.17     more than one explanation fits; both shown
+unexplained           ₹6,316.03     no subset satisfies the constraint
+false proofs                   0
+```
+
+Optional: build the Rust kernel for the wider envelope and the 52× DP.
+
+```bash
+cd native && maturin develop --release
 ```
 
 ## Layout
