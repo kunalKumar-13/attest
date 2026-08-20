@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from attest.blocking import LAG_LADDER, PoolIndex
 from attest.eval.harness import Prediction
+from attest.evidence import to_fixed_point
 from attest.layers import match_single_order
 from attest.model import Order, Settlement, tolerance_paise
 from attest.subsetsum import OutOfEnvelope, solve
@@ -114,4 +115,22 @@ def run(settlements: list[Settlement], orders: list[Order]) -> tuple[
             reason="" if finding.postable else finding.verdict.value,
         ))
 
+    # L4 -- settlements are evidence about each other. Deducing across the whole
+    # population resolves cases no single-settlement search can decide.
+    rounds = to_fixed_point(findings)
+    promoted = sum(r.promoted for r in rounds)
+    if promoted:
+        print(f"  propagation: {len(rounds)} rounds, "
+              f"{sum(r.killed for r in rounds)} candidates eliminated, "
+              f"{promoted} settlements promoted to PROVEN")
+
+    preds = [
+        Prediction(
+            f.settlement_id,
+            list(f.proofs[0].order_ids) if f.postable else None,
+            f.layer,
+            reason="" if f.postable else f.verdict.value,
+        )
+        for f in findings
+    ]
     return preds, pools_used, findings
