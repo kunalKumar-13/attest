@@ -81,24 +81,128 @@ const row = r => `<tr onclick="openSettlement('${r.id}')">
 const HEAD = `<th>settlement</th><th>value date</th><th class="n r">amount</th>
   <th class="n r">orders</th><th class="n r">residual</th><th>verdict</th><th>resolved by</th>`;
 
+
+/* ------------------------------------------------------------------ charts
+ * Inline SVG, no library. Every chart is computed from the same /api payload
+ * the tables render, so a chart can never disagree with the number beside it —
+ * which is the usual way dashboards start lying.
+ */
+
+function donut(segments, total, centreTop, centreSub) {
+  const R = 62, r = 42, C = 2 * Math.PI * R;
+  let off = 0;
+  const arcs = segments.map(s => {
+    const frac = total ? s.value / total : 0;
+    const el = `<circle cx=80 cy=80 r=${R} fill=none stroke="${s.colour}"
+      stroke-width="${R - r}" stroke-dasharray="${(frac * C).toFixed(2)} ${C}"
+      stroke-dashoffset="${(-off * C).toFixed(2)}"
+      transform="rotate(-90 80 80)"><title>${s.label}: ${s.value}</title></circle>`;
+    off += frac; return el;
+  }).join('');
+  return `<svg viewBox="0 0 160 160" class=donut>${arcs}
+    <text x=80 y=76 text-anchor=middle class=dc-t>${centreTop}</text>
+    <text x=80 y=95 text-anchor=middle class=dc-s>${centreSub}</text></svg>`;
+}
+
+function area(values, colour, h = 46) {
+  if (!values.length) return '';
+  const w = 240, max = Math.max(...values, 1);
+  const pts = values.map((v, i) =>
+    [(i / Math.max(values.length - 1, 1)) * w, h - (v / max) * (h - 4)]);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+  const id = 'g' + Math.random().toString(36).slice(2, 8);
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio=none class=spark>
+    <defs><linearGradient id=${id} x1=0 x2=0 y1=0 y2=1>
+      <stop offset=0% stop-color="${colour}" stop-opacity=.34/>
+      <stop offset=100% stop-color="${colour}" stop-opacity=0/></linearGradient></defs>
+    <path d="${line}L${w},${h}L0,${h}Z" fill="url(#${id})"/>
+    <path d="${line}" fill=none stroke="${colour}" stroke-width=1.6
+      vector-effect=non-scaling-stroke/></svg>`;
+}
+
+function bars(buckets, colour) {
+  const w = 100 / Math.max(buckets.length, 1), max = Math.max(...buckets.map(b => b.v), 1);
+  return `<div class=bars>${buckets.map(b => `<div class=bar style="width:${w}%">
+    <i style="height:${(b.v / max) * 100}%;background:${colour}"><span>${b.k}: ${b.v}</span></i>
+    </div>`).join('')}</div>
+    <div class=axis>${buckets.map(b => `<span>${b.k}</span>`).join('')}</div>`;
+}
+
+/* Settlements per value date, in date order. */
+function timeSeries(rows) {
+  const m = new Map();
+  rows.forEach(r => m.set(r.date, (m.get(r.date) || 0) + 1));
+  return [...m.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+}
+
+/* Bundle-size distribution over proven settlements — how many orders a single
+   credit actually turned out to contain. */
+function bundleBuckets(rows) {
+  const edges = [[1, 1], [2, 4], [5, 9], [10, 19], [20, 39], [40, 999]];
+  const label = ['1', '2–4', '5–9', '10–19', '20–39', '40+'];
+  return edges.map((e, i) => ({
+    k: label[i],
+    v: rows.filter(r => r.orders >= e[0] && r.orders <= e[1]).length,
+  }));
+}
+
 /* ------------------------------------------------------------------ views */
 
 function overview() {
   const s = S.run, m = s.money, c = s.counts;
+  const ts = timeSeries(S.rows);
+  const series = ts.map(([, n]) => n);
+  const reconciled = s.processed_paise ? m.PROVEN / s.processed_paise : 0;
+
+  const segs = V.map(v => ({ label: v, value: c[v], colour: vcol(v) }));
+
   return `
   <div class="grid g5">
-    ${cell('processed', rs(s.processed_paise, { whole: true }), `${s.settlements.toLocaleString()} settlements · ${s.orders.toLocaleString()} orders`)}
+    ${cell('processed', rs(s.processed_paise, { whole: true }),
+      `${s.settlements.toLocaleString()} settlements · ${s.orders.toLocaleString()} orders`)}
     ${cell('auto-reconciled', rs(m.PROVEN, { whole: true }), `${c.PROVEN} proven`, vcol('PROVEN'))}
-    ${cell('needs review', rs(m.AMBIGUOUS, { whole: true }), `${c.AMBIGUOUS} ambiguous`, vcol('AMBIGUOUS'))}
+    ${cell('held for review', rs(m.AMBIGUOUS, { whole: true }), `${c.AMBIGUOUS} ambiguous`, vcol('AMBIGUOUS'))}
     ${cell('unexplained', rs(m.CONTRADICTED, { whole: true }), `${c.CONTRADICTED} contradicted`, vcol('CONTRADICTED'))}
-    ${cell('false proofs', s.wrong, `precision ${s.precision.toFixed(3)}`, s.wrong ? vcol('AMBIGUOUS') : vcol('PROVEN'))}
+    ${cell('false proofs', s.wrong, `precision ${s.precision.toFixed(3)}`,
+      s.wrong ? vcol('AMBIGUOUS') : vcol('PROVEN'))}
   </div>
-  <h2>Reconciliation health</h2>
-  ${verdictBar(c, s.settlements)}
-  <p class=note style="margin-top:-14px;max-width:660px">A decline is a correct
+
+  <div class=panels>
+    <div class=panel>
+      <div class=ph><h3>Reconciliation health</h3><span class=pm>${s.settlements} settlements</span></div>
+      <div class=donutwrap>
+        ${donut(segs, s.settlements, pct(c.PROVEN / s.settlements), 'proven')}
+        <div class=dlegend>${V.map(v => `<div class=dl>
+          <i class=dot style="background:${vcol(v)}"></i>
+          <span class=dln>${v.toLowerCase()}</span>
+          <b class=n>${c[v].toLocaleString()}</b>
+          <span class=dlp>${pct(c[v] / s.settlements)}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class=panel>
+      <div class=ph><h3>Settlement volume</h3><span class=pm>${ts.length} value dates</span></div>
+      ${area(series, 'var(--accent)', 92)}
+      <div class=axis><span>${ts.length ? ts[0][0] : ''}</span><span>${ts.length ? ts[ts.length - 1][0] : ''}</span></div>
+    </div>
+
+    <div class=panel>
+      <div class=ph><h3>Value auto-reconciled</h3><span class=pm>of ${rs(s.processed_paise, { whole: true })}</span></div>
+      <div class=bigpct style="color:${vcol('PROVEN')}">${pct(reconciled)}</div>
+      <div class=meter><i style="width:${reconciled * 100}%;background:${vcol('PROVEN')}"></i></div>
+      <div class=axis><span>${rs(m.PROVEN, { whole: true })} posted</span>
+        <span>${rs(m.AMBIGUOUS + m.CONTRADICTED, { whole: true })} held</span></div>
+      <div class=ph style="margin-top:18px"><h3>Orders per settlement</h3></div>
+      ${bars(bundleBuckets(S.rows), 'var(--accent)')}
+    </div>
+  </div>
+
+  <p class=note style="max-width:680px;margin:2px 0 0">A decline is a correct
   outcome, not a failure. The engine posts only where exactly one explanation
   satisfies every constraint; everything else is handed to a human with the
   competing explanations or the contradiction attached.</p>
+
   <h2>Largest settlements</h2>
   ${table(HEAD, [...S.rows].sort((a, b) => b.amount - a.amount).slice(0, 12).map(row).join(''))}`;
 }

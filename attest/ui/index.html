@@ -131,6 +131,41 @@ line-height:1.75}
 .audit b{color:var(--accent);font-weight:500}
 .audit .t{color:var(--dim2);margin-right:12px}
 
+/* ---- panels & charts ---- */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(288px,1fr));gap:14px;
+margin-bottom:26px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 17px}
+.ph{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.ph h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2);
+font-weight:600}
+.pm{font-size:11px;color:var(--dim2);font-family:var(--mono)}
+.donutwrap{display:flex;align-items:center;gap:16px}
+.donut{width:126px;height:126px;flex:0 0 126px}
+.dc-t{fill:var(--ink);font-size:23px;font-family:var(--mono);font-weight:600;
+letter-spacing:-.03em}
+.dc-s{fill:var(--dim2);font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+.dlegend{flex:1;display:flex;flex-direction:column;gap:9px}
+.dl{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.dl .dln{color:var(--dim);flex:1}
+.dl b{font-size:13px}
+.dl .dlp{color:var(--dim2);font-size:11.5px;font-family:var(--mono);min-width:42px;
+text-align:right}
+.spark{width:100%;height:92px;display:block}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--dim2);
+font-family:var(--mono);margin-top:7px}
+.bigpct{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.035em;
+line-height:1.1}
+.meter{height:7px;border-radius:4px;background:var(--line);overflow:hidden;margin:9px 0 0}
+.meter i{display:block;height:100%}
+.bars{display:flex;align-items:flex-end;gap:5px;height:62px;margin-top:4px}
+.bar{display:flex;align-items:flex-end;justify-content:center;height:100%;position:relative}
+.bar i{width:100%;border-radius:3px 3px 0 0;min-height:3px;display:block;position:relative}
+.bar i span{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:2px 6px;
+font-size:10.5px;font-family:var(--mono);white-space:nowrap;color:var(--ink);margin-bottom:4px}
+.bar:hover i span{display:block}
+.bar::after{content:attr(data-k)}
+
 /* ---- palette ---- */
 .pal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
 align-items:flex-start;justify-content:center;padding-top:16vh;z-index:50}
