@@ -86,3 +86,70 @@ goes first.
 
 **Financial State** is the signature screen and it lives under CONTROL:
 what we know, why, what would resolve it, what ATTEST will do.
+
+## E · What was built, and what it cost
+
+Fourteen screens across the four modes. Sub-navigation lives inside a mode, so
+adding a surface does not add a top-level item — which was the failure the audit
+predicted for the flat top bar.
+
+    CONTROL      Attention · Overview
+    INVESTIGATE  Settlements · Exceptions · What changed · Ask ATTEST
+    VERIFY       Accuracy · Failures · Trust centre
+    AUTOMATE     Policy · Agents · Sources · Live events
+
+Three of these had modules but no surface before this pass: **Trust centre**
+(`rules.py` provenance and `eval/gate.py`), **Agent permissions** (`agents.py`),
+and **What changed** (`whatchanged.py`, written during the evidence work and
+unused for six days).
+
+### Screens that were changed to stop asserting and start demonstrating
+
+**Live events** described signature verification and idempotency over an empty
+log. It now sends four deliveries through the same code path the HTTP endpoint
+uses and prints what came back: accepted, duplicate, replay mismatch, bad
+signature. The log grows by four because four were really delivered.
+
+**Agent permissions** listed capabilities. It now runs the pipeline against the
+current run's findings, so the refusal of `post_accounting_entry` at the
+capability stage is something the code did rather than something the page says.
+
+**Accuracy** reads `benchmark/results.json` and `benchmark/baseline.json` — the
+same two files the build reads — so the screen cannot report a pass that CI
+would fail.
+
+### Defects this pass found, all by screenshotting a screen and reading it
+
+1. The board labelled proven value **auto-posted**. Proven means a unique
+   kernel-checked explanation exists; the policy then prices it. The board
+   claimed 52 settlements had posted while the policy screen, correctly, said 1.
+2. Financial State said "27 of 31 orders explained". The four explanations do
+   not share a denominator, so the sentence was arithmetic nonsense that read
+   fluently. It now says 27 orders appear in all four explanations, ₹97,759.84
+   is settled whichever is right, and ₹7,292.03 turns on which one is.
+3. The candidate bars plotted each explanation's total — the same number four
+   times. They now split shared orders from unique ones, which is the only thing
+   that distinguishes the explanations: 27 shared, 4–5 unique.
+4. Policy reasons were denominated in paise. A reader deciding whether to trust
+   a posting had to convert before they could judge.
+5. `class="gate n"` collided with `.n`, the global tabular-numeral class, so the
+   whole refusal argument rendered in monospace.
+6. Explanatory prose wore `.why`, the dotted-underline provenance affordance,
+   promising a click that explains a number it does not have.
+7. `run()` reset the screen on completion, so re-running from Trust centre
+   dropped you back to Attention.
+8. The status bar advertised `j`/`k`/`/`/verdict keys on every screen; they only
+   bind on the ledger, and pressing `1` elsewhere silently filtered a list the
+   user could not see.
+
+### Measured after
+
+    raw font sizes in CSS      99 across 19 values  ->  0
+    raw border radii           35 across 13 values  ->  0
+    WCAG AA text failures      46 distinct styles   ->  0
+    horizontal overflow        36px at 430px        ->  0 from 430px to 1512px
+
+The contrast result was the one that mattered. The old de-emphasis ramp bottomed
+out at 2.38:1, and that is where nearly all the explanatory prose lived — so the
+writing this product depends on to make its case was the writing hardest to
+read.
