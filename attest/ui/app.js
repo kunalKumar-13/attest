@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'work', review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -176,6 +176,7 @@ function flow(g) {
 /* --------------------------------------------------------------- case file */
 
 async function open_() {
+  if (S.mode === 'policy') return;
   const r = S.view[S.i];
   if (!r) return void (el('right').innerHTML = '<div class=empty>no selection</div>');
   paint();
@@ -304,6 +305,142 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
+el('policy').onclick = () => {
+  S.mode = S.mode === 'policy' ? 'work' : 'policy';
+  el('policy').style.color = S.mode === 'policy' ? 'var(--acc)' : '';
+  S.mode === 'policy' ? loadPolicy() : open_();
+};
+
+/* ------------------------------------------------------------- simulator
+ * §36. The point is not the numbers at any one setting — it is that the
+ * threshold was never chosen. Move what an analyst's hour is worth and the
+ * boundary between automate and check moves on its own, because it is only ever
+ * the solution to P(error) x cost(wrong) < cost(review). The frontier makes that
+ * visible rather than asserting it.
+ */
+const STEPS = [2500, 5000, 10000, 15000, 25000, 50000, 100000, 250000, 500000];
+
+async function loadPolicy() {
+  if (!S.run) return;
+  el('right').innerHTML = '<div class=empty><span class=spin></span>evaluating the portfolio at every costing…</div>';
+  S.pol = await api(`/api/policy?run=${S.run.run_id}&review=${S.review}&exposure=${S.exposure}`);
+  drawPolicy();
+}
+
+async function repriceOnly() {
+  const p = await api(`/api/policy?run=${S.run.run_id}&review=${S.review}&exposure=${S.exposure}`);
+  S.pol = { ...p, frontier: S.pol.frontier };
+  drawPolicy();
+}
+
+function frontier(f, current) {
+  const W = 900, H = 200, L = 54, R = 16, T = 14, B = 30;
+  const xs = f.map(p => Math.log10(p.review_paise));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const maxAuto = Math.max(...f.map(p => p.auto_post), 1);
+  const X = v => L + ((Math.log10(v) - x0) / (x1 - x0 || 1)) * (W - L - R);
+  const Y = v => T + (1 - v / maxAuto) * (H - T - B);
+
+  const line = f.map((p, i) => `${i ? 'L' : 'M'}${X(p.review_paise).toFixed(1)},${Y(p.auto_post).toFixed(1)}`).join('');
+  const area = line + `L${X(f[f.length - 1].review_paise).toFixed(1)},${H - B}L${X(f[0].review_paise).toFixed(1)},${H - B}Z`;
+  const dots = f.map(p => `<circle cx="${X(p.review_paise).toFixed(1)}" cy="${Y(p.auto_post).toFixed(1)}"
+     r="${Math.abs(p.review_paise - current) < 1 ? 4.5 : 2.5}"
+     fill="${p.realised_loss_paise ? 'var(--warn)' : 'var(--ok)'}">
+     <title>₹${(p.review_paise / 100).toLocaleString()} review → ${p.auto_post} auto-posted, ${rs(p.posted_paise, true)}, ${p.wrong_posts} wrong</title></circle>`).join('');
+  const ticks = f.filter((_, i) => i % 2 === 0).map(p =>
+    `<text x="${X(p.review_paise).toFixed(1)}" y="${H - 10}" text-anchor=middle class=fx>₹${(p.review_paise / 100).toLocaleString()}</text>`).join('');
+
+  return `<svg class=front viewBox="0 0 ${W} ${H}" preserveAspectRatio=none>
+    <defs><linearGradient id=fg x1=0 x2=0 y1=0 y2=1>
+      <stop offset=0 stop-color="var(--ok)" stop-opacity=.24/>
+      <stop offset=1 stop-color="var(--ok)" stop-opacity=0/></linearGradient></defs>
+    <path d="${area}" fill="url(#fg)"/>
+    <path d="${line}" fill=none stroke="var(--ok)" stroke-width=1.6 vector-effect=non-scaling-stroke/>
+    ${dots}${ticks}
+    <text x="6" y="${T + 8}" class=fx>${maxAuto}</text>
+    <text x="6" y="${H - B}" class=fx>0</text>
+    <text x="${L}" y="${T - 3}" class=fx>SETTLEMENTS AUTO-POSTED</text>
+  </svg>`;
+}
+
+function drawPolicy() {
+  const p = S.pol, n = p.settlements;
+  const idx = STEPS.indexOf(S.review);
+  const eidx = [1000000, 2500000, 5000000, 10000000, 25000000, 100000000].indexOf(S.exposure);
+  const EXP = [1000000, 2500000, 5000000, 10000000, 25000000, 100000000];
+
+  el('right').innerHTML = `<div class=pol>
+    <h2>Auto-post policy</h2>
+    <p class=lead>No threshold is configured here. A settlement posts itself when
+      <b>P(error) × cost of a wrong posting &lt; cost of a human review</b>, so the
+      boundary is whatever that inequality implies. Change what an analyst's hour is
+      worth and it moves on its own.</p>
+
+    <div class=sl>
+      <div class=top><span class=nm>cost of a human review</span>
+        <span class=val id=v-rev>${rs(S.review)}</span></div>
+      <input type=range id=r-rev min=0 max=${STEPS.length - 1} step=1 value=${idx < 0 ? 3 : idx}>
+      <div class=ends><span>₹25</span><span>₹5,000</span></div>
+      <div class=why>An analyst's time to open a settlement, read the evidence and
+        decide. Raise it and automating becomes cheaper than checking.</div>
+    </div>
+
+    <div class=sl>
+      <div class=top><span class=nm>maximum exposure per settlement</span>
+        <span class=val id=v-exp>${rs(S.exposure, true)}</span></div>
+      <input type=range id=r-exp min=0 max=${EXP.length - 1} step=1 value=${eidx < 0 ? 3 : eidx}>
+      <div class=ends><span>₹10,000</span><span>₹10,00,000</span></div>
+      <div class=why>A hard ceiling above which a human looks regardless of the
+        arithmetic — expected value is the wrong instrument for a tail a merchant
+        cannot absorb.</div>
+    </div>
+
+    <div class=out>
+      <div class=c><div class=k>auto-posted</div>
+        <div class="v ok">${p.auto_post}</div>
+        <div class=s>${(p.auto_post / n * 100).toFixed(1)}% of ${n} · ${rs(p.posted_paise, true)}</div></div>
+      <div class=c><div class=k>human review</div>
+        <div class="v warn">${p.review}</div>
+        <div class=s>${(p.review / n * 100).toFixed(1)}% of the queue</div></div>
+      <div class=c><div class=k>protected</div>
+        <div class=v>${rs(p.protected_paise, true)}</div>
+        <div class=s>refused, deliberately</div></div>
+      <div class=c><div class=k>realised loss</div>
+        <div class="v ${p.realised_loss_paise ? 'warn' : 'ok'}">${rs(p.realised_loss_paise, true)}</div>
+        <div class=s>${p.wrong_posts} wrong post${p.wrong_posts === 1 ? '' : 's'} · vs ${rs(p.expected_loss_paise, true)} predicted</div></div>
+    </div>
+
+    <div class=blk><h4>Coverage against review cost</h4>
+      <div style="padding:14px 17px">${frontier(p.frontier, S.review)}</div>
+      <div class=note style="padding-top:0">Each point is the whole portfolio
+        re-decided at that costing. Green means no wrong post at that setting;
+        amber means the automation bought a real error. ${esc(p.calibration)}.</div>
+    </div>
+
+    <div class=blk><h4>Measured risk by stratum</h4>
+      <div class=stt style="padding:4px 17px 12px">
+        ${p.strata.map(s => `<div class=r><span>${esc(s.key)}</span>
+          <span>${s.wrong}/${s.total} observed</span>
+          <span class="${s.priced > 0.2 ? 'warn' : 'ok'}">priced ${s.priced.toFixed(4)}</span></div>`).join('')}
+      </div>
+      <div class=note style="padding-top:0">Priced at the 95% Wilson upper bound,
+        not the observed rate. A stratum below the observation floor is not priced
+        at all and posts nothing — being wrong about your own error rate is
+        acceptable in exactly one direction.</div>
+    </div>
+  </div>`;
+
+  el('r-rev').oninput = e => {
+    S.review = STEPS[+e.target.value];
+    el('v-rev').textContent = rs(S.review);
+  };
+  el('r-rev').onchange = repriceOnly;
+  el('r-exp').oninput = e => {
+    S.exposure = EXP[+e.target.value];
+    el('v-exp').textContent = rs(S.exposure, true);
+  };
+  el('r-exp').onchange = repriceOnly;
+}
 // Theme is a viewer choice, remembered. Light is the default because a
 // reconciliation console is read beside spreadsheets and mail more often than
 // beside terminals.

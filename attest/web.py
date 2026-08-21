@@ -55,6 +55,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.rows(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/policy":
+            r = api.get(q.get("run", [""])[0])
+            if r is None:
+                self._json({"error": "unknown run"}, 404)
+            else:
+                self._json(api.policy_view(
+                    r,
+                    int(q.get("review", ["15000"])[0]),
+                    int(q.get("exposure", ["10000000"])[0])))
+
         elif u.path == "/api/exceptions":
             r = api.get(q.get("run", [""])[0])
             self._json([e.to_json() for e in r.exceptions.values()] if r

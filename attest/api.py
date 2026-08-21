@@ -23,7 +23,7 @@ from attest.graph import build as build_graph
 from attest.generate.generator import build
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
-from attest.policy import Costs, RiskModel, calibrate, decide
+from attest.policy import Costs, RiskModel, calibrate, decide, simulate
 from attest.verdict import Finding, Verdict
 
 #: Runs are held in memory and addressed by id so the UI can drill into a
@@ -66,10 +66,18 @@ def execute(n: int, seed: int) -> Run:
 
     # Calibrated on a DIFFERENT portfolio. Fitting the risk model on the run it
     # then judges would report the policy's memory as its accuracy.
-    cal = build(max(n, 250), seed=seed ^ 0x5EED)
-    _, _, cal_findings = run(cal.settlements, cal.orders)
-    risk = calibrate({0: (cal_findings,
-                          {t_.settlement_id: set(t_.order_ids) for t_ in cal.truth})})
+    # Calibrate on SEVERAL held-out portfolios of the SAME size, not one larger
+    # one. Coverage falls with portfolio density — bigger pools mean more subsets
+    # land within tolerance — so a larger calibration set yields *fewer* proven
+    # results per settlement and a worse-populated stratum than the portfolio it
+    # is meant to price. Calibration data has to match the density of what it
+    # judges, which is a distribution-shift problem wearing a scale disguise.
+    fits = {}
+    for k in range(4):
+        cal = build(n, seed=(seed ^ 0x5EED) + k * 7919)
+        _, _, cf = run(cal.settlements, cal.orders)
+        fits[k] = (cf, {t_.settlement_id: set(t_.order_ids) for t_ in cal.truth})
+    risk = calibrate(fits)
     _audit(log, "calibrate",
            f"risk model fitted on {risk.calibrated_on} proven results from a "
            f"held-out portfolio; strata: "
@@ -151,6 +159,63 @@ def summary(r: Run) -> dict[str, Any]:
         "by_reason": _by_reason(r),
         "decisions": _decisions(r),
     }
+
+
+def policy_view(r: Run, review_paise: int, exposure_paise: int) -> dict[str, Any]:
+    """Evaluate the whole portfolio under one costing, plus the frontier.
+
+    The point is not the numbers at one setting; it is that the threshold is not
+    a number anyone chose. Move what an analyst's hour is worth and the boundary
+    between automate and check moves on its own, because it was only ever the
+    solution to an inequality. The frontier makes that visible instead of
+    asserting it.
+    """
+    costs = Costs(review_paise=review_paise, max_exposure_paise=exposure_paise)
+    st = {x.settlement_id: x for x in r.settlements}
+    truth = {t.settlement_id: set(t.order_ids) for t in r.truth}
+    sim = simulate(r.findings, st, truth, r.risk or RiskModel(), costs)
+
+    # Realised loss is priced with the SAME cost function as the prediction.
+    # Comparing a modelled loss against a raw misposted amount makes any policy
+    # look catastrophically miscalibrated for reasons that are pure accounting.
+    frontier = []
+    for rc in (2_500, 5_000, 10_000, 15_000, 25_000, 50_000,
+               1_00_000, 2_50_000, 5_00_000):
+        f = simulate(r.findings, st, truth, r.risk or RiskModel(),
+                     Costs(review_paise=rc, max_exposure_paise=exposure_paise))
+        frontier.append({
+            "review_paise": rc,
+            "auto_post": f.auto_post,
+            "review": f.review,
+            "block": f.block,
+            "posted_paise": f.posted_paise,
+            "protected_paise": f.protected_paise,
+            "expected_loss_paise": f.expected_loss_paise,
+            "realised_loss_paise": f.realised_wrong_paise,
+            "wrong_posts": f.wrong_posts,
+        })
+
+    return {
+        "review_paise": review_paise,
+        "exposure_paise": exposure_paise,
+        "auto_post": sim.auto_post, "review": sim.review, "block": sim.block,
+        "posted_paise": sim.posted_paise,
+        "protected_paise": sim.protected_paise,
+        "expected_loss_paise": sim.expected_loss_paise,
+        "realised_loss_paise": sim.realised_wrong_paise,
+        "wrong_posts": sim.wrong_posts,
+        "calibration": sim.calibration,
+        "settlements": len(r.findings),
+        "strata": [{"key": "/".join(k), "wrong": v[0], "total": v[1],
+                    "priced": round(_wilson(v[0], v[1]), 4)}
+                   for k, v in sorted((r.risk or RiskModel()).rates.items())],
+        "frontier": frontier,
+    }
+
+
+def _wilson(w: int, t: int) -> float:
+    from attest.policy import _wilson_upper
+    return _wilson_upper(w, t) if t else 1.0
 
 
 def _by_reason(r: Run) -> list[dict[str, Any]]:

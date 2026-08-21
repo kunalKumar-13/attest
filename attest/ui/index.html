@@ -175,6 +175,35 @@ font-family:var(--m);font-size:11px;align-items:baseline}
 .alt .ii{flex:1;color:var(--dim3);font-size:9.5px;word-break:break-all}
 .note{color:var(--dim3);font-size:11.5px;line-height:1.65;padding:12px 17px}
 
+/* ---------------- policy ---------------- */
+.pol{padding:26px 34px 70px;max-width:1080px}
+.pol h2{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:5px}
+.pol .lead{color:var(--dim2);font-size:12.5px;margin-bottom:22px;max-width:74ch;
+line-height:1.6}
+.sl{background:var(--sur);border:1px solid var(--line);border-radius:14px;
+padding:18px 22px;margin-bottom:16px;box-shadow:var(--shadow)}
+.sl .top{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.sl .nm{font-size:9.5px;letter-spacing:.19em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.sl .val{margin-left:auto;font-family:var(--m);font-size:20px;letter-spacing:-.03em}
+.sl input[type=range]{width:100%;accent-color:var(--acc);height:3px}
+.sl .ends{display:flex;justify-content:space-between;font-family:var(--m);
+font-size:10px;color:var(--dim3);margin-top:7px}
+.sl .why{font-size:11.5px;color:var(--dim3);margin-top:11px;line-height:1.6}
+.out{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.out .c{background:var(--sur);border:1px solid var(--line);border-radius:12px;
+padding:15px 17px;box-shadow:var(--shadow)}
+.out .k{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim3);
+font-weight:600}
+.out .v{font-family:var(--m);font-size:22px;margin-top:6px;letter-spacing:-.03em}
+.out .s{font-size:10.5px;color:var(--dim3);margin-top:4px}
+svg.front{width:100%;height:200px;display:block}
+.fx{fill:var(--dim3);font-family:var(--m);font-size:9px}
+.stt{font-family:var(--m);font-size:11.5px;font-variant-numeric:tabular-nums}
+.stt .r{display:flex;padding:7px 0;border-bottom:1px solid var(--line);gap:12px}
+.stt .r:last-child{border-bottom:0}
+.stt .r span:first-child{flex:1;color:var(--dim2)}
+
 #bar{display:flex;align-items:center;gap:16px;border-top:1px solid var(--line);
 background:var(--sur);padding:0 26px;font-family:var(--m);font-size:9.5px;color:var(--dim3)}
 #bar b{color:var(--dim2);font-weight:400} #bar .sp{flex:1}
@@ -204,6 +233,7 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
     <span class=sp></span>
     <button class=btn id=theme title="light / dark">◐</button>
     <select class=btn id=size><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
+    <button class=btn id=policy>Policy</button>
     <button class="btn go" id=run>Run</button>
   </div>
 

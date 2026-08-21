@@ -763,3 +763,68 @@ weakness. The engine is not failing to decide. There is nothing there to decide
 with, and the moment there is, it decides correctly.
 
 Zero unattributed across all 21.
+
+---
+
+## D14 — 2026-08-21
+
+**Built the policy simulator. Its first frontier was flat, and fixing it the
+obvious way made it worse.**
+
+The simulator re-decides the whole portfolio at nine review costings so a
+merchant can see the trade instead of being told about it. First run: zero
+auto-posts at every setting, a perfectly flat line.
+
+Not a bug. Stratifying risk on `(verdict, integrity, cheapness)` splits the
+proven results three ways, and the API was calibrating on a single held-out
+portfolio of the same size as the one it judged. Strata came out at 7, 19 and 12
+observations — all below the floor where a rate is a measurement rather than a
+glimpse — so every one of them failed closed. Correct behaviour and useless
+behaviour at once.
+
+**The obvious fix made it worse.** Calibrated on a portfolio four times the size,
+expecting four times the observations. Got 1, 3 and 53 — *fewer* usable strata
+than before.
+
+D11 had already measured why and I did not connect it: **coverage falls with
+portfolio density.** More settlements over the same 90-day window means larger
+candidate pools, more subsets landing within tolerance, and proportionally fewer
+proven results. A bigger calibration portfolio is a *different distribution*, not
+more of the same one — a distribution-shift problem wearing a scale disguise. It
+also skews which strata populate: the few proven results in a dense portfolio are
+mostly single-order exact matches, which carry no coincidence reading at all.
+
+**Correct fix: four held-out portfolios of the SAME size.** Calibration data has
+to match the density of what it prices.
+
+```
+PROVEN/heuristic/sparse       1/105   priced 0.0520
+PROVEN/heuristic/moderate    11/33    priced 0.5039
+PROVEN/heuristic/unmeasured   0/59    priced 0.0611
+```
+
+The moderate stratum is priced at 0.50 — a coin flip — off 11 errors in 33
+observations. That is the D11 signal doing its job: the neighbourhood where every
+false proof lives is now priced as though a proof found there means almost
+nothing, because measured against ground truth, it nearly doesn't.
+
+Frontier, and it is monotonic and honest:
+
+```
+review ₹   auto-posted    posted ₹     protected ₹   realised loss   wrong
+      25             0           0      53,02,702              ₹0       0
+     150             1        ₹354      53,02,348              ₹0       0
+     250            26   ₹1,01,666      52,01,036              ₹0       0
+     500            40   ₹2,61,263      50,41,438              ₹0       0
+   2,500            47   ₹4,31,363      48,71,339              ₹0       0
+   5,000            52   ₹4,99,574      48,03,128              ₹0       0
+```
+
+**Zero wrong posts at every point on the curve**, including the end where all 52
+proven settlements automate. The stratification holds under the full sweep, which
+is a stronger statement than holding at one setting.
+
+The lesson is the same one for the third time: a number measured on one
+distribution says nothing about another. D7 was seeds, D11 was density, this was
+calibration. Each time the instinct was to get more data; twice out of three the
+data had to be more *representative*, not more plentiful.
