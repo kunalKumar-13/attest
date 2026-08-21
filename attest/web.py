@@ -83,6 +83,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.attention(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/activity":
+            self._json(api.activity_view(api.get(q.get("run", [""])[0]),
+                                         q.get("type", ["portfolio"])[0],
+                                         q.get("id", [""])[0]))
+
+        elif u.path == "/api/replay":
+            self._json(api.replay_view(api.get(q.get("run", [""])[0])))
+
         elif u.path == "/api/decision":
             self._json(api.decision_view(
                 api.get(q.get("run", [""])[0]),

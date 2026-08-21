@@ -640,6 +640,104 @@ overflow:hidden}
   .p-front-b,.p-front-w{display:none}
 }
 
+/* ---------------------------------------------------------------- activity
+ * Causality is the connector, not a column. The cause sits ON the line between
+ * two events, so the reader traverses it rather than looking it up. */
+.a-state{margin-bottom:var(--s-6)}
+.a-state-k{display:block;font-size:var(--t-micro);letter-spacing:.14em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:6px}
+.a-state-r{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;
+font-size:var(--t-lead)}
+.a-state-r i{font-style:normal;color:var(--dim3)}
+.a-state-p{font-family:var(--m);font-size:var(--t-body)}
+.a-state-a{font-size:var(--t-label);letter-spacing:.08em;text-transform:uppercase}
+.a-state-a.yes{color:var(--st-PROVEN)}
+.a-state-a.no{color:var(--dim3)}
+
+.a-tl{position:relative;padding-left:var(--s-5)}
+.a-cause{display:flex;align-items:center;gap:var(--s-3);
+padding:2px 0 2px var(--s-4);margin-left:-1px}
+.a-cause i{width:1px;height:20px;background:var(--line2);flex:none;
+margin-left:-19px}
+.a-cause span{font-size:var(--t-micro);color:var(--dim3);font-style:italic}
+.a-ev{display:flex;gap:var(--s-4);padding:8px var(--s-3) 8px var(--s-4);
+border-radius:var(--r-2);cursor:pointer;position:relative;
+transition:background var(--fast)}
+.a-ev:hover,.a-ev.sel{background:var(--sur)}
+.a-mark{position:absolute;left:-19px;top:11px;width:16px;text-align:center;
+font-style:normal;font-size:var(--t-label);line-height:1;background:var(--bg)}
+.a-model .a-mark{color:var(--st-INVESTIGATE)}
+.a-solver .a-mark{color:var(--st-AMBIGUOUS)}
+.a-engine .a-mark{color:var(--ink)}
+.a-policy .a-mark{color:var(--st-INVESTIGATE)}
+.a-system .a-mark{color:var(--dim3)}
+.a-none .a-mark{color:var(--dim3)}
+.a-body{flex:1;min-width:0}
+.a-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:3px}
+.a-actor{font-size:var(--t-micro);letter-spacing:.12em;text-transform:uppercase;
+font-weight:600}
+.a-model .a-actor{color:var(--st-INVESTIGATE)}
+.a-solver .a-actor{color:var(--st-AMBIGUOUS)}
+.a-engine .a-actor,.a-policy .a-actor{color:var(--ink)}
+.a-system .a-actor,.a-none .a-actor{color:var(--dim3)}
+.a-stage{font-size:var(--t-micro);letter-spacing:.06em;color:var(--dim3)}
+.a-at{margin-left:auto;font-family:var(--m);font-size:var(--t-micro);
+color:var(--dim3)}
+.a-what{font-size:var(--t-body);line-height:1.4;display:flex;
+align-items:baseline;gap:var(--s-3);flex-wrap:wrap}
+.a-res{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.06em;
+color:var(--dim2)}
+.a-res.r-NON_DISCRIMINATIVE,.a-res.r-LEDGER_UNCHANGED{color:var(--st-CONTRADICTED)}
+.a-res.r-LEDGER_UPDATED{color:var(--st-PROVEN)}
+.a-badge{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;
+border-radius:var(--r-full);padding:1px 8px;border:1px solid}
+.a-badge.yes{color:var(--st-INVESTIGATE);border-color:var(--st-INVESTIGATE)}
+.a-badge.no{color:var(--dim3);border-color:var(--line2)}
+.a-badge.done{color:var(--st-PROVEN);border-color:var(--st-PROVEN)}
+.a-badge.undone{color:var(--dim3);border-color:var(--line2);border-style:dashed}
+.a-val{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);margin-top:3px}
+.a-eff{font-size:var(--t-label);color:var(--dim3);line-height:1.5;margin-top:2px;
+max-width:88ch}
+
+.a-out{display:flex;flex-direction:column;gap:1px}
+.a-out-r{display:grid;grid-template-columns:1fr 140px 130px;gap:var(--s-4);
+align-items:baseline;padding:8px var(--s-3);border-bottom:1px solid var(--line)}
+.a-out-k{font-size:var(--t-label)}
+.a-out-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);text-align:right}
+.a-out-n{font-size:var(--t-label);color:var(--dim3);text-align:right}
+
+.a-del{display:flex;flex-direction:column;gap:1px}
+.a-del-r{display:grid;grid-template-columns:74px 150px 1fr 130px;gap:var(--s-4);
+align-items:baseline;padding:7px var(--s-3);border-bottom:1px solid var(--line);
+font-size:var(--t-label)}
+.a-del-t,.a-del-k{font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
+.a-del-d{color:var(--dim2)}
+.a-del-s{font-size:var(--t-micro);letter-spacing:.06em;text-transform:uppercase;
+text-align:right;color:var(--dim3)}
+.a-del-s.s-accepted{color:var(--st-PROVEN)}
+.a-del-s.s-duplicate{color:var(--dim3)}
+.a-del-s.s-bad_signature,.a-del-s.s-replay_mismatch{color:var(--st-CONTRADICTED)}
+
+.a-replay{display:flex;align-items:center;gap:var(--s-4);flex-wrap:wrap}
+.a-replay .c-muted{flex:1;min-width:220px;line-height:1.55}
+.a-rep{margin-top:var(--s-4);padding:var(--s-4);border-left:2px solid var(--line2);
+background:var(--sur)}
+.a-rep.ok{border-left-color:var(--st-PROVEN)}
+.a-rep.no{border-left-color:var(--st-CONTRADICTED)}
+.a-rep-v{font-size:var(--t-lead);font-weight:600;margin-bottom:9px}
+.a-rep-n{font-size:var(--t-label);color:var(--dim2);line-height:1.6;
+margin-top:9px;max-width:88ch}
+
+@media (max-width:900px){
+  .a-out-r{grid-template-columns:1fr auto;gap:2px var(--s-3)}
+  .a-out-n{grid-column:2}
+  .a-del-r{grid-template-columns:1fr auto;gap:2px var(--s-3)}
+  .a-del-d{grid-column:1/3}
+  .a-at{margin-left:0}
+}
+
 /* ---------------------------------------------------------------- action */
 /* Actions ARE the primary interactive object on Control, so they keep a
    surface. That is the point of the discipline: the surface now means
@@ -774,6 +872,7 @@ border-radius:var(--r-0)}
 <script src=lens-evidence.js></script>
 <script src=lens-investigate.js></script>
 <script src=lens-policy.js></script>
+<script src=lens-activity.js></script>
 <script>
 'use strict';
 const root = document.documentElement;

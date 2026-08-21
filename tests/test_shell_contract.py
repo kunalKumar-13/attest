@@ -786,3 +786,194 @@ def test_a_stale_policy_fetch_cannot_land_on_another_subject(page):
     page.unroute("**/api/decision*")
     assert _state(page)[0] == "settlement:setl_000020"
     assert "1,00,036.83" not in page.inner_text("#workspace")
+
+
+# ------------------------------------------------------------ P6: Activity
+
+def test_portfolio_activity_shows_a_run_with_phases_beneath_it(page):
+    """§6, §27. Five thousand individual events here would be a log."""
+    _ev(page, "#/portfolio/activity")
+    assert _state(page)[:2] == ["portfolio:portfolio", "activity"]
+    phases = page.eval_on_selector_all(".a-ev", "x => x.length")
+    assert 3 <= phases <= 30, f"{phases} entries is a log, not a run"
+    assert "run_" in page.inner_text(".a-state")
+
+
+def test_settlement_activity_tells_one_lifecycle(page):
+    _ev(page, "#/settlement/setl_000089/activity")
+    stages = page.eval_on_selector_all(".a-stage",
+                                       "x => x.map(n => n.textContent.trim())")
+    for s in ("source", "matching", "verification", "policy", "action"):
+        assert s in stages, f"{s} missing from the lifecycle"
+    assert stages.index("source") < stages.index("verification") < stages.index("action")
+
+
+def test_every_event_states_what_caused_it(page):
+    """§9, §41. Causality is the connector, not a column."""
+    _ev(page, "#/settlement/setl_000089/activity")
+    causes = page.eval_on_selector_all(".a-cause span",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert len(causes) >= 4, "the timeline has no causal links"
+    assert all(c.startswith("because") for c in causes)
+
+
+def test_permission_and_execution_are_separate_events(page):
+    """§18, §31, §40 — the foundational distinction. ALLOWED is not DONE."""
+    _ev(page, "#/settlement/setl_000020/activity")
+    stages = page.eval_on_selector_all(".a-stage",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert stages.count("policy") == 1 and stages.count("action") == 1
+    assert stages.index("policy") < stages.index("action")
+    body = page.inner_text("#workspace")
+    assert "permitted" in body.lower()
+    assert "LEDGER UPDATED" in body
+    # the two carry different badges, so they cannot be read as one fact
+    assert page.eval_on_selector_all(".a-badge.yes", "x => x.length") >= 1
+    assert page.eval_on_selector_all(".a-badge.done", "x => x.length") >= 1
+
+
+def test_a_settlement_that_was_not_posted_says_the_ledger_is_unchanged(page):
+    """§18 again, from the other side: permission withheld must not read as an
+    action that merely has not happened yet."""
+    _ev(page, "#/settlement/setl_000089/activity")
+    body = page.inner_text("#workspace")
+    assert "LEDGER UNCHANGED" in body
+    assert "NOT PERMITTED" in body.upper()
+    assert page.eval_on_selector_all(".a-badge.done", "x => x.length") == 0
+
+
+def test_the_actors_are_distinguishable(page):
+    """§17. Compact semantic markers, no avatars."""
+    _ev(page, "#/settlement/setl_000089/activity")
+    actors = page.eval_on_selector_all(".a-actor",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert {"System", "Engine", "Model", "Solver", "Policy"} <= set(actors)
+    glyphs = page.eval_on_selector_all(".a-mark",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert len(set(glyphs)) >= 4, f"actors share a glyph: {set(glyphs)}"
+
+
+def test_no_human_actor_is_invented(page):
+    """§16. This system records no operator identity anywhere, so Activity must
+    not manufacture one. The gap is the honest rendering of a gap."""
+    for h in ("#/portfolio/activity", "#/settlement/setl_000089/activity"):
+        _ev(page, h)
+        actors = page.eval_on_selector_all(".a-actor",
+                                           "x => x.map(n => n.textContent.trim())")
+        assert "Human" not in actors
+        body = page.inner_text("#workspace").lower()
+        for word in ("reviewed by", "approved by", "@"):
+            assert word not in body
+
+
+def test_an_event_opens_as_context_and_says_it_is_immutable(page):
+    """§11, §12. Inspecting is not re-running."""
+    _ev(page, "#/settlement/setl_000089/activity")
+    before = page.inner_text("#w-main")
+    page.click(".a-ev")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "settlement:setl_000089"
+    assert lens == "activity"
+    assert context and context.startswith("event:")
+    assert page.inner_text("#w-main") == before, "the timeline re-rendered"
+    ctx = page.inner_text("#w-ctx").lower()
+    assert "does not re-run" in ctx or "immutable" in ctx
+
+
+def test_closing_an_event_restores_the_timeline(page):
+    _ev(page, "#/settlement/setl_000089/activity")
+    before = page.inner_text("#w-main")
+    page.click(".a-ev")
+    page.wait_for_timeout(1300)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(900)
+    assert _state(page) == ["settlement:setl_000089", "activity", None]
+    assert page.inner_text("#w-main") == before
+
+
+def test_unrevised_is_the_word_used_not_stale_or_wrong(page):
+    """§14. An important product language rule — and it only has anything to
+    say once something IS unrevised, so deliver an event first."""
+    _ev(page, "#/portfolio/activity")
+    page.evaluate("""(async () => { await fetch(
+      `/api/events/demo?run=${SHELL.run}`, {method:'POST'}); })()""")
+    page.wait_for_timeout(2000)
+    page.evaluate("navigate({}, {replace:true})")
+    page.wait_for_timeout(2400)
+    body = page.inner_text("#workspace").lower()
+    assert "unrevised" in body, "the word is not used where the concept appears"
+    for banned in ("stale", "invalid verdict", "wrong verdict"):
+        assert banned not in body
+
+
+def test_a_repeat_delivery_is_explained_as_producing_no_second_action(page):
+    """§20. Idempotency matters in a payments system and must be legible."""
+    _ev(page, "#/portfolio/activity")
+    page.evaluate("""(async () => { await fetch(
+      `/api/events/demo?run=${SHELL.run}`, {method:'POST'}); })()""")
+    page.wait_for_timeout(2000)
+    page.evaluate("navigate({}, {replace:true})")
+    page.wait_for_timeout(2400)
+    # The delivery statuses are visible; the explanation sits behind a
+    # disclosure, so read textContent rather than innerText for that half.
+    assert "duplicate" in page.inner_text("#workspace").lower()
+    explained = page.eval_on_selector(
+        "#w-main", "n => n.textContent.toLowerCase()")
+    assert "no second action" in explained
+    assert "replay mismatch" in page.inner_text("#workspace").lower() \
+        or "replay_mismatch" in explained
+
+
+def test_replay_reports_a_measured_comparison_not_a_claim(page):
+    """§36. A replay button was only built because the claim is measurable."""
+    _ev(page, "#/portfolio/activity")
+    original = page.evaluate("SHELL.run")
+    page.click("#a-replay-go")
+    page.wait_for_selector(".a-rep", timeout=120000)
+    page.wait_for_timeout(600)
+    out = page.inner_text(".a-rep")
+    assert "Reproduced" in out
+    assert "differing" in out.lower()
+    assert "provenance" in out.lower()
+    # the original run is untouched — the shell still points at it
+    assert page.evaluate("SHELL.run") == original
+
+
+def test_activity_to_evidence_preserves_the_subject(page):
+    _ev(page, "#/settlement/setl_000089/activity")
+    page.click("[data-lens=evidence]")
+    page.wait_for_timeout(2000)
+    subject, lens, _ = _state(page)
+    assert subject == "settlement:setl_000089" and lens == "evidence"
+
+
+def test_activity_to_policy_preserves_the_subject(page):
+    _ev(page, "#/settlement/setl_000089/activity")
+    page.click("[data-lens=policy]")
+    page.wait_for_timeout(2000)
+    subject, lens, _ = _state(page)
+    assert subject == "settlement:setl_000089" and lens == "policy"
+
+
+def test_activity_is_not_a_generic_log_table(page):
+    """§41. If it can be represented as timestamp | actor | event | status, the
+    design has failed. Every entry must carry cause and effect."""
+    _ev(page, "#/settlement/setl_000089/activity")
+    events = page.eval_on_selector_all(".a-ev", "x => x.length")
+    effects = page.eval_on_selector_all(".a-eff", "x => x.length")
+    causes = page.eval_on_selector_all(".a-cause", "x => x.length")
+    assert effects >= events - 1, "events without a stated effect"
+    assert causes >= events - 2, "events without a stated cause"
+    assert page.eval_on_selector_all("#w-main table", "x => x.length") == 0
+
+
+def test_a_stale_activity_fetch_cannot_land_on_another_subject(page):
+    _ev(page, "#/settlement/setl_000089/activity")
+    page.route("**/api/activity*", lambda route: (page.wait_for_timeout(2500),
+                                                  route.continue_()))
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.wait_for_timeout(3600)
+    page.unroute("**/api/activity*")
+    assert _state(page)[0] == "settlement:setl_000020"
+    assert "1,00,036.83" not in page.inner_text("#workspace")

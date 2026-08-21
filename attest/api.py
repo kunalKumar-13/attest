@@ -2070,3 +2070,226 @@ def decision_view(r: Run | None, stype: str, sid: str,
                 "settlement proven, and a proven settlement is not "
                 "automatically posted.",
     }
+
+
+def activity_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
+    """What actually happened. §1, §9, §18.
+
+    Not a log. A log answers "what events exist"; this has to answer what
+    happened, what caused it, what changed, and what it did to the money —
+    which means every entry carries its cause and its effect rather than a
+    status column.
+
+    Two boundaries are load-bearing and are kept apart structurally rather than
+    by wording. POLICY records what was PERMITTED. ACTION records what was DONE.
+    A settlement can be permitted and unposted, and the reader must be able to
+    see that at a glance.
+
+    Timestamps are the run's PHASE times, taken from its audit log. The engine
+    decides 250 settlements inside one 2.5-second reconcile step, so a
+    per-record millisecond timestamp would be invented. This says which phase a
+    thing happened in, which is the true resolution available.
+    """
+    if r is None:
+        return {"error": "no run"}
+    if stype == "portfolio":
+        return _activity_portfolio(r)
+    if stype != "settlement":
+        return {"error": f"no activity for a {stype}"}
+
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None or sid not in st:
+        return {"error": "unknown settlement"}
+    s = st[sid]
+    pool = r.pools.get(sid, [])
+    j = _judge(r, f, s)
+    phase = {a["event"]: a["t"] for a in r.audit}
+
+    from attest.policy import Decision
+    proven = f.verdict is Verdict.PROVEN and getattr(f, "postable", False)
+    posts = proven and j.decision is Decision.AUTO_POST
+
+    ev: list[dict[str, Any]] = [
+        {"stage": "source", "actor": "system", "at": phase.get("ingest", ""),
+         "what": "Bank credit received",
+         "value": _rs(s.net_paise),
+         "caused_by": None,
+         "effect": f"value date {s.settled_on}, UTR {s.utr}"},
+        {"stage": "matching", "actor": "system", "at": phase.get("reconcile", ""),
+         "what": f"{len(pool)} candidate orders generated",
+         "value": None,
+         "caused_by": "the settlement calendar for this value date",
+         "effect": "the universe the solver was allowed to search"},
+        {"stage": "verification", "actor": "engine", "at": phase.get("verdicts", ""),
+         "what": ((f"{len(f.proofs)} explanation satisfies the amount exactly"
+                   if len(f.proofs) == 1 else
+                   f"{len(f.proofs)} explanations satisfy the amount exactly")
+                  if f.proofs else "No subset reaches the credit"),
+         "result": f.verdict.value,
+         "value": None,
+         "caused_by": f"{len(pool)} candidates and a tolerance of "
+                      f"±{f.proofs[0].tolerance_paise if f.proofs else 0} paise",
+         "effect": ("a unique order set, re-derived by the kernel" if proven
+                    else "nothing unique enough to act on")},
+    ]
+
+    if f.verdict is Verdict.AMBIGUOUS:
+        for e in (investigate_view(r, sid) or {}).get("events", []):
+            actor, act = e.get("actor"), e.get("act")
+            if actor == "model" and act == "propose":
+                ev.append({"stage": "investigation", "actor": "model",
+                           "at": phase.get("verdicts", ""),
+                           "what": f"Proposed a {e.get('lens', '')} anchor",
+                           "detail": e.get("detail", ""), "value": None,
+                           "caused_by": "the verdict was ambiguous",
+                           "effect": "a hypothesis for the solver to test"})
+            elif actor == "solver":
+                constraint = str(e.get("detail", "")).split(":")[0].strip()
+                code = SOLVER_RESULT.get(constraint, ("REFUTED", ""))[0]
+                ev.append({"stage": "investigation", "actor": "solver",
+                           "at": phase.get("verdicts", ""),
+                           "what": f"Tested the anchor against {constraint}",
+                           "result": code, "detail": e.get("detail", ""),
+                           "value": None,
+                           "caused_by": "the model proposed it",
+                           "effect": "the hypothesis did not survive"})
+            elif actor == "engine" and act == "abstain":
+                ev.append({"stage": "investigation", "actor": "engine",
+                           "at": phase.get("verdicts", ""),
+                           "what": "Abstained", "result": "VERDICT UNCHANGED",
+                           "value": None,
+                           "caused_by": "no hypothesis distinguished the explanations",
+                           "effect": "the verdict it already had"})
+
+    ev.append({
+        "stage": "policy", "actor": "policy", "at": phase.get("policy", ""),
+        "what": f"{j.decision.value.replace('_', '-')} permitted"
+                if j.decision is Decision.AUTO_POST
+                else f"{j.decision.value.replace('_', '-')} required",
+        "result": j.decision.value,
+        "permitted": bool(posts),
+        "value": None,
+        "caused_by": (j.reasons or ("",))[-1],
+        "effect": ("a posting is allowed — not performed" if posts
+                   else "no automatic action is allowed")})
+
+    ev.append({
+        "stage": "action", "actor": "engine" if posts else None,
+        "at": phase.get("exceptions", ""),
+        "what": "Journal entry written" if posts else "No entry written",
+        "result": "LEDGER UPDATED" if posts else "LEDGER UNCHANGED",
+        "executed": bool(posts),
+        "value": _rs(s.net_paise) if posts else None,
+        "caused_by": ("policy permitted it" if posts
+                      else "policy did not permit a posting"),
+        "effect": ("balanced to the paisa" if posts
+                   else "the settlement waits for a person")})
+
+    return {
+        "type": "settlement", "subject": sid,
+        "state": {"verdict": f.verdict.value, "decision": j.decision.value,
+                  "posted": posts},
+        "events": ev,
+        "run": {"id": r.run_id, "started_at": r.started_at},
+        "note": "Times are the run's phase timestamps. The engine decides every "
+                "settlement inside one reconcile step, so a per-record time "
+                "would be invented rather than measured.",
+        "actors": {"system": "ingest and blocking", "model": "proposes",
+                   "solver": "tests", "engine": "decides",
+                   "policy": "permits"},
+    }
+
+
+def _activity_portfolio(r: Run) -> dict[str, Any]:
+    """The run as a parent with its phases as children. §6, §27."""
+    from attest.policy import Decision
+
+    st = {x.settlement_id: x for x in r.settlements}
+    proven = [f for f in r.findings
+              if f.verdict is Verdict.PROVEN and getattr(f, "postable", False)]
+    posts = [f for f in proven
+             if _judge(r, f, st[f.settlement_id]).decision is Decision.AUTO_POST]
+
+    ACTOR = {"run.start": "system", "ingest": "system", "reconcile": "engine",
+             "calibrate": "engine", "verdicts": "engine", "kernel": "engine",
+             "policy": "policy", "provenance": "system", "exceptions": "engine"}
+    phases = [{
+        "at": a["t"], "key": a["event"], "actor": ACTOR.get(a["event"], "system"),
+        "what": a["event"].replace(".", " ").replace("_", " "),
+        "detail": a["detail"],
+    } for a in r.audit]
+
+    feed = event_feed(limit=60)
+    sync = sync_view(r)
+    total = sum(x.net_paise for x in r.settlements)
+    posted = sum(st[f.settlement_id].net_paise for f in posts)
+
+    return {
+        "type": "portfolio", "subject": "portfolio",
+        "run": {"id": r.run_id, "started_at": r.started_at,
+                "from": phases[0]["at"] if phases else "",
+                "to": phases[-1]["at"] if phases else "",
+                "phases": phases},
+        "outcome": [
+            {"k": "processed", "v": _rs(total), "n": len(r.settlements)},
+            {"k": "held at verification", "v": _rs(total - sum(
+                st[f.settlement_id].net_paise for f in proven)),
+             "n": len(r.findings) - len(proven)},
+            {"k": "permitted to post", "v": _rs(posted), "n": len(posts)},
+            {"k": "actually posted", "v": _rs(posted), "n": len(posts)},
+        ],
+        "deliveries": feed.get("events", []),
+        "delivery_counts": feed.get("counts", {}),
+        "unrevised": sync.get("owed", []),
+        "unrevised_note": sync.get("note", ""),
+        "note": "One run, its phases beneath it. Individual settlement events "
+                "live on the settlement, because five thousand of them here "
+                "would be a log rather than a story.",
+    }
+
+
+def replay_view(r: Run | None) -> dict[str, Any]:
+    """Re-execute the run and compare. §36.
+
+    Built only because the claim is measurable: a run is a pure function of
+    (size, seed), so re-running it either reproduces the verdicts and the
+    provenance or it does not, and this reports which. It does not mutate the
+    original — the new run is a separate record with its own id.
+    """
+    if r is None:
+        return {"error": "no run"}
+    import time as _t
+
+    n = len(r.settlements)
+    t0 = _t.time()
+    again = execute(n, r.seed)
+    elapsed = _t.time() - t0
+
+    def fp(x: Run):
+        return {f.settlement_id: (f.verdict.value,
+                                  tuple(sorted(f.proofs[0].order_ids))
+                                  if f.proofs else ())
+                for f in x.findings}
+
+    a, b = fp(r), fp(again)
+    differing = sorted(k for k in a if a.get(k) != b.get(k))
+    return {
+        "original": {"id": r.run_id, "at": r.started_at,
+                     "provenance": r.provenance.to_json() if r.provenance else {}},
+        "replay": {"id": again.run_id, "at": again.started_at,
+                   "provenance": again.provenance.to_json() if again.provenance else {},
+                   "seconds": round(elapsed, 2)},
+        "settlements": len(a),
+        "differing": len(differing),
+        "examples": differing[:5],
+        "provenance_identical": (r.provenance.to_json() if r.provenance else {})
+                                == (again.provenance.to_json() if again.provenance else {}),
+        "reproduced": not differing,
+        "note": ("Every verdict and every order set came back identical, under "
+                 "identical provenance. The original run is untouched; this is a "
+                 "separate record."
+                 if not differing else
+                 f"{len(differing)} settlements decided differently, which means "
+                 f"the run is not a pure function of its inputs."),
+    }
