@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { mode: 'work', review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'board', review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,6 +34,11 @@ function rs(paise, whole) {
   return (neg ? '−' : '') + '₹' + (whole ? r : r + '.' + String(p).padStart(2, '0'));
 }
 const api = p => fetch(p).then(r => r.json());
+window.ATTEST_rs = rs;
+
+/* One guard for every async path in the app. D15 and §30. */
+const GUARD = new AsyncResourceGuard('attest');
+let BOARD = null;
 
 /* --------------------------------------------------------------------- run */
 
@@ -44,7 +49,10 @@ async function run() {
   S.run = await api(`/api/run?n=${el('size').value}`);
   S.rows = await api(`/api/rows?run=${S.run.run_id}`);
   el('run').textContent = 'Run';
-  renderTop(); apply(); S.i = 0; open_();
+  GUARD.invalidateAll();
+  renderTop(); apply(); S.i = 0;
+  if (S.mode === 'board') { el('board').style.color = 'var(--acc)'; drawBoard(); }
+  else open_();
 }
 
 function renderTop() {
@@ -348,10 +356,40 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
+el('board').onclick = () => {
+  S.mode = S.mode === 'board' ? 'work' : 'board';
+  ['board', 'ask', 'policy'].forEach(k =>
+    el(k).style.color = k === S.mode ? 'var(--acc)' : '');
+  S.mode === 'board' ? drawBoard() : open_();
+};
+
+function boardContext() {
+  return {
+    summary: S.run, rows: S.rows, policy: S.pol,
+    open: sid => {
+      const i = S.view.findIndex(r => r.id === sid);
+      if (i < 0) return;
+      S.mode = 'work'; el('board').style.color = ''; S.i = i; open_();
+    },
+  };
+}
+
+function drawBoard() {
+  el('right').innerHTML = '<div class=boardwrap id=boardhost></div>';
+  const host = el('boardhost');
+  if (!BOARD) BOARD = new ATTESTBoard.Board(host, boardContext());
+  else { BOARD.host = host; BOARD.setContext(boardContext()); }
+  BOARD.render();
+  host.addEventListener('click', e => {
+    const row = e.target.closest('.bd-row.link');
+    if (row) boardContext().open(row.dataset.sid);
+  });
+}
+
 el('ask').onclick = () => {
   S.mode = S.mode === 'ask' ? 'work' : 'ask';
   el('ask').style.color = S.mode === 'ask' ? 'var(--acc)' : '';
-  el('policy').style.color = '';
+  el('policy').style.color = ''; el('board').style.color = '';
   S.mode === 'ask' ? drawAsk(null) : open_();
 };
 
@@ -418,7 +456,7 @@ function drawAsk(a, text = '', busy = false) {
 el('policy').onclick = () => {
   S.mode = S.mode === 'policy' ? 'work' : 'policy';
   el('policy').style.color = S.mode === 'policy' ? 'var(--acc)' : '';
-  el('ask').style.color = '';
+  el('ask').style.color = ''; el('board').style.color = '';
   S.mode === 'policy' ? loadPolicy() : open_();
 };
 
