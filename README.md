@@ -254,4 +254,8 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[PRD.md](PRD.md)** — the problem, the algorithm, the tolerance derivation, the plan
 - **[FAILURES.md](FAILURES.md)** — what broke, daily. Four entries and counting
 - **[AGENTS.md](AGENTS.md)** — the working agreement, enforced by `.githooks/pre-commit`
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — layers, the trusted kernel, search-space integrity
+- **[docs/ALGORITHMS.md](docs/ALGORITHMS.md)** — the tolerance derivation, the counting DP, why greedy and Hungarian both fail
+- **[docs/EVALUATION.md](docs/EVALUATION.md)** — ground truth, the metric vocabulary, baselines, the seed panel
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — fifteen ADRs, including the five that rejected work already built
 - **[native/BENCH.md](native/BENCH.md)** — parity methodology and benchmarks

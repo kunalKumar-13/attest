@@ -373,11 +373,66 @@ margin-right:8px;vertical-align:-1px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .case{animation:in .2s ease-out}
 @keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+/* ---------------- accessibility ---------------- */
+/* Focus is visible everywhere and never removed. A focus ring is how a keyboard
+   user knows where they are; suppressing it to tidy the mouse experience makes
+   the interface unusable for someone else. §52. */
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:-999px;top:8px;z-index:100;background:var(--sur);
+border:1px solid var(--acc);border-radius:7px;padding:8px 14px;color:var(--ink)}
+.skip:focus{left:14px}
+h2.bd-t,h3.bd-n{font-family:inherit}
+h3.bd-n{font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+button.bd-g{background:transparent;border:0;padding:0 2px;font:inherit}
+
+/* Motion communicates state; for a viewer who has asked for less of it, the
+   state still has to arrive — so transitions collapse rather than the feedback
+   disappearing. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  .case,.hero{animation:none}
+}
+
+/* ---------------- responsive ---------------- */
+/* Desktop is primary. Below these widths the board stops being a board and
+   becomes a column — §51 is explicit that reproducing a drag surface on a phone
+   is the wrong goal. Reading a settlement and acting on an exception are the
+   jobs that must survive. */
+@media (max-width: 1180px){
+  #panes{grid-template-columns:280px 1fr}
+  .cols{grid-template-columns:1fr}
+  #kpis{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width: 900px){
+  #app{grid-template-rows:auto auto 1fr 24px}
+  #top{flex-wrap:wrap;padding:10px 16px;gap:8px;height:auto}
+  #top .tag{display:none}
+  #kpis{grid-template-columns:repeat(2,1fr);padding:14px 16px;gap:10px}
+  #panes{grid-template-columns:1fr;padding:0 16px 16px}
+  /* One pane at a time. Two 50%-width panes on a phone are two unusable panes. */
+  #left{max-height:38vh}
+  .case,.pol,.ask,.ing,.boardwrap{padding:18px 16px 48px}
+  .bd{grid-template-columns:1fr !important}
+  .bd-w{grid-column:1 / -1 !important;grid-row:auto !important;min-height:190px}
+  .bd-g{display:none}
+  .chd .amt{font-size:22px}
+  #bar{display:none}
+}
+@media (max-width: 620px){
+  #kpis{grid-template-columns:1fr}
+  .out{grid-template-columns:repeat(2,1fr)}
+}
+
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px}
 ::-webkit-scrollbar-track{background:transparent}
 code{font-family:var(--m);font-size:11px;color:var(--dim2)}
 </style></head><body>
+<a class=skip href="#right">Skip to content</a>
 <div id=app>
   <div id=top>
     <svg class=logo viewBox="0 0 24 24" fill=none>
@@ -388,8 +443,8 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
     <span class=wm>ATTEST</span><span class=rule></span>
     <span class=tag>The verification engine for agentic finance</span>
     <span class=sp></span>
-    <button class=btn id=theme title="light / dark">◐</button>
-    <select class=btn id=size><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
+    <button class=btn id=theme aria-label="Toggle light and dark theme">◐</button>
+    <select class=btn id=size aria-label="Portfolio size"><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
     <button class=btn id=board>Board</button>
     <button class=btn id=integ>Sources</button>
     <button class=btn id=ask>Ask</button>
@@ -408,9 +463,10 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
       <div class=s id=s-wrong>—</div><div class=mt><i id=b-wrong style="background:var(--dim2)"></i></div></div>
   </div>
 
-  <div id=panes>
+  <main id=panes>
     <div id=left>
-      <div class=lh><input id=filter placeholder="filter settlements…" autocomplete=off>
+      <div class=lh><input id=filter placeholder="filter settlements…" autocomplete=off
+        aria-label="Filter settlements">
         <span class=ct id=count></span></div>
       <div class=tabs id=tabs>
         <b data-v="" class=on>All</b><b data-v=PROVEN>Proven</b>
@@ -418,8 +474,9 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
       </div>
       <div id=ledger><div class=empty>press Run</div></div>
     </div>
-    <div id=right><div class=empty>select a settlement</div></div>
-  </div>
+    <div id=right tabindex="-1"><div class=empty>select a settlement</div></div>
+
+  </main>
 
   <div id=bar>
     <span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>/</kbd> filter</span>

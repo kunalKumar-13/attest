@@ -1138,3 +1138,49 @@ a new baseline is a decision a person makes and a commit records.
 CI runs the property tests and the gates **without a Rust toolchain**, on the
 numpy path with a narrower envelope. If the engine cannot run without the
 extension, the fallback is decorative.
+
+---
+
+## D21 — 2026-08-21
+
+**P2.6: accessibility, responsive, docs — and one thing I had shipped that did
+not work for anyone using a keyboard.**
+
+§8 asked for "a keyboard-accessible alternative where possible" to the drag
+board. I built the drag and skipped the alternative, which meant the dashboard
+could only be arranged with a pointer — a board some people simply cannot
+rearrange.
+
+Fixed: the grip is a real `<button>` rather than a decorated `<span>`, so it
+takes focus and has an accessible name for free. Arrow keys reorder, `+`/`-`
+resize, Delete removes. Two details that turn it from a checkbox into something
+usable:
+
+**Focus follows the widget across the re-render.** Without it a sequence of moves
+is a hunt for the grip after every keystroke, which is technically accessible and
+practically useless.
+
+**A live region announces the move.** A visual reflow is not feedback for
+everyone, and the whole point of the interaction is knowing it worked.
+
+Caught a real bug while wiring it: a keyboard-driven click on the grip arrives as
+a pointer event, which started a drag and stranded the card under a cursor that
+never moved. The handler now ignores synthetic pointers and refuses to drag below
+900px, where §51 says the board should be a column rather than a drag surface.
+
+Also: `:focus-visible` everywhere and never suppressed — a focus ring is how a
+keyboard user knows where they are, and removing it to tidy the mouse experience
+makes the interface unusable for someone else. `prefers-reduced-motion` collapses
+transition *durations* rather than removing the feedback, because motion here
+communicates state and the state still has to arrive.
+
+**Performance measured rather than targeted**, and the interesting part is that
+it is not linear: per-settlement cost rises with portfolio size because pools
+grow with density. A throughput figure quoted without its portfolio size means
+nothing, which is the same lesson as D11 in a different clothing.
+
+**Docs.** Four files, every number traced to a measurement or a command:
+`ARCHITECTURE.md`, `ALGORITHMS.md`, `EVALUATION.md`, and `DECISIONS.md` — fifteen
+ADRs of which five record work that was built and then rejected. That log is the
+most useful thing in the directory, because it is the only part that shows what
+the project decided *not* to keep.

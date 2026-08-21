@@ -108,7 +108,7 @@ class Board {
   render() {
     this.host.innerHTML = `
       <div class="bd-bar">
-        <span class="bd-t">Financial control board</span>
+        <h2 class="bd-t">Financial control board</h2>
         <span class="bd-sp"></span>
         ${this.editing ? `<select class="btn" id="bd-preset">
             <option value="">presets…</option>
@@ -117,7 +117,8 @@ class Board {
           </select>
           <button class="btn" id="bd-add">+ Add widget</button>
           <button class="btn" id="bd-reset">Reset</button>` : ''}
-        <button class="btn ${this.editing ? 'on' : ''}" id="bd-edit">
+        <button class="btn ${this.editing ? 'on' : ''}" id="bd-edit"
+          aria-pressed="${this.editing}">
           ${this.editing ? 'Done' : 'Customize'}</button>
       </div>
       <div class="bd${this.editing ? ' editing' : ''}" id="bd-grid"></div>`;
@@ -138,21 +139,74 @@ class Board {
 
   cell(w) {
     const spec = WIDGETS[w.type] || {};
-    return `<section class="bd-w" data-w="${w.id}"
+    const name = spec.title || w.type;
+    /* The grip is a real <button> when editing, not a decorated span. That is
+       what gives it focus, an accessible name and Enter/Space for free — and it
+       is what makes the keyboard path below possible at all. §52. */
+    const grip = this.editing
+      ? `<button class="bd-g" data-grip aria-label="Move ${name}. Arrow keys to
+           reorder, plus and minus to resize.">⠿</button>`
+      : `<span class="bd-g" aria-hidden="true">⠿</span>`;
+    return `<section class="bd-w" data-w="${w.id}" role="region"
+        aria-label="${name}"
         style="grid-column: span ${w.w}; grid-row: span ${w.h}">
       <header class="bd-h">
-        <span class="bd-g" title="drag to move">⠿</span>
-        <span class="bd-n">${spec.title || w.type}</span>
+        ${grip}
+        <h3 class="bd-n">${name}</h3>
         <span class="bd-sp"></span>
         ${this.editing ? `
-          <button class="bd-x" data-act="w-" title="narrower">−</button>
-          <button class="bd-x" data-act="w+" title="wider">+</button>
-          <button class="bd-x" data-act="h-" title="shorter">▴</button>
-          <button class="bd-x" data-act="h+" title="taller">▾</button>
-          <button class="bd-x" data-act="rm" title="remove">×</button>` : ''}
+          <button class="bd-x" data-act="w-" aria-label="Make ${name} narrower">−</button>
+          <button class="bd-x" data-act="w+" aria-label="Make ${name} wider">+</button>
+          <button class="bd-x" data-act="h-" aria-label="Make ${name} shorter">▴</button>
+          <button class="bd-x" data-act="h+" aria-label="Make ${name} taller">▾</button>
+          <button class="bd-x" data-act="rm" aria-label="Remove ${name}">×</button>` : ''}
       </header>
       <div class="bd-body"></div>
     </section>`;
+  }
+
+  /* Keyboard equivalent of drag, §8 and §52. Pointer physics are not an
+     accessible interface, and a board that can only be arranged with a mouse is
+     a board some people cannot arrange. Arrows move, +/- resize, Delete removes
+     — and focus follows the widget across the re-render so a sequence of moves
+     is one continuous action rather than a hunt for the grip each time. */
+  key(e, grid) {
+    const grip = e.target.closest('[data-grip]');
+    if (!grip) return;
+    const id = grip.closest('[data-w]').dataset.w;
+    const i = this.layout.findIndex(x => x.id === id);
+    const w = this.layout[i];
+    const swap = d => {
+      const j = i + d;
+      if (j < 0 || j >= this.layout.length) return;
+      [this.layout[i], this.layout[j]] = [this.layout[j], this.layout[i]];
+    };
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'ArrowUp') swap(-1);
+    else if (k === 'ArrowRight' || k === 'ArrowDown') swap(1);
+    else if (k === '+' || k === '=') w.w = Math.min(GRID_COLS, w.w + 1);
+    else if (k === '-' || k === '_') w.w = Math.max(2, w.w - 1);
+    else if (k === 'Delete' || k === 'Backspace')
+      this.layout = this.layout.filter(x => x.id !== id);
+    else return;
+    e.preventDefault();
+    saveLayout(this.layout);
+    this.render();
+    this.host.querySelector(`[data-w="${id}"] [data-grip]`)?.focus();
+    this.announce(`${WIDGETS[w.type]?.title || w.type} moved`);
+  }
+
+  /* A live region, because a visual reflow is not feedback for everyone. */
+  announce(msg) {
+    let el = document.getElementById('bd-live');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'bd-live';
+      el.className = 'sr';
+      el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
   }
 
   wire(grid) {
@@ -184,14 +238,23 @@ class Board {
       saveLayout(this.layout); this.render();
     });
 
-    if (this.editing) grid.querySelectorAll('.bd-g').forEach(h =>
-      h.addEventListener('pointerdown', e => this.startDrag(e, grid)));
+    if (this.editing) {
+      grid.querySelectorAll('[data-grip]').forEach(h =>
+        h.addEventListener('pointerdown', e => this.startDrag(e, grid)));
+      grid.addEventListener('keydown', e => this.key(e, grid));
+    }
   }
 
   /* Reorder by pointer. The dragged card follows the cursor on a transform so
      nothing reflows under it, and the placeholder is the only thing that moves
      in the grid — which is what stops the jitter §8 warns about. */
   startDrag(e, grid) {
+    // A keyboard-driven click on the grip arrives as a pointer event with no
+    // real pointer behind it; starting a drag from one strands the card under a
+    // cursor that never moves.
+    if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'touch'
+        && e.pointerType !== 'pen') return;
+    if (window.matchMedia('(max-width: 900px)').matches) return;
     e.preventDefault();
     const card = e.target.closest('[data-w]');
     const id = card.dataset.w;
