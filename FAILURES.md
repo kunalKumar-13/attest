@@ -1179,6 +1179,80 @@ it is not linear: per-settlement cost rises with portfolio size because pools
 grow with density. A throughput figure quoted without its portfolio size means
 nothing, which is the same lesson as D11 in a different clothing.
 
+## D22 — 2026-08-21
+
+**The AI loop had been arguing with itself. It proposed the same hypothesis
+three times, and the number that disabled the feature was measured under that
+loop.**
+
+Building the AI trail screen meant running the hypothesis loop live and printing
+what it did. The trail came back:
+
+```
+model   propose   3 orders — three orders captured together on 2026-05-06 …
+solver  refute    uniqueness: 4 of 4 valid explanations contain this anchor
+model   propose   3 orders — three orders captured together on 2026-05-06 …
+solver  refute    uniqueness: 4 of 4 valid explanations contain this anchor
+model   propose   3 orders — three orders captured together on 2026-05-06 …
+solver  refute    uniqueness: 4 of 4 valid explanations contain this anchor
+engine  abstain   no anchor resolved the ambiguity; the verdict stands
+```
+
+The identical anchor, three times. The cause is a missing feedback channel with
+a specific shape: a **uniqueness** refutation names no rejected orders, because
+the anchor was wrong by being contained in *every* explanation rather than by
+containing a bad one. The loop fed `worst.rejected` back into the Evidence, that
+was empty, the proposer saw an unchanged input and returned the same answer. The
+`if ev.rejected: return []` guard in the offline proposer was doing nothing,
+because `ev.rejected` never filled.
+
+So D8's 0.521 was measured on a loop that tried one hypothesis per settlement
+while appearing to try three.
+
+**Fixed, then measured, and the fix turned out not to matter.** Evidence now
+carries `tried` — the anchors already refuted — and the proposer walks every
+capture day rather than the top two, skipping what has been offered. Re-measured
+over five seeds:
+
+```
+                       resolved   correct   WRONG   precision
+one round  (pre-D22)         63        27      36       0.429
+three rounds (after)         63        27      36       0.429
+```
+
+Identical. Exploring resolved nothing additional. Every settlement the loop
+resolves, it resolves on its first hypothesis; the second-densest capture day
+never yields an anchor contained in exactly one explanation.
+
+**The reason underneath is worse than the bug.** The offline proposer's entire
+lens is "the densest same-day capture batch". Measured across 1,250 candidate
+pools: **53% of them span a single capture date.** On those, "these three were
+captured together on the same day" is true of every order in the pool. The lens
+carries no information at all, and the anchor is an arbitrary pick with a
+plausible rationale stapled to it — which is a worse failure mode than a wrong
+guess, because it is a wrong guess that reads like a reason.
+
+That is a direct consequence of the blocking design working: pools are built by
+inverting the settlement calendar, so a pool *is* roughly a capture date. The
+lens and the blocking are asking the same question, so the lens adds nothing.
+
+**Cost.** About two hours, most of it re-measuring. It did not change the
+decision — the feature was disabled and stays disabled — but the recorded case
+for it was better than the real one, and 0.429 on these seeds is below the
+0.521 on file.
+
+**Shipped.** `attest/eval/anchoring.py` makes the measurement re-runnable and
+writes `benchmark/anchoring.json`, which the AI trail screen reads. A number
+that decides whether a feature ships should not live only in a markdown table
+copied by hand; the Accuracy screen already reads the benchmark files the build
+reads, for the same reason.
+
+**Lesson.** I had a measurement, a documented decision, and a shipped refusal —
+all correct in their conclusion — resting on a loop I had never watched run.
+Printing the trail took one screen and found it immediately. Instrument the
+thing you are measuring, not just the outcome, because a broken process and a
+working one can produce the same summary statistic.
+
 **Docs.** Four files, every number traced to a measurement or a command:
 `ARCHITECTURE.md`, `ALGORITHMS.md`, `EVALUATION.md`, and `DECISIONS.md` — fifteen
 ADRs of which five record work that was built and then rejected. That log is the

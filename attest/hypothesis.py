@@ -85,6 +85,17 @@ class Evidence:
 
     rejected: tuple[str, ...] = ()
 
+    tried: tuple[tuple[str, ...], ...] = ()
+    """Anchors already proposed and refuted, so a proposer does not offer the
+    same one again.
+
+    Without this the loop had no feedback channel for a *uniqueness* refutation
+    — that refutation names no rejected orders, because the anchor was wrong by
+    being contained in every explanation rather than by containing a bad one —
+    so `rejected` stayed empty, the proposer saw an unchanged Evidence and
+    returned the identical hypothesis, and all three rounds went on refuting one
+    idea. The measurement in D8 was taken under that loop."""
+
 
 @dataclass(frozen=True)
 class Hypothesis:
@@ -227,7 +238,11 @@ def investigate(finding: Finding, settlement: Settlement, credit: BankCredit,
             break
 
         worst: Refutation | None = None
+        fresh = False
         for h in hypotheses:
+            if tuple(h.order_ids) in ev.tried:
+                continue
+            fresh = True
             trail.say("model", "propose",
                       f"{len(h.order_ids)} orders — {h.reasoning}", lens=h.lens)
             proof, refutation = falsify(h, settlement, orders, finding.proofs)
@@ -249,6 +264,10 @@ def investigate(finding: Finding, settlement: Settlement, credit: BankCredit,
                       lens=h.lens, unexplained_paise=refutation.unexplained_paise)
             worst = refutation
 
+        if not fresh:
+            trail.say("model", "exhausted",
+                      f"round {rnd}: every hypothesis has already been refuted")
+            break
         if worst is None:
             break
         ev = Evidence(
@@ -256,6 +275,7 @@ def investigate(finding: Finding, settlement: Settlement, credit: BankCredit,
             narration=ev.narration, candidates=ev.candidates,
             residual_hint=worst.unexplained_paise,
             rejected=ev.rejected + worst.rejected,
+            tried=ev.tried + tuple(tuple(h.order_ids) for h in hypotheses),
         )
 
     trail.say("engine", "abstain",
@@ -289,14 +309,22 @@ def batch_proposer(ev: Evidence) -> list[Hypothesis]:
     if not by_day:
         return []
 
+    # Walk every day, densest first, and skip anchors already refuted. Taking
+    # only the top two meant a refuted pair left nothing to offer on the next
+    # round, which is how the loop ended up repeating itself.
     days = sorted(by_day, key=lambda d: (-len(by_day[d]), d))
     out: list[Hypothesis] = []
-    for day in days[:2]:
+    for day in days:
         ids = sorted(by_day[day])
         if len(ids) < 2:
             continue
+        anchor = tuple(ids[:3])
+        if anchor in ev.tried:
+            continue
+        if len(out) >= 2:
+            break
         out.append(Hypothesis(
-            order_ids=tuple(ids[:3]),
+            order_ids=anchor,
             lens="capture-batch",
             reasoning=f"three orders captured together on {day}, the densest "
                       f"batch in the window ({len(ids)} orders)",

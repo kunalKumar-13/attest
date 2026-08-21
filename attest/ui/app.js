@@ -83,9 +83,11 @@ const MODES = {
   },
   investigate: {
     views: [['cases', 'Settlements', false], ['exceptions', 'Exceptions', true],
-            ['changed', 'What changed', true], ['ask', 'Ask ATTEST', true]],
+            ['changed', 'What changed', true], ['trail', 'AI trail', true],
+            ['ask', 'Ask ATTEST', true]],
     draw: { cases: () => open_(), exceptions: () => drawExceptions(),
-            changed: () => drawChanged(), ask: () => drawAsk(null) },
+            changed: () => drawChanged(), trail: () => drawTrail(),
+            ask: () => drawAsk(null) },
   },
   verify: {
     views: [['accuracy', 'Accuracy', true], ['observatory', 'Failures', true],
@@ -1511,4 +1513,88 @@ async function drawActions() {
     const i = S.view.findIndex(x => x.id === b.dataset.sid);
     if (i >= 0) { S.i = i; go('investigate', 'cases'); }
   });
+}
+
+/* ------------------------------------------------------------ AI trail
+ * §15, §16, D8. The hypothesis loop was built, measured twice and shipped
+ * disabled. This screen runs it anyway and throws the verdict away, because a
+ * model whose wrong answers are visible and labelled is worth more than one
+ * whose right answers cannot be told apart from its wrong ones.
+ */
+const ACTOR = {
+  model: ['Model', 'var(--st-investigate)'],
+  solver: ['Solver', 'var(--st-ambiguous)'],
+  engine: ['Engine', 'var(--dim2)'],
+};
+
+async function drawTrail(sid) {
+  el('right').innerHTML = `<div class=empty><span class=spin></span>
+    proposing, then trying to refute…</div>`;
+  const d = await api(`/api/trail?run=${S.run.run_id}`
+    + (sid ? `&id=${encodeURIComponent(sid)}` : ''));
+  if (S.screen !== 'trail') return;
+  const t = d.trail;
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>AI trail</h1>
+      <span class=sub>resolution disabled · the loop still runs</span>
+      <span class="st st-CONTRADICTED" style="margin-left:auto">NOT IN THE PATH</span></div>
+
+    <p class=lede>${esc(d.what_it_still_does)}</p>
+
+    <section class=blockq><h4>Why it is disabled</h4>
+      <p class=lede>${esc(d.why_disabled)}</p>
+      <pre class=meas>${esc(d.measurement.table)}</pre>
+      ${d.measured && d.measured.precision !== undefined ? `
+        <div class=tconc style="margin-bottom:var(--s-4)">
+          <div class=tc><span class=k>re-measured precision</span>
+            <b style="color:var(--st-contradicted)">${d.measured.precision.toFixed(3)}</b></div>
+          <div class=tc><span class=k>resolved / wrong</span>
+            <b>${d.measured.resolved} / ${d.measured.wrong}</b></div>
+          <div class=tc><span class=k>three rounds vs one</span>
+            <b>${d.measured.precision === d.measured.one_round.precision
+              ? 'identical — exploring changed nothing' : 'differ'}</b></div>
+          <div class=tc><span class=k>single-date pools</span>
+            <b>${(d.measured.single_date_share * 100).toFixed(0)}%</b></div>
+        </div>` : ''}
+      <p class=lede>${esc(d.why_it_fails)}</p>
+      ${d.measured && d.measured.note ? `<p class=lede>${esc(d.measured.note)}</p>` : ''}
+      <div class="mono jprov">${esc(d.measurement.ref)} · ${esc(d.measurement.title)}</div>
+    </section>
+
+    <section class=blockq><h4>Run it</h4>
+      <p class=lede>Pick an ambiguous settlement and watch the loop work. The
+        largest is chosen by default, because that is the case most favourable
+        to the feature.</p>
+      <div class=exs>${d.candidates.map(c =>
+        `<button class="exl${c.id === d.settlement_id ? ' on' : ''}"
+           data-sid="${esc(c.id)}">${esc(c.id.replace('setl_', ''))}
+           · ${rs(c.amount_paise, true)}</button>`).join('')}</div>
+    </section>
+
+    ${t ? `<section class=blockq>
+      <h4>${esc(t.settlement_id)} · ${plural(t.events.length, 'step')}</h4>
+      <div class=trail>${t.events.map(e => {
+        const [name, colour] = ACTOR[e.actor] || [e.actor, 'var(--dim3)'];
+        return `<div class="tev ${esc(e.act)}">
+          <span class=tactor style="color:${colour}">${esc(name)}</span>
+          <span class=tact>${esc(e.act)}</span>
+          <span class=tdet>${esc(e.detail)}</span>
+        </div>`;
+      }).join('')}</div>
+
+      <div class=tconc>
+        <div class=tc><span class=k>engine's verdict</span>
+          <b class="st st-${esc(t.verdict)}">${esc(t.verdict)}</b></div>
+        <div class=tc><span class=k>loop would have said</span>
+          <b class="st st-${esc(t.would_have_concluded)}">${esc(t.would_have_concluded)}</b></div>
+        <div class=tc><span class=k>what changed</span>
+          <b>nothing — the verdict was discarded</b></div>
+      </div>
+      <p class=lede>${esc(t.note)}</p>
+    </section>` : '<div class=empty>No ambiguous settlement to investigate.</div>'}
+  </div>`;
+
+  el('right').querySelectorAll('.exl').forEach(b =>
+    b.onclick = () => drawTrail(b.dataset.sid));
 }

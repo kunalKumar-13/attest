@@ -1141,3 +1141,88 @@ def actions_view(r: Run) -> dict[str, Any]:
                         "it does not amortise.",
         },
     }
+
+
+def trail_view(r: Run, sid: str = "") -> dict[str, Any]:
+    """The hypothesis loop, running, with its verdict thrown away. §15, §16, D8.
+
+    This screen exists because the loop was built, measured twice, and shipped
+    disabled — and that is a more useful thing to show than a loop that appears
+    to work. The measurement is read from FAILURES.md rather than restated here,
+    so the number on the screen and the number in the record cannot drift.
+
+    If no settlement is named, the largest ambiguous one is used: the loop has
+    the most to work with there, so it is the case most favourable to the
+    feature being demonstrated.
+    """
+    from attest.eval.observatory import read as read_failures
+
+    st = {x.settlement_id: x for x in r.settlements}
+    amb = sorted((f for f in r.findings if f.verdict is Verdict.AMBIGUOUS),
+                 key=lambda f: -st[f.settlement_id].net_paise)
+
+    chosen = sid or (amb[0].settlement_id if amb else "")
+    run_trail = investigate_view(r, chosen) if chosen else None
+
+    d8 = next((e for e in read_failures() if e.ref == "D8"), None)
+
+    # Read the measurement rather than restate it, for the same reason the
+    # Accuracy screen reads the benchmark files the build reads: a number copied
+    # by hand is a number that will eventually be copied wrong, and this is the
+    # one that decides whether the feature ships.
+    import json as _json
+    import pathlib as _pl
+    try:
+        anch = _json.loads((_pl.Path(__file__).resolve().parent.parent
+                            / "benchmark" / "anchoring.json").read_text())
+    except Exception:
+        anch = {}
+
+    return {
+        "enabled": False,
+        "settlement_id": chosen,
+        "trail": run_trail,
+        "candidates": [{"id": f.settlement_id,
+                        "amount_paise": st[f.settlement_id].net_paise,
+                        "explanations": len(f.proofs)}
+                       for f in amb[:12]],
+        "measurement": {
+            "ref": d8.ref if d8 else "D8",
+            "title": d8.title if d8 else "",
+            "table": d8.measurement if d8 else "",
+            "detail": d8.detail if d8 else "",
+        },
+        "measured": anch,
+        "why_disabled": (
+            "Both variants were measured against ground truth over five seeds. "
+            "Completing a partial anchor reached 0.652 precision; selecting "
+            "among explanations the solver had already produced reached 0.521 — "
+            "a coin flip. The second is the safe design and it is the worse "
+            "number, which is the whole finding. Re-measured on five different "
+            "seeds after D22 fixed the loop's feedback channel, the safe design "
+            f"reaches {anch.get('precision', 0):.3f}."
+            if anch else
+            "Both variants were measured against ground truth over five seeds. "
+            "Completing a partial anchor reached 0.652 precision; selecting "
+            "among explanations the solver had already produced reached 0.521 — "
+            "a coin flip. The second is the safe design and it is the worse "
+            "number, which is the whole finding."),
+        "why_it_fails": (
+            "The settlement report carries no order-level reference, so every "
+            "anchor is a guess about which orders belong together. A language "
+            "model changes which guess gets made, not that it is one. This is a "
+            "missing-field problem wearing a machine-learning costume. And the "
+            "offline proposer's lens — the densest same-day capture batch — is "
+            f"vacuous on the {anch.get('single_date_share', 0) * 100:.0f}% of "
+            "candidate pools that span a single capture date: there, the "
+            "sentence is true of every order in the pool."
+            if anch else
+            "The settlement report carries no order-level reference, so every "
+            "anchor is a guess about which orders belong together."),
+        "what_it_still_does": (
+            "The loop runs here and its verdict is discarded. What survives is "
+            "the record: what was proposed, what refuted it, and that the "
+            "engine abstained. A model whose wrong answers are visible and "
+            "labelled is worth more than one whose right answers cannot be told "
+            "apart from its wrong ones."),
+    }
