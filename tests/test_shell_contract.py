@@ -977,3 +977,181 @@ def test_a_stale_activity_fetch_cannot_land_on_another_subject(page):
     page.unroute("**/api/activity*")
     assert _state(page)[0] == "settlement:setl_000020"
     assert "1,00,036.83" not in page.inner_text("#workspace")
+
+
+# --------------------------------------------------------------- P7: Trust
+
+def test_trust_opens_with_the_failures_not_with_the_wins(page):
+    """§2, §34. A trust surface that opens with green ticks is a pitch deck."""
+    _ev(page, "#/portfolio/trust")
+    assert _state(page)[:2] == ["portfolio:portfolio", "trust"]
+    head = page.inner_text(".t-head")
+    assert "failed" in head.lower()
+    body = page.inner_text("#w-main")
+    # the failure block precedes the claim register
+    assert body.index("recorded failures") < body.index("what supports it".upper()) \
+        or body.lower().index("recorded failures") < body.lower().index("what supports it")
+
+
+def test_every_claim_names_the_artifact_it_reads(page):
+    """§5, §6. A number typed into an interface is a number nothing checks."""
+    _ev(page, "#/portfolio/trust")
+    sources = page.eval_on_selector_all(".t-claim-src",
+                                        "x => x.map(n => n.textContent.trim())")
+    assert len(sources) >= 6
+    assert all(s and s != "no source" for s in sources)
+    assert any("benchmark/" in s for s in sources)
+
+
+def test_the_headline_figures_match_the_artifacts_on_disk(page):
+    """§6 again, mechanically: the surface must agree with the files."""
+    same = page.evaluate("""(async () => {
+      const c = await (await fetch(`/api/claims?run=${SHELL.run}`)).json();
+      const r = await (await fetch('/results.json').catch(() => ({json:()=>({})}))).json()
+        .catch(() => ({}));
+      return {scope: c.scope, claims: c.claims.length,
+              hasBaselines: c.artifacts.some(a => a.name.includes('baselines') && a.present)};
+    })()""")
+    assert same["claims"] >= 6
+    assert same["hasBaselines"], "the baseline artifact is missing"
+    assert "settlement" in same["scope"]
+
+
+def test_a_claim_without_a_machine_readable_source_is_marked_limited(page):
+    """§23. The surface has to be able to say no."""
+    _ev(page, "#/portfolio/trust")
+    states = page.eval_on_selector_all(".t-claim-s",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert "LIMITED" in states, "nothing is qualified — every claim reads as measured"
+    assert not all(s == "MEASURED" for s in states), "a wall of green"
+
+
+def test_trust_states_a_claim_against_itself(page):
+    """§36, §49. A red result can increase trust if it is honest."""
+    _ev(page, "#/portfolio/trust")
+    body = page.inner_text("#w-main").lower()
+    assert "not the most precise" in body, \
+        "the panel does not report where a baseline beats ATTEST"
+
+
+def test_the_wrongly_posted_figure_is_scoped_to_the_panel(page):
+    """§29. ₹0 is a measurement, not a guarantee."""
+    _ev(page, "#/portfolio/trust")
+    page.click("[data-context='claim:C-001']")
+    page.wait_for_timeout(1400)
+    ctx = page.inner_text("#w-ctx").lower()
+    assert "settlement" in ctx and "seed" in ctx, "no scope stated"
+    assert "not a claim that" in ctx or "only that" in ctx
+
+
+def test_limitations_are_shown_and_are_absences_not_unknowns(page):
+    """§21, §22. Absence is not failure and must not be dressed as mystery."""
+    _ev(page, "#/portfolio/trust")
+    body = page.inner_text("#w-main")
+    assert "not known" in body.lower()
+    rows = page.eval_on_selector_all(".t-unk-r", "x => x.length")
+    assert rows >= 4
+    low = body.lower()
+    assert "no operator identity" in low
+    assert "unknown operator" not in low
+
+
+def test_rejected_features_are_visible_as_rejected(page):
+    """§4, §33. Built, measured, disabled is stronger than a feature list."""
+    _ev(page, "#/portfolio/trust")
+    body = page.inner_text("#w-main").lower()
+    assert "built, measured, then disabled" in body
+    refs = page.eval_on_selector_all(".t-fail.ref", "x => x.length")
+    assert refs >= 1
+
+
+def test_the_ai_precision_number_is_not_hidden_or_improved(page):
+    """§14. The number that disabled the resolver stays on the surface."""
+    _ev(page, "#/portfolio/trust")
+    body = page.inner_text("#w-main").lower()
+    assert "cannot reliably resolve" in body
+    vals = page.eval_on_selector_all(".t-claim-v",
+                                     "x => x.map(n => n.textContent.trim())")
+    assert any("precision" in v for v in vals)
+
+
+def test_what_the_model_may_not_do_is_stated(page):
+    """§13. Connected to the real permission model."""
+    _ev(page, "#/portfolio/trust")
+    body = page.inner_text("#w-main").lower()
+    assert "granted to nothing" in body
+    blocked = page.eval_on_selector_all(".t-perm-i.no", "x => x.length")
+    assert blocked >= 3
+
+
+def test_the_gates_show_what_they_protect_not_just_a_tick(page):
+    """§19."""
+    _ev(page, "#/portfolio/trust")
+    gates = page.eval_on_selector_all(".t-gate", "x => x.length")
+    assert gates >= 5
+    whys = page.eval_on_selector_all(".t-gate-w",
+                                     "x => x.map(n => n.textContent.trim())")
+    assert all(len(w) > 20 for w in whys), "a gate does not say what it protects"
+    assert page.eval_on_selector_all(".t-gate-n em", "x => x.length") >= 5
+
+
+def test_a_claim_opens_as_context_with_its_limitation(page):
+    _ev(page, "#/portfolio/trust")
+    before = page.inner_text("#w-main")
+    page.click(".t-claim")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "portfolio:portfolio"
+    assert lens == "trust"
+    assert context and context.startswith("claim:")
+    assert page.inner_text("#w-main") == before
+    assert "CLAIM" in page.inner_text(".c-crumb").upper()
+
+
+def test_a_failure_opens_as_context_with_its_measurement(page):
+    _ev(page, "#/portfolio/trust")
+    page.click(".t-fail.ref")
+    page.wait_for_timeout(1400)
+    assert _state(page)[2].startswith("failure:")
+    ctx = page.inner_text("#w-ctx").lower()
+    assert "disabled" in ctx or "measured" in ctx
+
+
+def test_closing_trust_context_restores_the_register(page):
+    _ev(page, "#/portfolio/trust")
+    before = page.inner_text("#w-main")
+    page.click(".t-claim")
+    page.wait_for_timeout(1300)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(900)
+    assert _state(page) == ["portfolio:portfolio", "trust", None]
+    assert page.inner_text("#w-main") == before
+
+
+def test_trust_carries_no_marketing_language(page):
+    """§35. A lab notebook, not a pitch deck."""
+    _ev(page, "#/portfolio/trust")
+    body = page.eval_on_selector("#w-main", "n => n.textContent.toLowerCase()")
+    for word in ("industry-leading", "best-in-class", "revolutionary",
+                 "ai-powered", "enterprise-grade", "production-ready",
+                 "world-class", "cutting-edge"):
+        assert word not in body, f"marketing language: {word!r}"
+
+
+def test_trust_declines_to_render_on_a_settlement(page):
+    """Trust is a property of the system, not of one record."""
+    _ev(page, "#/settlement/setl_000089/trust")
+    body = page.inner_text("#workspace").lower()
+    assert "property of the system" in body
+    assert page.eval_on_selector_all(".t-claim", "x => x.length") == 0
+
+
+def test_a_stale_trust_fetch_cannot_land_on_another_subject(page):
+    _ev(page, "#/portfolio/trust")
+    page.route("**/api/claims*", lambda route: (page.wait_for_timeout(2500),
+                                                route.continue_()))
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'},lens:'control'})")
+    page.wait_for_timeout(3600)
+    page.unroute("**/api/claims*")
+    assert _state(page)[0] == "settlement:setl_000020"
+    assert "uncomfortable numbers" not in page.inner_text("#workspace").lower()

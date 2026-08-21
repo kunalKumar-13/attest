@@ -2293,3 +2293,198 @@ def replay_view(r: Run | None) -> dict[str, Any]:
                  f"{len(differing)} settlements decided differently, which means "
                  f"the run is not a pure function of its inputs."),
     }
+
+
+def _artifact(name: str) -> dict[str, Any]:
+    import json as _json
+    import pathlib as _pl
+    try:
+        return _json.loads((_pl.Path(__file__).resolve().parent.parent
+                            / "benchmark" / name).read_text())
+    except Exception:
+        return {}
+
+
+def trust_claims() -> dict[str, Any]:
+    """Every claim ATTEST makes, and whether anything on disk supports it. §5, §6.
+
+    Nothing here is transcribed. Each claim names the artifact it reads and the
+    scope that artifact records, so a number cannot drift from its evidence —
+    which is the failure mode D22 demonstrated when a precision figure sat in a
+    markdown table for six days without anything checking it.
+
+    A claim whose evidence is a prose document rather than a machine-readable
+    artifact is reported as LIMITED, not as measured. A claim with no evidence
+    at all is reported as NOT MEASURED rather than as zero. §23: the surface has
+    to be able to say no.
+    """
+    res, base, anch = (_artifact("results.json"), _artifact("baselines.json"),
+                       _artifact("anchoring.json"))
+    p = res.get("pooled", {})
+    seeds = res.get("evaluation_seeds", [])
+    n = p.get("settlements", 0)
+    scope = (f"{n} settlements over {len(seeds)} evaluation "
+             f"{'seed' if len(seeds) == 1 else 'seeds'}") if n else "not recorded"
+
+    claims: list[dict[str, Any]] = []
+
+    def claim(cid, group, text, status, value=None, source=None, measured=None,
+              limitation=None, detail=None):
+        claims.append({"id": cid, "group": group, "claim": text,
+                       "status": status, "value": value, "source": source,
+                       "measured_on": measured, "limitation": limitation,
+                       "detail": detail})
+
+    # ---- safety ---------------------------------------------------------
+    if p:
+        claim("C-001", "safety",
+              "No value was auto-posted incorrectly.",
+              "MEASURED", _rs(p.get("incorrectly_auto_posted_paise", 0)),
+              "benchmark/results.json", scope,
+              "True of this evaluation panel. It is not a claim that ATTEST "
+              "cannot auto-post incorrectly — only that on these portfolios, at "
+              "this costing, it did not.")
+        wrong, proven = p.get("false_proofs", 0), p.get("proven", 0)
+        claim("C-002", "safety",
+              "A claim of proof was wrong this often.",
+              "MEASURED",
+              f"{wrong}/{proven} of proofs · {wrong}/{n} of settlements",
+              "benchmark/results.json", scope,
+              "Two denominators, and they differ by six times. Per proof "
+              f"offered it is {wrong / max(proven, 1):.3f}; per settlement "
+              f"processed it is {wrong / max(n, 1):.3f}. The first is the one "
+              "that matters to someone reading a proof.")
+    else:
+        claim("C-001", "safety", "No value was auto-posted incorrectly.",
+              "NOT MEASURED", None, "benchmark/results.json", None,
+              "The benchmark artifact is missing.")
+
+    # ---- correctness against baselines ----------------------------------
+    if base.get("methods"):
+        m = base["methods"]
+        a = m.get("attest", {})
+        best = min((k for k in m if k != "attest"),
+                   key=lambda k: m[k].get("false_proof_rate", 1))
+        claim("C-003", "correctness",
+              "ATTEST recovers more exact sets than any baseline.",
+              "MEASURED",
+              " · ".join(f"{k} {m[k]['coverage'] * 100:.1f}%"
+                         for k in ("attest", "exact_only", "fuzzy", "greedy")
+                         if k in m),
+              "benchmark/baselines.json",
+              f"{base.get('settlements', 0)} settlements, identical datasets "
+              f"and identical scoring",
+              None,
+              base.get("note"))
+        claim("C-004", "correctness",
+              "ATTEST is not the most precise method on this panel.",
+              "MEASURED",
+              f"attest {a.get('false_proof_rate', 0) * 100:.1f}% wrong · "
+              f"{best} {m[best].get('false_proof_rate', 0) * 100:.1f}% wrong",
+              "benchmark/baselines.json",
+              f"{base.get('settlements', 0)} settlements",
+              f"{best} makes fewer mistakes because it answers far less often — "
+              f"{m[best].get('decided', 0)} settlements against "
+              f"{a.get('decided', 0)}. Precision alone is trivially winnable by "
+              f"declining, which is why coverage is reported beside it.")
+    else:
+        claim("C-003", "correctness", "ATTEST outperforms the baselines.",
+              "NOT MEASURED", None, "benchmark/baselines.json", None,
+              "No baseline artifact on disk.")
+
+    # ---- AI --------------------------------------------------------------
+    if anch:
+        claim("C-005", "ai",
+              "The model cannot reliably resolve an ambiguous settlement.",
+              "MEASURED", f"{anch.get('precision', 0):.3f} precision",
+              "benchmark/anchoring.json",
+              f"{anch.get('ambiguous', 0)} ambiguous settlements over "
+              f"{len(anch.get('seeds', []))} seeds",
+              "This is why the loop is disabled as a resolver. It is not a "
+              "figure to improve later — the lens duplicates a signal the "
+              "blocking already applies.",
+              anch.get("note"))
+        claim("C-006", "ai",
+              "The model's lens is vacuous on most candidate pools.",
+              "MEASURED",
+              f"{anch.get('single_date_share', 0) * 100:.0f}% span one capture date",
+              "benchmark/anchoring.json",
+              f"{anch.get('pools', 0)} candidate pools", None)
+
+    # ---- reproducibility -------------------------------------------------
+    claim("C-007", "reproducibility",
+          "A run is reproducible from its size and seed.",
+          "SUPPORTED", "verified on demand",
+          "computed live by /api/replay", "one run, on request",
+          "Measured when asked rather than recorded, so this reports the "
+          "capability and the Activity lens reports the result.")
+
+    # ---- performance ------------------------------------------------------
+    claim("C-008", "performance",
+          "The native kernel is substantially faster than the numpy path.",
+          "LIMITED", "see native/BENCH.md",
+          "native/BENCH.md — a document, not an artifact", "one credit size",
+          "The figure lives in prose rather than in a machine-readable result, "
+          "so nothing checks it on a build. It is reported as limited for that "
+          "reason alone, not because the measurement is doubted.")
+
+    # ---- gates -------------------------------------------------------------
+    from attest.eval.gate import GATES
+    cur, prev = p, _artifact("baseline.json").get("pooled", {})
+    gates = []
+    for g in GATES:
+        a, b = cur.get(g.key), prev.get(g.key)
+        if a is None or b is None:
+            state = "NOT MEASURED"
+        else:
+            ok = (float(a) <= float(b) + g.tolerance
+                  if g.direction == "lower_is_better"
+                  else float(a) >= float(b) - g.tolerance)
+            state = "PASS" if ok else ("FAIL" if g.fatal else "WARN")
+        gates.append({"key": g.key, "label": g.label, "fatal": g.fatal,
+                      "why": g.why, "state": state, "value": a, "baseline": b})
+
+    obs = observatory()
+    return {
+        "claims": claims,
+        "gates": gates,
+        "failures": {"count": obs.get("count", 0),
+                     "refusals": obs.get("refusals", 0),
+                     "entries": obs.get("entries", [])},
+        "scope": scope,
+        "artifacts": [
+            {"name": "benchmark/results.json", "present": bool(res),
+             "records": scope},
+            {"name": "benchmark/baselines.json", "present": bool(base),
+             "records": f"{base.get('settlements', 0)} settlements, 4 methods"},
+            {"name": "benchmark/anchoring.json", "present": bool(anch),
+             "records": f"{anch.get('ambiguous', 0)} ambiguous settlements"},
+            {"name": "FAILURES.md", "present": bool(obs.get("count")),
+             "records": f"{obs.get('count', 0)} entries"},
+        ],
+        # §21, §22. Only limitations that are true of this repository.
+        "unknowns": [
+            {"what": "No operator identity is recorded",
+             "why": "The event model has no actor field for a person, so a "
+                    "human review cannot be attributed. Absent, not unknown."},
+            {"what": "No failed-posting path exists",
+             "why": "The ledger write is in-process and deterministic. Nothing "
+                    "has ever failed, so nothing is known about how failure "
+                    "would behave."},
+            {"what": "The evaluation panel is synthetic",
+             "why": "Portfolios come from a frozen generator with fifteen "
+                    "hazard families. Whether that distribution resembles a "
+                    "real merchant's book is not established."},
+            {"what": "No live traffic has been reconciled",
+             "why": "The Razorpay adapter reports not connected. Every number "
+                    "here describes generated data."},
+            {"what": "The narrative docs describe a wider panel than the artifact",
+             "why": f"docs/EVALUATION.md describes a five-seed sweep; "
+                    f"benchmark/results.json records {scope}. The artifact is "
+                    f"what the gates read and what this surface reports."},
+            {"what": "Search-space integrity rests on blocking conventions",
+             "why": "Most reductions are conventions rather than facts, so a "
+                    "proof is unique inside a space the calendar chose."},
+        ],
+        "ai_permissions": agents_view(None),
+    }

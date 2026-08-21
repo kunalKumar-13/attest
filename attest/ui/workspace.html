@@ -738,6 +738,114 @@ margin-top:9px;max-width:88ch}
   .a-at{margin-left:0}
 }
 
+/* ------------------------------------------------------------------- trust
+ * Claims and evidence. Not a timeline and not a wall of ticks — the visual unit
+ * is a claim with the artifact that supports it attached, and the states are
+ * deliberately not all green. */
+.t-head{margin-bottom:var(--s-5)}
+.t-head-k{display:block;font-size:var(--t-micro);letter-spacing:.14em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:5px}
+.t-head h2{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em}
+
+.t-bad{display:flex;flex-direction:column;gap:1px}
+.t-bad-r{display:grid;grid-template-columns:74px 250px 1fr;gap:var(--s-4);
+align-items:baseline;padding:11px var(--s-3);border-bottom:1px solid var(--line)}
+.t-bad-n{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-num);line-height:1;letter-spacing:-.03em;text-align:right}
+.t-bad-l{font-size:var(--t-body)}
+.t-bad-d{font-size:var(--t-label);color:var(--dim3);line-height:1.5}
+
+.t-unk{display:flex;flex-direction:column;gap:1px}
+.t-unk-r{display:grid;grid-template-columns:300px 1fr;gap:var(--s-4);
+align-items:baseline;padding:9px var(--s-3);border-bottom:1px solid var(--line)}
+.t-unk-w{font-size:var(--t-label);font-weight:500}
+.t-unk-y{font-size:var(--t-label);color:var(--dim3);line-height:1.55;max-width:88ch}
+
+.t-grp{margin-bottom:var(--s-5)}
+.t-grp-h{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+color:var(--dim3);font-weight:600;margin-bottom:6px}
+.t-claim{display:block;width:100%;text-align:left;background:transparent;
+border:0;border-bottom:1px solid var(--line);border-left:2px solid var(--line2);
+padding:10px var(--s-4);cursor:pointer;font:inherit;color:inherit;
+transition:background var(--fast)}
+.t-claim:hover,.t-claim.sel{background:var(--sur)}
+.t-claim.s-ok{border-left-color:var(--st-PROVEN)}
+.t-claim.s-lim{border-left-color:var(--st-AMBIGUOUS)}
+.t-claim.s-none{border-left-color:var(--line2)}
+.t-claim.s-no{border-left-color:var(--st-CONTRADICTED)}
+.t-claim-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:4px}
+.t-claim-id{font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
+.t-claim-t{font-size:var(--t-body);line-height:1.35;flex:1}
+.t-claim-s{font-size:var(--t-micro);letter-spacing:.08em;white-space:nowrap}
+.t-claim.s-ok .t-claim-s{color:var(--st-PROVEN)}
+.t-claim.s-lim .t-claim-s{color:var(--st-AMBIGUOUS)}
+.t-claim.s-none .t-claim-s{color:var(--dim3)}
+.t-claim-v{display:block;font-family:var(--m);font-size:var(--t-label);
+margin-bottom:2px}
+.t-claim-src{display:block;font-family:var(--m);font-size:var(--t-micro);
+color:var(--dim3)}
+
+
+
+
+
+
+
+
+
+
+.t-art{margin-left:16px}
+.t-art li{margin-bottom:4px}
+
+.t-gates{display:flex;flex-direction:column;gap:1px}
+.t-gate{display:grid;grid-template-columns:104px 1fr 110px;
+grid-template-areas:"s n v" ". w w";gap:2px var(--s-4);align-items:baseline;
+padding:9px var(--s-3);border-bottom:1px solid var(--line)}
+.t-gate-s{grid-area:s;font-size:var(--t-micro);letter-spacing:.08em;
+font-weight:600}
+.t-gate.s-ok .t-gate-s{color:var(--st-PROVEN)}
+.t-gate.s-lim .t-gate-s{color:var(--st-AMBIGUOUS)}
+.t-gate.s-no .t-gate-s{color:var(--st-CONTRADICTED)}
+.t-gate.s-none .t-gate-s{color:var(--dim3)}
+.t-gate-n{grid-area:n;font-size:var(--t-label)}
+.t-gate-n em{font-style:normal;font-size:var(--t-micro);letter-spacing:.06em;
+text-transform:uppercase;color:var(--st-CONTRADICTED);margin-left:7px}
+.t-gate-n em.adv{color:var(--dim3)}
+.t-gate-v{grid-area:v;font-family:var(--m);font-size:var(--t-label);
+text-align:right;color:var(--dim2)}
+.t-gate-w{grid-area:w;font-size:var(--t-label);color:var(--dim3);line-height:1.5;
+max-width:88ch}
+
+.t-perm{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+gap:var(--s-5)}
+.t-perm-h{display:block;font-size:var(--t-micro);letter-spacing:.12em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:7px}
+.t-perm-i{display:inline-block;font-family:var(--m);font-size:var(--t-micro);
+background:var(--sur3);border-radius:var(--r-1);padding:3px 8px;margin:0 4px 4px 0}
+.t-perm-i.no{color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
+
+.t-fails{display:flex;flex-direction:column;gap:1px}
+.t-fail{display:grid;grid-template-columns:44px 1fr auto;gap:var(--s-4);
+align-items:baseline;width:100%;text-align:left;background:transparent;border:0;
+border-bottom:1px solid var(--line);border-left:2px solid transparent;
+padding:8px var(--s-3);cursor:pointer;font:inherit;color:inherit;
+transition:background var(--fast)}
+.t-fail:hover,.t-fail.sel{background:var(--sur)}
+.t-fail.ref{border-left-color:var(--st-AMBIGUOUS)}
+.t-fail-r{font-family:var(--m);font-size:var(--t-label);color:var(--dim3)}
+.t-fail-t{font-size:var(--t-label);line-height:1.4}
+.t-fail-b{font-size:var(--t-micro);letter-spacing:.06em;text-transform:uppercase;
+color:var(--st-AMBIGUOUS);white-space:nowrap}
+
+@media (max-width:900px){
+  .t-bad-r{grid-template-columns:60px 1fr;gap:2px var(--s-3)}
+  .t-bad-d{grid-column:2}
+  .t-unk-r{grid-template-columns:1fr;gap:2px}
+  .t-gate{grid-template-columns:1fr auto;grid-template-areas:"s v" "n n" "w w"}
+  
+  
+}
+
 /* ---------------------------------------------------------------- action */
 /* Actions ARE the primary interactive object on Control, so they keep a
    surface. That is the point of the discipline: the surface now means
@@ -873,6 +981,7 @@ border-radius:var(--r-0)}
 <script src=lens-investigate.js></script>
 <script src=lens-policy.js></script>
 <script src=lens-activity.js></script>
+<script src=lens-trust.js></script>
 <script>
 'use strict';
 const root = document.documentElement;

@@ -64,9 +64,15 @@ GATES: tuple[Gate, ...] = (
          "coverage for safety on purpose (D4, D8, D12) and a gate that punished "
          "them would have argued for shipping them"),
     Gate("exact_set_recovery", "exact set recovery", "higher_is_better", 0.05,
-         False, "advisory for the same reason"),
+         False,
+         "how often the engine recovers the true order set exactly. Advisory "
+         "for the same reason as coverage: it is the number a change trades "
+         "away when it buys safety, so a fatal gate here would argue against "
+         "every refusal in the log"),
     Gate("accounted_rate", "value accounted for", "higher_is_better", 0.05, False,
-         "advisory"),
+         "proven value plus the undisputed part of ambiguity — the share of "
+         "the book a merchant can act on. Advisory because it moves with "
+         "portfolio density rather than with correctness"),
 )
 
 

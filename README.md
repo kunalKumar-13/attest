@@ -186,10 +186,12 @@ money is accounted for, and what happened to the rest.**
 Navigation is four verbs, and depth lives inside a mode rather than beside it:
 
 ```
-CONTROL      what is happening   Attention · Act · Overview
-INVESTIGATE  why                 Settlements · Exceptions · What changed · AI trail · Ask
-VERIFY       can we prove it     Accuracy · Failures · Trust centre
-AUTOMATE     what is allowed     Policy · Journal · Agents · Sources · Live events
+SUBJECT  ×  LENS
+
+CONTROL      What is happening?              JOURNAL   Where did the money go?
+EVIDENCE     Why should I believe this?      INVESTIGATE  What should I check?
+POLICY       What am I allowed to do?        ACTIVITY  What actually happened?
+TRUST        Can I believe the system itself?
 ```
 
 CONTROL opens on what needs a person, ordered by value at stake rather than by
@@ -241,6 +243,7 @@ attest/generate/       hazard taxonomy + generator — FROZEN
 attest/policy.py       Wilson-priced risk, the auto-post inequality
 attest/ledger.py       the journal entry a proof implies, balanced to the paisa
 attest/actions.py      the work ranked by value unlocked per step
+eval/baseline_panel.py ATTEST against three baselines, identical conditions
 attest/rules.py        content-hashed rule set + run provenance
 attest/agents.py       capabilities, and the four granted to nothing
 attest/whatchanged.py  run-to-run diff with computed attribution
