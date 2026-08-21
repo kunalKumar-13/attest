@@ -175,6 +175,31 @@ font-family:var(--m);font-size:11px;align-items:baseline}
 .alt .ii{flex:1;color:var(--dim3);font-size:9.5px;word-break:break-all}
 .note{color:var(--dim3);font-size:11.5px;line-height:1.65;padding:12px 17px}
 
+/* ---------------- integrations ---------------- */
+.ing{padding:26px 34px 70px;max-width:1020px}
+.ing h2{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:5px}
+.ing .lead{color:var(--dim2);font-size:12.5px;margin-bottom:22px;max-width:76ch;line-height:1.6}
+.src{background:var(--sur);border:1px solid var(--line);border-radius:14px;
+box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.src.on{border-color:rgba(126,227,193,.35)}
+.src .h{display:flex;align-items:center;gap:11px;padding:16px 19px 13px;
+border-bottom:1px solid var(--line)}
+.src .h b{font-size:15px;font-weight:600}
+.dot2{width:7px;height:7px;border-radius:50%;flex:0 0 7px}
+.pillx{font-family:var(--m);font-size:9px;letter-spacing:.13em;padding:3px 8px;
+border-radius:5px;border:1px solid currentColor}
+.src .b{padding:14px 19px}
+.src .kv{display:flex;gap:12px;padding:6px 0;font-size:12.5px;
+border-bottom:1px solid var(--line)}
+.src .kv:last-child{border-bottom:0}
+.src .kv span:first-child{color:var(--dim2);min-width:132px}
+.src .kv b{font-weight:400;font-family:var(--m);font-size:11.5px}
+.src .note{font-size:11.5px;color:var(--dim3);line-height:1.65;margin-top:11px;
+padding-top:11px;border-top:1px solid var(--line)}
+.src .ep{font-family:var(--m);font-size:10.5px;color:var(--dim2);
+background:var(--sur2);border:1px solid var(--line);border-radius:6px;
+padding:5px 9px;margin-top:4px;display:block;word-break:break-all}
+
 /* ---------------- board ---------------- */
 .boardwrap{padding:22px 26px 60px}
 .bd-bar{display:flex;align-items:center;gap:9px;margin-bottom:14px}
@@ -362,6 +387,7 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
     <button class=btn id=theme title="light / dark">◐</button>
     <select class=btn id=size><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
     <button class=btn id=board>Board</button>
+    <button class=btn id=integ>Sources</button>
     <button class=btn id=ask>Ask</button>
     <button class=btn id=policy>Policy</button>
     <button class="btn go" id=run>Run</button>

@@ -357,9 +357,66 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
+el('integ').onclick = () => {
+  S.mode = S.mode === 'integ' ? 'work' : 'integ';
+  ['board', 'integ', 'ask', 'policy'].forEach(k =>
+    el(k).style.color = k === S.mode ? 'var(--acc)' : '');
+  S.mode === 'integ' ? drawIntegrations() : open_();
+};
+
+async function drawIntegrations() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>reading source state…</div>';
+  const d = await api(`/api/integrations?run=${S.run ? S.run.run_id : ''}`);
+  const a = d.active;
+  const dot = ok => `<i class=dot2 style="background:${ok ? 'var(--ok)' : 'var(--dim3)'}"></i>`;
+  const pill = (t, c) => `<span class=pillx style="color:${c}">${t}</span>`;
+
+  el('right').innerHTML = `<div class=ing>
+    <h2>Sources</h2>
+    <p class=lead>What ATTEST is reading, and what it is not. A source that is not
+      connected says so; the one in use says what it actually is. Nothing here
+      reports live unless it was pulled from a connected account.</p>
+
+    <div class="src on">
+      <div class=h>${dot(true)}<b>Active source</b>
+        ${pill('SYNTHETIC', 'var(--warn)')}
+        <span class=bd-sp style="flex:1"></span>
+        ${pill('NOT LIVE', 'var(--dim2)')}</div>
+      <div class=b>
+        <div class=kv><span>records</span><b>${a.records.orders.toLocaleString()} orders ·
+          ${a.records.settlements.toLocaleString()} settlements ·
+          ${a.records.credits.toLocaleString()} bank credits</b></div>
+        <div class=kv><span>coverage</span><b>${esc(a.coverage)}</b></div>
+        <div class=kv><span>orders linked to a settlement</span>
+          <b class=warn>${(a.linked_fraction * 100).toFixed(0)}%</b></div>
+        ${a.provenance ? Object.entries(a.provenance).map(([k, v]) =>
+          `<div class=kv><span>${k.replace('_version', '')} version</span><b>${esc(v)}</b></div>`).join('') : ''}
+        <div class=kv><span>sync</span><b>${esc(d.sync.freshness)}</b></div>
+        <div class=note>${esc(a.note)}</div>
+      </div>
+    </div>
+
+    ${d.providers.map(p => `<div class=src>
+      <div class=h>${dot(p.connected)}<b>${esc(p.label)}</b>
+        ${p.connected ? pill('CONNECTED', 'var(--ok)') : pill('NOT CONNECTED', 'var(--dim2)')}
+        <span style="flex:1"></span>
+        ${p.linked_fraction ? `<span class=bd-ss>${(p.linked_fraction * 100).toFixed(0)}% of records
+          arrive linked to a settlement</span>` : ''}</div>
+      <div class=b>
+        ${p.endpoints.length ? `<div class=kv><span>reads from</span><b style="flex:1">
+          ${p.endpoints.map(e => `<span class=ep>${esc(e)}</span>`).join('')}</b></div>` : ''}
+        <div class=kv><span>data accessed</span><b>${p.reads.map(esc).join(', ') || '—'}</b></div>
+        <div class=kv><span>data written</span>
+          <b class="${p.writes.length ? 'warn' : 'ok'}">${p.writes.length ? p.writes.join(', ') : 'none — read only'}</b></div>
+        <div class=kv><span>requires</span><b>${p.requires.map(esc).join(', ')}</b></div>
+        <div class=note>${esc(p.note)}${p.why ? `<br><br>${esc(p.why)}` : ''}</div>
+      </div></div>`).join('')}
+  </div>`;
+}
+
 el('board').onclick = () => {
   S.mode = S.mode === 'board' ? 'work' : 'board';
-  ['board', 'ask', 'policy'].forEach(k =>
+  ['board', 'integ', 'ask', 'policy'].forEach(k =>
     el(k).style.color = k === S.mode ? 'var(--acc)' : '');
   S.mode === 'board' ? drawBoard() : open_();
 };
@@ -390,7 +447,7 @@ function drawBoard() {
 el('ask').onclick = () => {
   S.mode = S.mode === 'ask' ? 'work' : 'ask';
   el('ask').style.color = S.mode === 'ask' ? 'var(--acc)' : '';
-  el('policy').style.color = ''; el('board').style.color = '';
+  el('policy').style.color = ''; el('board').style.color = ''; el('integ').style.color = '';
   S.mode === 'ask' ? drawAsk(null) : open_();
 };
 
@@ -457,7 +514,7 @@ function drawAsk(a, text = '', busy = false) {
 el('policy').onclick = () => {
   S.mode = S.mode === 'policy' ? 'work' : 'policy';
   el('policy').style.color = S.mode === 'policy' ? 'var(--acc)' : '';
-  el('ask').style.color = ''; el('board').style.color = '';
+  el('ask').style.color = ''; el('board').style.color = ''; el('integ').style.color = '';
   S.mode === 'policy' ? loadPolicy() : open_();
 };
 

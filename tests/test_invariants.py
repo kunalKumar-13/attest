@@ -284,3 +284,115 @@ def test_threshold_moves_with_the_review_cost() -> None:
     dear = sum(decide(f, sts[f.settlement_id], risk, Costs(review_paise=500_000)
                       ).decision is Decision.AUTO_POST for f in findings)
     assert dear >= cheap
+
+
+# --------------------------------------------------------------------------
+# Event ingestion — §35, §36
+# --------------------------------------------------------------------------
+
+def _signed(payload, secret="whsec_test"):
+    import hashlib
+    import hmac
+    import json
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    return body, hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+
+def test_duplicate_event_is_not_processed_twice() -> None:
+    from attest.webhooks import EventStatus, Ingest
+    ing = Ingest(secret="whsec_test")
+    p = {"id": "evt_1", "event": "refund.created",
+         "payload": {"refund": {"entity": {"id": "r1", "payment_id": "pay_1"}}}}
+    b, s = _signed(p)
+    assert ing.handle("razorpay", b, s, {"pay_1": "setl_A"}, {"setl_A"}).status \
+        is EventStatus.ACCEPTED
+    assert ing.handle("razorpay", b, s, {"pay_1": "setl_A"}, {"setl_A"}).status \
+        is EventStatus.DUPLICATE
+
+
+def test_same_id_different_body_is_a_contradiction_not_a_duplicate() -> None:
+    """An id check alone would wave this through, and it must not.
+
+    A provider replaying an id with a mutated body is a different problem from a
+    retry, and treating the second delivery as 'already handled' loses data
+    silently.
+    """
+    from attest.webhooks import EventStatus, Ingest
+    ing = Ingest(secret="whsec_test")
+    a = {"id": "evt_1", "event": "refund.created", "payload": {"amount": 100}}
+    c = {"id": "evt_1", "event": "refund.created", "payload": {"amount": 999}}
+    ing.handle("razorpay", *_signed(a), {}, set())
+    assert ing.handle("razorpay", *_signed(c), {}, set()).status \
+        is EventStatus.REPLAY_MISMATCH
+
+
+def test_bad_signature_is_rejected_not_queued() -> None:
+    from attest.webhooks import EventStatus, Ingest
+    ing = Ingest(secret="whsec_test")
+    b, _ = _signed({"id": "e", "event": "refund.created", "payload": {}})
+    ev = ing.handle("razorpay", b, "deadbeef", {}, set())
+    assert ev.status is EventStatus.BAD_SIGNATURE
+    assert ev.processed_at is None
+
+
+def test_blast_radius_is_scoped_to_named_entities() -> None:
+    """§35: do not rerun the world. An event naming nothing the book holds must
+    affect nothing."""
+    from attest.webhooks import Ingest
+    ing = Ingest(secret="whsec_test")
+    o2s, known = {"pay_1": "setl_A"}, {"setl_A", "setl_B"}
+
+    hit = ing.handle("razorpay", *_signed(
+        {"id": "e1", "event": "refund.created",
+         "payload": {"refund": {"entity": {"payment_id": "pay_1"}}}}), o2s, known)
+    assert hit.affected == ("setl_A",)
+
+    miss = ing.handle("razorpay", *_signed(
+        {"id": "e2", "event": "payment.captured",
+         "payload": {"payment": {"entity": {"id": "pay_unknown"}}}}), o2s, known)
+    assert miss.affected == ()
+
+
+def test_signature_verifies_over_raw_bytes() -> None:
+    """Re-serialising before hashing changes the digest and rejects valid events
+    — a bug that only shows up against a real gateway."""
+    import json
+
+    from attest.webhooks import verify
+    p = {"b": 2, "a": 1}
+    body, sig = _signed(p)
+    assert verify(body, sig, "whsec_test")
+    reserialised = json.dumps(p, sort_keys=True).encode()
+    assert not verify(reserialised, sig, "whsec_test")
+
+
+def test_adapter_normalise_never_claims_live() -> None:
+    """§39, and D17: the default must be the safe one."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    snap = RazorpayAdapter().normalise([], [])
+    assert snap.live is False
+
+
+def test_synthetic_source_is_always_labelled() -> None:
+    from attest.adapters.synthetic import SyntheticAdapter
+    snap = SyntheticAdapter().fetch(20)
+    assert snap.live is False
+    assert "synthetic" in snap.source
+    assert snap.warnings
+
+
+def test_rules_agree_with_the_frozen_fee_model() -> None:
+    """The rule set is the engine's belief; today it must match what the
+    generator actually did, or every measured number is against a different
+    world than the one described."""
+    from attest.model import Method, net_paise
+    from attest.rules import DEFAULT
+    for gross in (9_900, 1_00_000, 4_50_000, 12_345):
+        for m in Method:
+            assert DEFAULT.net_paise(gross, m.value) == net_paise(gross, m)
+
+
+def test_a_changed_rule_changes_the_version() -> None:
+    from attest.rules import DEFAULT, FeeSchedule
+    other = DEFAULT.with_(fees=FeeSchedule(fixed_paise=200))
+    assert DEFAULT.version != other.version

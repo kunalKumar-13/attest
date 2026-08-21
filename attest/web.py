@@ -60,6 +60,9 @@ class Handler(BaseHTTPRequestHandler):
             v = api.investigate_view(r, q.get("id", [""])[0]) if r else None
             self._json(v or {"error": "not found"}, 200 if v else 404)
 
+        elif u.path == "/api/integrations":
+            self._json(api.integrations(api.get(q.get("run", [""])[0])))
+
         elif u.path == "/api/ask":
             r = api.get(q.get("run", [""])[0])
             self._json(api.ask(r, q.get("q", [""])[0]) if r

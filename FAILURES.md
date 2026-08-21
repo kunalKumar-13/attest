@@ -979,3 +979,50 @@ CONTRADICTED with the exact unexplained amount, which is the honest outcome.
 anything, and there is no demo mode inside the adapter. The synthetic source is a
 separate class that reports `live=False` on every snapshot with no configuration
 that changes it.
+
+---
+
+## D18 — 2026-08-21
+
+**Event ingestion, and the idempotency check that an id alone would have got
+wrong.**
+
+Gateways retry. The obvious guard is "have I seen this event id" — and it is
+insufficient in a way that only shows up as missing data, never as an error.
+
+Three deliveries look alike to an id check and are three different situations:
+
+```
+same id, same body      a retry            ignore it
+same id, DIFFERENT body a contradiction    neither delivery can be trusted
+different id, same body a genuine repeat   process it
+```
+
+The middle case is the dangerous one. A provider replaying an id with a mutated
+payload, or a body altered in transit, waves straight through an id check and is
+recorded as "already handled" — the data is lost silently and nothing looks
+wrong. So both the id and a hash of the payload are stored, and a mismatch is
+reported as `REPLAY_MISMATCH` with the reason, not as a duplicate.
+
+**Blast radius (§35).** An event names entities; entities belong to settlements;
+only those settlements are re-verified. A payment captured today cannot change a
+settlement from last month, and re-deciding one anyway would spend the run's
+determinism for nothing. An event naming nothing the book holds reports
+`affects nothing` rather than triggering a full pass — measured on the fixtures,
+that is the common case.
+
+**Signature verification is over the RAW bytes.** Re-serialising the parsed dict
+before hashing changes the digest and rejects valid events, which is a bug that
+cannot appear in a unit test written against a dict and appears immediately
+against a real gateway. There is a test for exactly that, asserting a
+re-serialised body does *not* verify.
+
+A body that fails verification is not processed, not queued as pending, and not
+retried. It is rejected, because a body that does not verify is not evidence of
+anything, and holding it as "pending" would imply otherwise.
+
+**Sources screen (§37, §38).** Its whole value is that it is allowed to say no.
+The active source renders as `SYNTHETIC · NOT LIVE · 0% linked`, Razorpay as
+`NOT CONNECTED` with the endpoints it *would* read and `data written: none —
+read only`. Nothing on that screen reports live unless it came from a connected
+account.

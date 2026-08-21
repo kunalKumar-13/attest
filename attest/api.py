@@ -284,6 +284,96 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
     }
 
 
+def integrations(r: Run | None) -> dict[str, Any]:
+    """What ATTEST is connected to, and what it is not. §37, §38.
+
+    The whole value of this screen is that it is allowed to say "no". A source
+    that is not connected renders as not connected, and the source actually in
+    use renders as what it actually is — which today is a synthetic generator,
+    labelled on every snapshot it produces.
+    """
+    from attest.adapters.razorpay import RazorpayAdapter
+    from attest.adapters.synthetic import SyntheticAdapter
+
+    rz = RazorpayAdapter()
+    rz_status = rz.status()
+
+    active = {
+        "provider": "synthetic",
+        "connected": True, "live": False,
+        "records": {
+            "orders": len(r.orders) if r else 0,
+            "settlements": len(r.settlements) if r else 0,
+            "credits": len(r.credits) if r else 0,
+        },
+        "coverage": "90 days",
+        "linked_fraction": 0.0,
+        "note": SyntheticAdapter().status()["note"],
+        "provenance": r.provenance.to_json() if r and r.provenance else None,
+    }
+
+    return {
+        "active": active,
+        "providers": [
+            {
+                "id": "razorpay",
+                "label": "Razorpay",
+                "connected": rz_status["connected"],
+                "live": rz_status["connected"],
+                "endpoints": rz_status["endpoints"],
+                "reads": rz_status["reads"],
+                "writes": rz_status["writes"],
+                "note": rz_status["note"],
+                "requires": ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
+                "linked_fraction": 1.0,
+                "why": ("The recon report carries order_id, payment_id and "
+                        "settlement_id on the same row, so reconciliation against "
+                        "a connected account is largely a join. The subset solver "
+                        "is the fallback for where that join fails."),
+            },
+            {
+                "id": "bank",
+                "label": "Bank statement",
+                "connected": False, "live": False,
+                "endpoints": [], "reads": ["credits", "narration", "value date"],
+                "writes": [],
+                "requires": ["a statement export or a bank feed"],
+                "linked_fraction": 0.0,
+                "note": "No implementation yet. Listed because it is the source "
+                        "where the join is unavailable and the solver is the only "
+                        "option — the case this engine was built for.",
+                "why": "",
+            },
+            {
+                "id": "csv",
+                "label": "CSV upload",
+                "connected": False, "live": False,
+                "endpoints": [], "reads": ["orders", "settlements"], "writes": [],
+                "requires": ["orders.csv and settlements.csv"],
+                "linked_fraction": 0.0,
+                "note": "Not wired to the console yet.", "why": "",
+            },
+        ],
+        "sync": _sync_status(r),
+    }
+
+
+def _sync_status(r: Run | None) -> dict[str, Any]:
+    """Honest sync state. §38 — never imply freshness that does not exist."""
+    if r is None:
+        return {"last_run": None, "processed": 0, "failed": 0, "pending": 0,
+                "freshness": "no run yet"}
+    return {
+        "last_run": r.run_id,
+        "processed": len(r.findings),
+        "failed": 0,
+        "pending": 0,
+        "freshness": ("generated in-process for this run; there is no external "
+                      "source to be stale relative to"),
+        "seed": r.seed,
+    }
+
+
 def ask(r: Run, question: str) -> dict[str, Any]:
     """Answer a question from the run's own records.
 
