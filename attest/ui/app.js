@@ -1129,10 +1129,10 @@ async function drawTrust() {
         the code that decides, so a change shows up whether or not anyone
         remembered to bump a number.</p>
       <div class=prov>
-        ${Object.entries(p).map(([k, v]) => `<div class=pr>
+        ${Object.entries(p).map(([k, v]) => `<div class=prow>
           <span class=prk>${esc(k.replace('_version', ''))}</span>
           <span class="pv mono">${esc(v)}</span></div>`).join('')}
-        <div class=pr><span class=prk>native kernel</span>
+        <div class=prow><span class=prk>native kernel</span>
           <span class="pv mono">${t.solver.native ? 'attest_native (Rust)' : 'numpy fallback'}</span></div>
       </div></section>
 

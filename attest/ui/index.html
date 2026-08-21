@@ -461,8 +461,7 @@ border-bottom:1px solid var(--line);margin-bottom:var(--s-5)}
 .att-hd .amt{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
 color:var(--dim2);font-size:var(--t-body)}
 .grp{margin-bottom:var(--s-5)}
-.grp-hd{padding-bottom:5px}
-.grp-hd{display:flex;align-items:baseline;gap:var(--s-2);padding:0 0 var(--s-2)}
+.grp-hd{display:flex;align-items:baseline;gap:var(--s-2);padding:0 0 5px}
 .grp-hd b{font-size:var(--t-body);font-weight:600}
 .grp-hd .n{font-family:var(--m);color:var(--dim3);font-size:var(--t-label)}
 .grp-hd .tot{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
@@ -590,7 +589,9 @@ font-family:var(--m);font-size:var(--t-micro)}
 
 .prov{display:flex;flex-direction:column;gap:1px;background:var(--line);
 border:1px solid var(--line);border-radius:var(--r-3);overflow:hidden}
-.pr{display:grid;grid-template-columns:150px 1fr;gap:var(--s-4);
+/* NOT `.pr` — that is the Ask prompt's caret, and this rule turned the ">"
+   into a grid with a 150px first column. */
+.prow{display:grid;grid-template-columns:150px 1fr;gap:var(--s-4);
 background:var(--sur);padding:10px var(--s-4)}
 .prk{color:var(--dim3);font-size:var(--t-label)}
 .pv{font-size:var(--t-label)}
