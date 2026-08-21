@@ -167,7 +167,8 @@ def build(finding: Finding, settlement: Settlement,
                             p.adjustment_paise, "linked adjustment records"))
 
     g.nodes.append(Node("settlement", NodeKind.SETTLEMENT, settlement.settlement_id,
-                        p.net_paise, f"{len(members)} orders",
+                        p.net_paise,
+                        f"{len(members)} order{'' if len(members) == 1 else 's'}",
                         x=0.62, y=top, h=usable))
     g.nodes.append(Node("bank", NodeKind.BANK, "bank credit", settlement.net_paise,
                         settlement.settled_on.isoformat(), x=1.0, y=top, h=usable))

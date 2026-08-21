@@ -45,6 +45,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         u = urlparse(self.path)
         q = parse_qs(u.query)
+        if u.path == "/api/events/demo":
+            self._json(api.demonstrate_events(api.get(q.get("run", [""])[0])))
+            return
         if u.path != "/api/events":
             self._json({"error": "not found"}, 404)
             return

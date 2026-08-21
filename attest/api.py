@@ -864,3 +864,91 @@ def exceptions_view(r: Run) -> dict[str, Any]:
         "total": sum(g["count"] for g in groups),
         "amount_paise": sum(g["amount_paise"] for g in groups),
     }
+
+
+def demonstrate_events(r: Run | None) -> dict[str, Any]:
+    """Send four events through the real ingest path and report what happened.
+
+    An empty event log is honest and proves nothing. This does not fabricate log
+    entries: it constructs four bodies, signs three of them correctly, and hands
+    every one to the same `Ingest.handle` the HTTP endpoint calls. The verdicts
+    come back from the code under test, so if verification or de-duplication
+    broke, this screen would show it rather than describe it.
+
+    The four cases are the ones that matter:
+
+      accepted    a signed event naming orders this book actually holds
+      duplicate   the identical body again — a replay must not post twice
+      duplicate   the same event id with a DIFFERENT body; keying on the id
+                  alone would let a tampered replay through
+      rejected    a body altered after signing
+
+    A secret is generated for this process if none is configured, because with
+    an empty secret the signature branch never runs and the demonstration would
+    quietly demonstrate nothing.
+    """
+    import hashlib
+    import hmac
+    import json as _json
+    import secrets as _secrets
+
+    ing = ingest()
+    if not ing.secret:
+        ing.secret = _secrets.token_hex(16)
+    secret = ing.secret
+
+    def sign(body: bytes) -> str:
+        return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+    # Name orders the current run actually holds, so "what it changed" is real.
+    order_ids: list[str] = []
+    if r is not None:
+        for f in r.findings:
+            for p in f.proofs:
+                order_ids = list(p.order_ids[:2])
+                break
+            if order_ids:
+                break
+
+    # The entity walk keys on `order_id`, and Razorpay nests the entity under
+    # payload.<type>.entity — a payload that does not match that shape names
+    # nothing, and the demonstration would show a real "affects nothing" for a
+    # fake reason.
+    oid = order_ids[0] if order_ids else ""
+
+    def body_for(eid: str, amount: int) -> bytes:
+        return _json.dumps({
+            "id": eid,
+            "event": "refund.created",
+            "payload": {
+                "refund": {"entity": {"id": f"rfnd_{eid[-6:]}", "amount": amount}},
+                "payment": {"entity": {"id": f"pay_{eid[-6:]}", "order_id": oid}},
+            },
+        }, separators=(",", ":")).encode()
+
+    # The log persists for the life of the process, so a fixed id would make the
+    # second demonstration report four duplicates of the first.
+    nonce = f"{len(ing.log.events):04d}"
+    first = body_for(f"evt_demo_{nonce}", 25_000)
+    replay_diff = body_for(f"evt_demo_{nonce}", 99_00_000)  # same id, new body
+    tampered = first.replace(b'"amount":25000', b'"amount":95000')  # signed first
+
+    cases = [
+        ("a signed event naming orders in this book", first, sign(first)),
+        ("the identical body delivered again", first, sign(first)),
+        ("the same event id carrying a different amount", replay_diff,
+         sign(replay_diff)),
+        ("a body altered after it was signed", tampered, sign(first)),
+    ]
+
+    out: list[dict[str, Any]] = []
+    for label, body, sig in cases:
+        ev = receive_event(r, body, sig)
+        out.append({"case": label, "status": ev["status"],
+                    "detail": ev.get("detail", ""),
+                    "affected": ev.get("affected", [])})
+    return {"sent": out, "note": (
+        "Locally generated and signed with this process's secret — not traffic "
+        "from Razorpay. What is real is the path: every one of these went "
+        "through the same verify, de-duplicate and scope code the HTTP endpoint "
+        "uses, and the verdicts below are what that code returned.")}

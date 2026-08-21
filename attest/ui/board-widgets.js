@@ -27,12 +27,18 @@
   defineWidget('money', {
     title: 'Money', category: 'Financial', w: 4, h: 2,
     blurb: 'processed, posted, settled, unexplained',
-    render: ({ summary: s }) => {
+    render: ({ summary: s, policy: p }) => {
       if (!s) return none('run a reconciliation');
       const acct = (s.money.PROVEN + (s.settled_paise || 0)) / Math.max(s.processed_paise, 1);
+      // Proven is not auto-posted. A unique kernel-checked explanation is what
+      // makes a settlement ELIGIBLE; the policy then prices it, and at the
+      // default review cost most eligible settlements still go to a human. The
+      // old label claimed 52 settlements had posted when 1 had.
       return `<div class=bd-grid2>
         ${stat('processed', rs(s.processed_paise, true), `${s.settlements} settlements`)}
-        ${stat('auto-posted', rs(s.money.PROVEN, true), `${s.counts.PROVEN} proven`, 'var(--ok)')}
+        ${stat('proven', rs(s.money.PROVEN, true),
+               p ? `${s.counts.PROVEN} eligible · ${p.auto_post} posted at this cost`
+                 : `${s.counts.PROVEN} eligible to post`, 'var(--ok)')}
         ${stat('settled, not proven', rs(s.settled_paise || 0, true),
                `${(acct * 100).toFixed(1)}% accounted for`, 'var(--warn)')}
         ${stat('unexplained', rs(s.unexplained_paise || 0, true), 'stated to the paisa', 'var(--dead)')}
@@ -63,11 +69,16 @@
     blurb: 'precision, false proofs, exposure',
     render: ({ summary: s }) => {
       if (!s) return none('run a reconciliation');
+      // Three stats did not fit two grid rows and the third was silently
+      // clipped, which is the worst way for a number to be wrong. The ceiling
+      // is a bound rather than a result, so it reads as a note.
       return `<div class=bd-grid1>
         ${stat('false proofs', s.wrong, 'this seed', s.wrong ? 'var(--warn)' : 'var(--ok)')}
         ${stat('proof precision', s.precision.toFixed(3), 'right when it claims sure')}
-        ${stat('blocking ceiling', s.blocking_ceiling.toFixed(3), 'recall cannot exceed this')}
-      </div>`;
+      </div>
+      <div class=bd-row style="margin-top:9px">
+        <span>blocking ceiling</span>
+        <b class=n>${s.blocking_ceiling.toFixed(3)}</b></div>`;
     },
   });
 

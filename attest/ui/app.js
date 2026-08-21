@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { mode: 'control', sub: null, att: null, events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'control', sub: null, att: null, evdemo: null, events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,7 +34,8 @@ function rs(paise, whole) {
   return (neg ? '−' : '') + '₹' + (whole ? r : r + '.' + String(p).padStart(2, '0'));
 }
 const api = p => fetch(p).then(r => r.json());
-const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
+const plural = (n, one, many) =>
+  `${n.toLocaleString()} ${n === 1 ? one : (many || one + 's')}`;
 window.ATTEST_rs = rs;
 
 /* One guard for every async path in the app. D15 and §30. */
@@ -454,9 +455,9 @@ function caseFile(d) {
   const p = d.proofs[0];
   const j = d.judgement || {};
   const gate = j.decision === 'AUTO_POST'
-    ? `<div class="gate y"><span class="b ok">AUTO-POST APPROVED</span>
+    ? `<div class="gate approved"><span class="b ok">AUTO-POST APPROVED</span>
        <span class=w>${esc((j.reasons || []).slice(-1)[0] || '')}</span></div>`
-    : `<div class="gate n">
+    : `<div class="gate refused">
        <span class="b warn">WHY ATTEST REFUSED</span>
        <ol class=whys>${(j.reasons || ['no judgement recorded'])
          .map(x => `<li>${esc(x)}</li>`).join('')}</ol>
@@ -467,8 +468,8 @@ function caseFile(d) {
 
   const hero = p ? `<div class=hero>
     <h4>Evidence</h4>
-    <div class=hint>Ribbon width is value. ${p.orders.length} orders flow into the
-      settlement; fees leave it; the credit lands on the right.</div>
+    <div class=hint>Ribbon width is value: orders flow in on the left, fees and
+      tax leave in the middle, and the bank credit lands on the right.</div>
     ${flow(d.graph)}</div>` : '';
 
   const ledger = p ? `<div class=blk><h4>Composition</h4><div class=lg>
@@ -636,6 +637,14 @@ function boardContext() {
 async function refreshEvents() {
   try { S.events = await api('/api/events'); } catch { /* feed is optional */ }
   try { if (!S.obs) S.obs = await api('/api/observatory'); } catch { /* optional */ }
+  // The board reports how many proven settlements the policy actually posts,
+  // which needs the policy. Fetched here rather than on the policy screen so
+  // the board is never the only surface quoting an unpriced number.
+  try {
+    if (!S.pol && S.run) {
+      S.pol = await api(`/api/policy?run=${S.run.run_id}&review=${S.review}&exposure=${S.exposure}`);
+    }
+  } catch { /* optional */ }
 }
 
 function drawBoard() {
@@ -646,7 +655,7 @@ function drawBoard() {
   BOARD.render();
   // The feed is fetched after the board paints, so an unavailable feed cannot
   // delay the widgets that do not need it.
-  refreshEvents().then(() => { if (S.mode === 'board') BOARD.render(); });
+  refreshEvents().then(() => { if (S.screen === 'overview') BOARD.render(); });
   host.addEventListener('click', e => {
     const row = e.target.closest('.bd-row.link');
     if (row) boardContext().open(row.dataset.sid);
@@ -958,7 +967,7 @@ async function drawObservatory() {
         <div class=fbody>
           <div class=fh><b>${esc(e.title)}</b>
             ${e.refusal ? '<span class=fsev>refused</span>' : ''}</div>
-          <p class=fp>${esc(e.headline)}</p>
+          <p class=fp>${esc(e.detail || e.headline)}</p>
           ${e.measurement ? `<p class="fp meas"><i></i>${esc(e.measurement)}</p>` : ''}
         </div>
       </article>`).join('')}
@@ -1060,28 +1069,61 @@ async function drawAgents() {
   </div>`;
 }
 
-async function drawEvents() {
+async function drawEvents(keepDemo) {
+  if (!keepDemo) S.evdemo = null;
   el('right').innerHTML = '<div class=empty><span class=spin></span>reading the event log…</div>';
+  S.events = null;
   await refreshEvents();
   if (S.screen !== 'events') return;
-  const e = S.events || { events: [] }, xs = e.events || [];
+  const xs = (S.events || { events: [] }).events || [];
+  const d = S.evdemo;
 
   el('right').innerHTML = `<div class=ctl>
     <div class=ctl-hd><h1>Live events</h1>
-      <span class=sub>${xs.length} in the log</span></div>
+      <span class=sub>${plural(xs.length, 'delivery', 'deliveries')} in the log</span></div>
     <p class=lede>Webhook deliveries, verified over the raw request bytes before
       anything is parsed, and de-duplicated on both the event id and a hash of the
       payload — an id that arrives twice with different contents is not the same
       event, and treating it as one is how a replay becomes a double posting.</p>
-    ${xs.length ? `<div class=evs>${xs.map(x => `<div class="ev ${esc(x.status || '')}">
-      <span class=et>${esc(x.at || '')}</span>
-      <span class="ek mono">${esc(x.event || x.type || '')}</span>
-      <span class=ed>${esc(x.detail || x.subject || '')}</span>
-      <span class="est ${esc(x.status || '')}">${esc(x.status || '')}</span>
-    </div>`).join('')}</div>`
-      : `<div class=empty>No events yet. Nothing is fabricated here — an empty
-         log means nothing has been delivered.</div>`}
+
+    <section class=blockq><h4>Demonstrate it</h4>
+      <p class=lede>An empty log is honest and proves nothing. This sends four
+        deliveries through the same verify, de-duplicate and scope path the HTTP
+        endpoint uses — one valid, one exact replay, one reusing the id with a
+        different amount, one altered after signing — and shows what the code
+        returned for each.</p>
+      <button class="btn go" id=ev-demo>${d ? 'Send four more' : 'Send four deliveries'}</button>
+      ${d ? `<div class=evs style="margin-top:var(--s-4)">
+        ${d.sent.map(c => `<div class=ev>
+          <span class=et>sent</span>
+          <span class=ed style="grid-column:span 2">${esc(c.case)}
+            <em style="font-style:normal;color:var(--dim3)"> — ${esc(c.detail)}</em></span>
+          <span class="est ${esc(c.status)}">${esc(c.status.replace(/_/g, ' '))}</span>
+        </div>`).join('')}</div>
+        <p class=lede style="margin-top:var(--s-3)">${esc(d.note)}</p>` : ''}
+    </section>
+
+    <section class=blockq><h4>Delivery log</h4>
+      ${xs.length ? `<div class=evs>${xs.map(x => `<div class=ev>
+        <span class=et>${esc((x.received_at || '').slice(11, 19))}</span>
+        <span class="ek mono">${esc(x.kind || '')}</span>
+        <span class=ed>${esc(x.detail || '')}${(x.affected || []).length
+          ? ` — ${x.affected.map(esc).join(', ')}` : ''}</span>
+        <span class="est ${esc(x.status || '')}">${esc((x.status || '').replace(/_/g, ' '))}</span>
+      </div>`).join('')}</div>`
+        : `<div class=empty>Nothing delivered yet.</div>`}
+    </section>
   </div>`;
+
+  el('ev-demo').onclick = async () => {
+    const b = el('ev-demo');
+    b.disabled = true; b.innerHTML = '<span class=spin></span>Sending';
+    S.evdemo = await fetch(`/api/events/demo?run=${S.run.run_id}`,
+                           { method: 'POST' }).then(r => r.json());
+    // Re-render rather than patch: the log below is now four deliveries longer,
+    // and updating only the heading left it reading "Nothing delivered yet".
+    if (S.screen === 'events') drawEvents(true);
+  };
 }
 
 async function drawExceptions() {

@@ -28,7 +28,7 @@ function defineWidget(type, spec) { WIDGETS[type] = { type, ...spec }; }
 const DEFAULT_LAYOUT = [
   { id: 'w1', type: 'health', w: 5, h: 2 },
   { id: 'w2', type: 'money', w: 4, h: 2 },
-  { id: 'w3', type: 'safety', w: 3, h: 2 },
+  { id: 'w3', type: 'safety', w: 3, h: 3 },
   { id: 'w4', type: 'volume', w: 7, h: 2 },
   { id: 'w5', type: 'reasons', w: 5, h: 2 },
   { id: 'w6', type: 'largest', w: 7, h: 3 },
@@ -41,7 +41,7 @@ const PRESETS = {
     layout: [
       { id: 'p1', type: 'money', w: 5, h: 2 },
       { id: 'p2', type: 'health', w: 4, h: 2 },
-      { id: 'p3', type: 'safety', w: 3, h: 2 },
+      { id: 'p3', type: 'safety', w: 3, h: 3 },
       { id: 'p4', type: 'largest', w: 7, h: 3 },
       { id: 'p5', type: 'reasons', w: 5, h: 3 },
     ],
@@ -49,7 +49,7 @@ const PRESETS = {
   'risk': {
     label: 'Risk and controls',
     layout: [
-      { id: 'r1', type: 'safety', w: 4, h: 2 },
+      { id: 'r1', type: 'safety', w: 4, h: 3 },
       { id: 'r2', type: 'exposure', w: 8, h: 2 },
       { id: 'r3', type: 'strata', w: 6, h: 3 },
       { id: 'r4', type: 'reasons', w: 6, h: 3 },

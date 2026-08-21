@@ -221,7 +221,10 @@ class Ingest:
 
         hit = affected_settlements(payload, order_to_settlement, known_settlements)
         ev = Event(**{**ev.__dict__, "affected": tuple(sorted(hit)),
-                      "detail": (f"{len(hit)} settlement(s) require re-verification"
+                      "detail": (f"{len(hit)} settlement"
+                                 f"{'' if len(hit) == 1 else 's'} "
+                                 f"require{'s' if len(hit) == 1 else ''} "
+                                 f"re-verification"
                                  if hit else
                                  "names nothing this book holds; no settlement "
                                  "changes and nothing is re-run")})

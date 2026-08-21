@@ -166,6 +166,26 @@ class Judgement:
         return "\n".join(self.reasons)
 
 
+def _rs(paise: int) -> str:
+    """Rupees with Indian digit grouping. The reasons are read by a person
+    deciding whether to trust a posting; "11613 paise" makes them do the
+    arithmetic, and money that has to be converted before it can be judged is
+    money that will be misjudged."""
+    neg, v = paise < 0, abs(paise)
+    r, pa = divmod(v, 100)
+    s = str(r)
+    if len(s) > 3:
+        head, tail = s[:-3], s[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            parts.insert(0, head)
+        s = ",".join(parts) + "," + tail
+    return f"{'-' if neg else ''}\u20b9{s}.{pa:02d}"
+
+
 def decide(f: Finding, s: Settlement, risk: RiskModel,
            costs: Costs = Costs()) -> Judgement:
     """Whether this settlement may post itself, and the arithmetic that says so."""
@@ -201,12 +221,12 @@ def decide(f: Finding, s: Settlement, risk: RiskModel,
 
     exposure = costs.wrong_post(s.net_paise)
     loss = int(p * exposure)
-    why.append(f"a wrong posting of {s.net_paise} paise costs "
-               f"{exposure} paise, so expected loss is {loss} paise")
-    why.append(f"a human review costs {costs.review_paise} paise")
+    why.append(f"a wrong posting of {_rs(s.net_paise)} costs {_rs(exposure)}, "
+               f"so expected loss is {_rs(loss)}")
+    why.append(f"a human review costs {_rs(costs.review_paise)}")
 
     if s.net_paise > costs.max_exposure_paise:
-        why.append(f"amount exceeds the {costs.max_exposure_paise} paise exposure "
+        why.append(f"amount exceeds the {_rs(costs.max_exposure_paise)} exposure "
                    f"ceiling; expected value is the wrong instrument for a tail "
                    f"this size")
         return Judgement(Decision.REVIEW, loss, p, tuple(why))
@@ -215,12 +235,12 @@ def decide(f: Finding, s: Settlement, risk: RiskModel,
         why.append(f"uniqueness is local: {space.uniqueness_claim()}")
 
     if loss < costs.review_paise:
-        why.append(f"expected loss {loss} < review cost {costs.review_paise} — "
-                   f"automating is cheaper than checking")
+        why.append(f"expected loss {_rs(loss)} < review cost "
+                   f"{_rs(costs.review_paise)} — automating is cheaper than checking")
         return Judgement(Decision.AUTO_POST, loss, p, tuple(why))
 
-    why.append(f"expected loss {loss} >= review cost {costs.review_paise} — "
-               f"checking is cheaper than being wrong")
+    why.append(f"expected loss {_rs(loss)} >= review cost "
+               f"{_rs(costs.review_paise)} — checking is cheaper than being wrong")
     return Judgement(Decision.REVIEW, loss, p, tuple(why))
 
 

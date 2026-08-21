@@ -45,13 +45,14 @@ class Failure:
     title: str
     date: str
     headline: str
+    detail: str
     measurement: str
     refusal: bool
     words: int
 
     def to_json(self) -> dict[str, object]:
         return {"ref": self.ref, "title": self.title, "date": self.date,
-                "headline": self.headline,
+                "headline": self.headline, "detail": self.detail,
                 "measurement": self.measurement, "refusal": self.refusal,
                 "words": self.words}
 
@@ -77,12 +78,30 @@ def read(path: Path = SOURCE) -> list[Failure]:
         headline = " ".join(b.group(1).split()) if b else ""
         title = headline.rstrip(".") if headline else heading
 
+        # The title IS the headline with its full stop removed, so rendering
+        # both puts the same sentence on the screen twice. What a reader wants
+        # under the claim is the paragraph that argues it: the first prose block
+        # after the bold line that is not a heading, a fence or a list.
+        detail = ""
+        after = body[b.end():] if b else body
+        for para in re.split(r"\n\s*\n", after):
+            t = " ".join(para.split())
+            if not t or t.startswith(("#", "```", "|", "-", "*", ">")):
+                continue
+            # The source is markdown; the UI renders escaped text. Emphasis
+            # markers would otherwise show up as literal asterisks mid-sentence.
+            t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)
+            t = re.sub(r"(?<!\w)\*(.+?)\*(?!\w)", r"\1", t)
+            t = re.sub(r"`([^`]+)`", r"\1", t)
+            detail = t
+            break
+
         f = _FENCE.search(body)
         measurement = f.group(1).rstrip() if f else ""
 
         low = body.lower()
         out.append(Failure(
-            ref=ref, title=title, date=date, headline=headline,
+            ref=ref, title=title, date=date, headline=headline, detail=detail,
             measurement=measurement,
             refusal=any(p in low for p in _REFUSALS),
             words=len(body.split()),
