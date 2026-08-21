@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { mode: 'board', events: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'board', events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -424,6 +424,7 @@ el('board').onclick = () => {
 function boardContext() {
   return {
     summary: S.run, rows: S.rows, policy: S.pol, events: S.events,
+    observatory: S.obs,
     open: sid => {
       const i = S.view.findIndex(r => r.id === sid);
       if (i < 0) return;
@@ -434,6 +435,7 @@ function boardContext() {
 
 async function refreshEvents() {
   try { S.events = await api('/api/events'); } catch { /* feed is optional */ }
+  try { if (!S.obs) S.obs = await api('/api/observatory'); } catch { /* optional */ }
 }
 
 function drawBoard() {

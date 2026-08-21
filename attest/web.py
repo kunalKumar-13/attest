@@ -75,6 +75,9 @@ class Handler(BaseHTTPRequestHandler):
             v = api.investigate_view(r, q.get("id", [""])[0]) if r else None
             self._json(v or {"error": "not found"}, 200 if v else 404)
 
+        elif u.path == "/api/observatory":
+            self._json(api.observatory())
+
         elif u.path == "/api/events":
             self._json(api.event_feed())
 

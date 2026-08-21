@@ -192,6 +192,25 @@
     },
   });
 
+  defineWidget('failures', {
+    title: 'Failure observatory', category: 'Technical', w: 12, h: 4,
+    blurb: 'every failure this engine had, and what it cost',
+    render: ({ observatory: o }) => {
+      if (!o) return none('loading the failure log');
+      return `<div class=bd-tbl>
+        <div class=bd-note style="margin:0 0 10px">${o.count} documented failures ·
+          <b class=warn>${o.refusals}</b> features built, measured and then refused
+          because they raised the false-proof rate. ${esc(o.note)}</div>
+        ${o.entries.map(e => `<div class=bd-row style="align-items:flex-start">
+          <span class=n style="min-width:44px;color:var(--dim3)">${esc(e.ref)}</span>
+          <div style="flex:1">
+            <div>${esc(e.title)}
+              ${e.refusal ? '<span class="pillx warn" style="margin-left:8px;font-size:8px">REFUSED</span>' : ''}</div>
+            ${e.measurement ? `<pre class=bd-meas>${esc(e.measurement.split('\n').slice(0, 5).join('\n'))}</pre>` : ''}
+          </div></div>`).join('')}</div>`;
+    },
+  });
+
   defineWidget('events', {
     title: 'Live events', category: 'Operations', w: 6, h: 3,
     blurb: 'webhooks, and exactly what each one changed',

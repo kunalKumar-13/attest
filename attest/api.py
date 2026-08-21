@@ -335,6 +335,17 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
     }
 
 
+def observatory() -> dict[str, Any]:
+    """The failure log, read from disk. §38.
+
+    Read rather than restated: a second copy would drift, and it would drift
+    toward flattery — the embarrassing entries would quietly stop being copied
+    across. The file is the record.
+    """
+    from attest.eval.observatory import summary as obs_summary
+    return obs_summary()
+
+
 def integrations(r: Run | None) -> dict[str, Any]:
     """What ATTEST is connected to, and what it is not. §37, §38.
 

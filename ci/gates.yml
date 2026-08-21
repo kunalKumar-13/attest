@@ -1,0 +1,31 @@
+name: safety gates
+
+# The build fails on SAFETY, never on accuracy. Exact-set match may fall; the
+# false-proof rate may not rise, and money wrongly auto-posted may not rise at
+# all. See attest/eval/gate.py and FAILURES.md D20 for why the asymmetry is the
+# whole policy.
+
+on: [push, pull_request]
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+
+      - name: install
+        run: |
+          python -m venv .venv
+          ./.venv/bin/pip install -q -e .
+          ./.venv/bin/pip install -q pytest ortools
+
+      - name: property tests
+        run: ./.venv/bin/python -m pytest tests/ -q
+
+      # No Rust toolchain here on purpose: the engine must run without the
+      # extension, on the numpy path, with a narrower envelope. If it cannot,
+      # the fallback is decorative.
+      - name: safety gates
+        run: ./.venv/bin/python -m attest.eval.gate 250
