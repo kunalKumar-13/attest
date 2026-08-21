@@ -135,6 +135,20 @@
                 `<span class=t-perm-i>${esc(a.name)}</span>`).join('')}</div>
           </div>`,
         })
+      + ((d.fixed || []).length ? Section({
+          title: 'Found in the protected core, and fixed',
+          body: `<div class=t-fixed>${d.fixed.map(f => `<div class=t-fix>
+            <div class=t-fix-h><span class=t-fix-id>${esc(f.id)}</span>
+              <b>${esc(f.what)}</b>
+              <span class=t-fix-s>${esc(f.status)}</span></div>
+            <dl class=t-trace-d2>
+              <div><dt>why it mattered</dt><dd>${esc(f.why_it_mattered)}</dd></div>
+              <div><dt>fix</dt><dd>${esc(f.fix)}</dd></div>
+              <div><dt>measured</dt><dd>${esc(f.measured)}</dd></div>
+              <div><dt>report</dt><dd class=c-mono>${esc(f.report)}</dd></div>
+              <div><dt>regression tests</dt><dd>${f.tests}</dd></div>
+            </dl></div>`).join('')}</div>`,
+        }) : '')
       + Section({
           title: 'Every failure, in order',
           aside: `<span class=c-muted>${plural(d.failures.count, 'entry', 'entries')}</span>`,

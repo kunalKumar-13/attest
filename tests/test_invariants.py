@@ -838,18 +838,14 @@ def test_no_model_output_can_reach_a_posting_without_the_deterministic_chain() -
                      (Proof(s.settlement_id, (oid,), 1, 0, 0, 0, 1, 0, 1),))
     permissive = Judgement(Decision.AUTO_POST, 0, 0.0, ("model says so",))
 
-    # The security property is that nothing posts. It holds — but note WHICH
-    # layer stops it. With CORE-001 open, `postable` lets the forged finding
-    # through and `Unbalanced` catches it in the entry arithmetic instead, so
-    # what saves us here is defence in depth rather than the gate that exists
-    # for this. Both outcomes are accepted; a JournalEntry is not.
-    from attest.ledger import JournalEntry, Unbalanced
-    try:
-        out = post(forged, s, permissive, orders)
-    except Unbalanced:
-        return
-    assert not isinstance(out, JournalEntry), "a forged proof reached the ledger"
-    assert isinstance(out, Refusal)
+    # Before CORE-001 was fixed this was stopped by `Unbalanced` in the entry
+    # arithmetic — defence in depth rather than the gate that exists for it.
+    # The integrity boundary refuses it now, and the reason names the search
+    # space rather than the sum.
+    out = post(forged, s, permissive, orders)
+    assert isinstance(out, Refusal), "a forged proof reached the ledger"
+    assert "search space" in out.reason.lower(), \
+        f"refused, but not by the integrity gate: {out.reason!r}"
 
 
 def test_a_model_verdict_cannot_pass_the_agent_pipeline() -> None:
@@ -886,25 +882,83 @@ def test_the_hypothesis_loop_cannot_return_a_proof_the_solver_did_not_make() -> 
     assert refutation is not None and refutation.constraint == "existence"
 
 
-@pytest.mark.xfail(reason="CORE-001: Finding.postable returns True when no "
-                          "search space is recorded. Reported in "
-                          "reports/CORE-001-postable-fails-open.md; "
-                          "attest/verdict.py is protected core and the guard "
-                          "says report rather than patch.",
-                   strict=True)
-def test_a_proof_without_search_space_provenance_cannot_post() -> None:
-    """§8.11. A proof whose candidate universe is unrecorded is incomplete, and
-    the gate must fail CLOSED on it.
+# ------------------------------------------------------------------ CORE-001
+#
+# A PROVEN finding may only become postable if the system can answer four
+# questions about it: what search space was proved, which candidate universe
+# was considered, which solver produced the proof, and whether the proof belongs
+# to that universe. Each test below removes exactly one of those answers.
+#
+# The property used to return True when `space` was absent, so a finding was
+# postable *because* it omitted the evidence it would have been judged on.
 
-    Marked xfail(strict) rather than deleted: the test is correct and the code
-    is not, so it must start passing the moment the core is fixed and must fail
-    the build if someone marks it fixed without fixing it."""
+
+def _space(universe: int = 100, removed: int = 40, deterministic: bool = True):
+    from attest.searchspace import Reduction, SearchSpace
+    sp = SearchSpace(universe=universe)
+    sp.reductions.append(Reduction("test reduction", removed, deterministic,
+                                   "constructed for a test"))
+    return sp
+
+
+def _proven(space=None, layer="L3-dp/r0", orders=("o1",)):
     from attest.verdict import Finding, Proof, Verdict
+    return Finding("s1", Verdict.PROVEN,
+                   (Proof("s1", orders, 1000, 0, 0, 0, 1000, 0, len(orders)),),
+                   space=space, layer=layer)
 
-    naked = Finding("s1", Verdict.PROVEN,
-                    (Proof("s1", ("o1",), 1, 0, 0, 0, 1, 0, 1),))
-    assert naked.space is None
-    assert not naked.postable, "a proof with no recorded search space is postable"
+
+def test_core001_a_proof_without_search_space_provenance_cannot_post() -> None:
+    """Test A. The original CORE-001 exploit: PROVEN, plausible arithmetic, no
+    recorded search space."""
+    f = _proven(space=None)
+    assert f.space is None
+    assert not f.postable
+
+
+def test_core001_a_legitimate_proof_still_posts() -> None:
+    """Test B. Failing closed is only correct if it does not close on the
+    truth."""
+    assert _proven(space=_space()).postable
+
+
+def test_core001_a_fabricated_space_that_is_not_a_record_cannot_post() -> None:
+    """Test C. The check must not be satisfiable by putting *something* in the
+    field — a string, an id, a dict that looks like provenance."""
+    for fake in ("space_0001", {"universe": 100, "candidates": 60}, 12345, object()):
+        assert not _proven(space=fake).postable, f"{fake!r} was accepted"
+
+
+def test_core001_a_space_recording_no_universe_cannot_post() -> None:
+    """Test D, first half. A SearchSpace of the right type that recorded no
+    universe and no reductions describes no search that happened."""
+    from attest.searchspace import SearchSpace
+    assert not _proven(space=SearchSpace(universe=0)).postable
+    assert not _proven(space=SearchSpace(universe=100)).postable   # no reductions
+
+
+def test_core001_a_proof_with_no_solver_provenance_cannot_post() -> None:
+    """Test D, second half. `layer` names the solver that resolved it; empty
+    names none."""
+    assert not _proven(space=_space(), layer="").postable
+
+
+def test_core001_a_proof_larger_than_its_candidate_universe_cannot_post() -> None:
+    """Test E. Certificate integrity: alter the selected records so the proof
+    cites more orders than the space ever contained, and it can no longer have
+    come out of that space."""
+    sp = _space(universe=100, removed=95)          # 5 candidates
+    too_many = tuple(f"o{i}" for i in range(9))
+    assert sp.candidates == 5
+    assert not _proven(space=sp, orders=too_many).postable
+    assert _proven(space=sp, orders=("o1", "o2")).postable
+
+
+def test_core001_a_compromised_space_still_cannot_post() -> None:
+    """The original D8 condition must survive the fix."""
+    sp = _space()
+    sp.note_known_loss(1)
+    assert not _proven(space=sp).postable
 
 
 def test_the_engine_still_attaches_a_search_space_to_every_proof() -> None:

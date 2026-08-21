@@ -2445,8 +2445,37 @@ def trust_claims() -> dict[str, Any]:
                       "why": g.why, "state": state, "value": a, "baseline": b})
 
     obs = observatory()
+
+    # CORE-001. Carried explicitly rather than left to the failure list, because
+    # it is the one defect found in the protected core and the distinction it
+    # turns on is easy to state wrongly: the exploit produced no financial
+    # impact, and the integrity boundary was still incorrect.
+    fixed = [{
+        "id": "CORE-001",
+        "what": "A forged proof without search-space provenance reached the "
+                "postability boundary",
+        "status": "FIXED",
+        "why_it_mattered":
+            "`Finding.postable` returned True when no search space was "
+            "recorded, so a proof was postable because it omitted the evidence "
+            "it would have been judged on. The gate that exists to encode D8 "
+            "trusted a proof whose candidate universe was unrecorded.",
+        "fix": "Postability now requires a search-space record, a recorded "
+               "candidate universe, a named solver, and a proof that fits "
+               "inside that universe. It fails closed on any of them.",
+        "measured":
+            "The reproduced exploit produced no financial impact in the current "
+            "engine evaluation, because the downstream ledger balance check "
+            "rejected it. The integrity boundary was nevertheless incorrect. "
+            "0 legitimate decisions changed: 52 postable before and after, all "
+            "six gates at +0.0000.",
+        "report": "reports/CORE-001-postable-fails-open.md",
+        "tests": 8,
+    }]
+
     return {
         "claims": claims,
+        "fixed": fixed,
         "gates": gates,
         "failures": {"count": obs.get("count", 0),
                      "refusals": obs.get("refusals", 0),

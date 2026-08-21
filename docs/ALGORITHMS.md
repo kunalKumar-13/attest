@@ -118,3 +118,15 @@ CP-SAT strict    19.12%      0.72%     0.9714
 ship: infeasibility has to be asked for with one assumption literal per
 settlement, and what comes back names which settlements cannot all be explained
 and which orders they contest.
+
+## Postability requires search-space provenance (CORE-001)
+
+A PROVEN verdict is not sufficient to post. The finding must also be able to
+answer what search space was proved, which candidate universe was considered,
+which solver produced the proof, and whether the proof belongs to that universe
+— and it fails closed on any of them.
+
+`Finding.postable` previously returned `True` when no search space was recorded,
+so a proof was postable *because* it omitted the evidence it would have been
+judged on. Fixed; measured impact on legitimate proofs: none (52 postable before
+and after, all six gates +0.0000). See `reports/CORE-001-postable-fails-open.md`.

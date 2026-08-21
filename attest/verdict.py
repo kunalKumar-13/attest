@@ -112,9 +112,34 @@ class Finding:
         if self.verdict is not Verdict.PROVEN:
             return False
         from attest.searchspace import Integrity, SearchSpace
-        if isinstance(self.space, SearchSpace):
-            return self.space.integrity is not Integrity.COMPROMISED
-        return True
+
+        # CORE-001. This returned True when `space` was absent, so a PROVEN
+        # finding assembled outside the pipeline was postable precisely because
+        # it omitted the evidence it would have been judged on. Fails closed
+        # now, and the four conditions are the four questions a posting has to
+        # be able to answer about itself.
+        sp = self.space
+
+        # 1. What search space was proved?
+        if not isinstance(sp, SearchSpace):
+            return False
+
+        # 2. Which candidate universe was considered? A space that recorded no
+        #    universe and no reductions describes no search.
+        if sp.universe <= 0 or not sp.reductions:
+            return False
+
+        # 3. Which solver produced it? `layer` is written by the layer that
+        #    resolved the settlement; an empty one names no solver.
+        if not self.layer:
+            return False
+
+        # 4. Does the proof belong to that universe? A proof citing more orders
+        #    than the space ever contained cannot have come out of it.
+        if not self.proofs or len(self.proofs[0].order_ids) > sp.candidates:
+            return False
+
+        return sp.integrity is not Integrity.COMPROMISED
 
     @property
     def uniqueness_claim(self) -> str:

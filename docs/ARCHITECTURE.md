@@ -130,3 +130,15 @@ auditable. Enforced at grant time: constructing an agent with one raises.
 
 The engine posts entries, after the kernel and the policy. No agent is in that
 path, so there is no configuration in which one appears.
+
+## Postability requires search-space provenance (CORE-001)
+
+A PROVEN verdict is not sufficient to post. The finding must also be able to
+answer what search space was proved, which candidate universe was considered,
+which solver produced the proof, and whether the proof belongs to that universe
+— and it fails closed on any of them.
+
+`Finding.postable` previously returned `True` when no search space was recorded,
+so a proof was postable *because* it omitted the evidence it would have been
+judged on. Fixed; measured impact on legitimate proofs: none (52 postable before
+and after, all six gates +0.0000). See `reports/CORE-001-postable-fails-open.md`.
