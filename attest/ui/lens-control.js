@@ -138,25 +138,29 @@
       }),
     }) : '';
 
-    const resolve = Section({
-      title: 'What would resolve it',
-      body: `<p class=c-lead>${esc(ex ? ex.next_step : 'Nothing outstanding.')}</p>`
-        + (d.space ? Disclosure({
-            summary: 'Search-space integrity',
-            body: `<p>${esc(d.space.claim)}</p>`,
-          }) : ''),
-    });
-
-    const will = Section({
-      title: 'What ATTEST will do',
-      body: `<div class=c-will>
-        <div class=c-will-d>${j.decision === 'AUTO_POST'
-          ? 'Post a balanced journal entry' : 'No automatic action'}</div>
-        ${Disclosure({
-          summary: 'How that was decided',
-          body: `<ol class=c-reasons>${(j.reasons || [])
+    // One decision block, not two heading-and-a-sentence sections. "What would
+    // resolve it" and "what ATTEST will do" are two halves of the same answer,
+    // and splitting them produced exactly the title → prose silhouette the
+    // autopsy named — one level up from where it named it.
+    const posts = j.decision === 'AUTO_POST';
+    const decide = Section({
+      title: 'The decision',
+      body: `<div class=c-decide>
+        <div class="c-decide-v ${posts ? 'yes' : 'no'}">
+          <i></i>${posts ? 'Post a balanced journal entry'
+                         : 'No automatic action'}</div>
+        <dl class=c-decide-f>
+          <div><dt>because</dt><dd>${esc((j.reasons || ['—']).slice(-1)[0])}</dd></div>
+          ${ex ? `<div><dt>what would change it</dt>
+            <dd>${esc(ex.next_step)}</dd></div>` : ''}
+          ${d.space ? `<div><dt>uniqueness</dt>
+            <dd>${esc(d.space.claim)}</dd></div>` : ''}
+        </dl>
+        ${(j.reasons || []).length > 1 ? Disclosure({
+          summary: 'Every step of that decision',
+          body: `<ol class=c-reasons>${j.reasons
             .map(x => `<li>${esc(x)}</li>`).join('')}</ol>`,
-        })}
+        }) : ''}
       </div>`,
     });
 
@@ -165,7 +169,7 @@
         body: StateSpine(spine),
       })
       + Section({ title: 'What we know', body: known })
-      + why + resolve + will;
+      + why + decide;
   }
 
   window.defineLens('control', {

@@ -67,14 +67,19 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-subject{display:flex;flex-wrap:wrap;align-items:baseline;
 column-gap:var(--s-4);row-gap:2px;padding:var(--s-4) var(--s-5) var(--s-4);
 background:var(--sur)}
+.c-subject::after{content:"";flex:1 1 auto;order:5}
 .c-subject-id{display:flex;align-items:baseline;gap:var(--s-3);
-flex-wrap:wrap;min-width:0;flex:1 1 auto}
+flex-wrap:wrap;min-width:0;flex:0 1 auto}
 .c-subject-id .lbl{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
 line-height:1.2}
 .c-subject-id .sub{font-size:var(--t-label);color:var(--dim3)}
-.c-subject-amt{margin-left:auto;text-align:right;line-height:1.1;flex:none}
+/* The amount belongs to the object, not to the right edge. A thousand pixels
+   between `setl_000089 AMBIGUOUS` and `₹1,00,036.83` reads as two things. */
+.c-subject-amt{text-align:left;line-height:1.1;flex:none;
+padding-left:var(--s-4);border-left:1px solid var(--line);margin-left:var(--s-2)}
 .c-subject-amt .v{display:block;font-family:var(--m);
-font-variant-numeric:tabular-nums;font-size:var(--t-h3);letter-spacing:-.02em}
+font-variant-numeric:tabular-nums;font-size:var(--t-h3);letter-spacing:-.02em;
+line-height:1.2}
 .c-subject-amt .k{display:block;font-size:var(--t-micro);color:var(--dim3);
 letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
 .c-subject-meta{display:flex;gap:var(--s-4);flex-wrap:wrap;
@@ -87,13 +92,17 @@ margin-right:6px;opacity:.75}
 /* lens strip — an instrument, not browser tabs */
 .c-lenses{position:relative;display:flex;gap:var(--s-1);padding:0 var(--s-5);
 background:var(--sur);border-bottom:1px solid var(--line)}
-.c-lenses button{background:transparent;border:0;padding:11px var(--s-4) 12px;
-font-size:var(--t-label);letter-spacing:.03em;color:var(--dim3);cursor:pointer;
-transition:color var(--fast)}
+/* An instrument selector, not tabs. No underline, no bottom border: the
+   active lens is a filled key and the others are legends beside it. */
+.c-lenses button{position:relative;z-index:1;background:transparent;border:0;
+padding:8px var(--s-4);margin:6px 0;border-radius:var(--r-2);
+font-size:var(--t-label);letter-spacing:.06em;text-transform:uppercase;
+color:var(--dim3);cursor:pointer;transition:color var(--fast)}
 .c-lenses button:hover{color:var(--ink)}
 .c-lenses button.on{color:var(--ink);font-weight:600}
-.c-lens-ink{position:absolute;bottom:-1px;left:0;height:2px;background:var(--acc);
-border-radius:2px 2px 0 0;transition:transform var(--med),width var(--med)}
+.c-lens-ink{position:absolute;top:6px;left:0;height:calc(100% - 12px);
+background:var(--sur3);border-radius:var(--r-2);
+transition:transform var(--med),width var(--med)}
 
 #workspace{overflow-y:auto;min-height:0;
 padding:var(--s-5) var(--s-5) var(--s-7);max-width:1180px;width:100%}
@@ -151,12 +160,17 @@ color:var(--st-INSUFFICIENT);background:var(--st-INSUFFICIENT-bg)}
 .s-SYSTEMIC{color:var(--st-SYSTEMIC);background:var(--st-SYSTEMIC-bg)}
 .s-INVESTIGATE{color:var(--st-INVESTIGATE);background:var(--st-INVESTIGATE-bg)}
 
+/* A row is a line in a ledger, not a card. The old treatment gave nineteen
+   bordered boxes on one screen, and when everything is a card nothing has
+   hierarchy. Rows get a hairline; only genuinely interactive objects get a
+   surface. */
 .c-row{display:flex;align-items:center;gap:var(--s-4);width:100%;
-padding:8px var(--s-4);background:var(--sur);border:1px solid var(--line);
-border-radius:var(--r-2);margin-bottom:3px;text-align:left;
-font:inherit;color:var(--ink)}
-.c-row.link{cursor:pointer;transition:border-color var(--fast),transform var(--fast)}
-.c-row.link:hover{border-color:var(--acc);transform:translateX(2px)}
+padding:9px var(--s-3);border:0;border-bottom:1px solid var(--line);
+border-left:2px solid transparent;background:transparent;
+text-align:left;font:inherit;color:var(--ink)}
+.c-row.link{cursor:pointer;transition:background var(--fast),
+border-left-color var(--fast)}
+.c-row.link:hover{background:var(--sur);border-left-color:var(--acc)}
 .c-dot{width:6px;height:6px;border-radius:var(--r-full);flex:none;
 background:currentColor}
 .c-row-id{font-family:var(--m);font-size:var(--t-label);color:var(--dim3);
@@ -173,6 +187,25 @@ font-size:var(--t-body);min-width:118px;text-align:right}
 .c-group-h em{margin-left:auto;font-style:normal;font-family:var(--m);
 font-variant-numeric:tabular-nums;font-size:var(--t-body)}
 .c-more{font-size:var(--t-label);color:var(--dim3);padding:4px 0 0}
+.c-group-d{font-size:var(--t-label);color:var(--dim3);line-height:1.55;
+padding:0 0 8px;max-width:92ch}
+
+/* the decision block — an instrument reading, not a paragraph */
+.c-decide{display:flex;flex-direction:column;gap:var(--s-4)}
+.c-decide-v{display:flex;align-items:center;gap:10px;font-size:var(--t-h3);
+font-weight:600;letter-spacing:-.02em}
+.c-decide-v i{width:9px;height:9px;border-radius:var(--r-full);flex:none;
+background:var(--st-CONTRADICTED)}
+.c-decide-v.yes i{background:var(--st-PROVEN)}
+.c-decide-f{display:grid;grid-template-columns:150px 1fr;gap:7px var(--s-4);
+align-items:baseline}
+.c-decide-f>div{display:contents}
+.c-decide-f dt{font-size:var(--t-micro);letter-spacing:.12em;
+text-transform:uppercase;color:var(--dim3);font-weight:600}
+.c-decide-f dd{font-size:var(--t-label);color:var(--dim2);line-height:1.6;
+max-width:88ch}
+@media (max-width:620px){.c-decide-f{grid-template-columns:1fr;gap:2px}
+  .c-decide-f>div{display:block;margin-bottom:9px}}
 
 .c-table{width:100%;border-collapse:collapse;font-size:var(--t-label)}
 .c-table th{text-align:left;font-size:var(--t-micro);letter-spacing:.1em;
@@ -210,32 +243,40 @@ display:inline-block;animation:sp .7s linear infinite;margin-right:8px}
 border-radius:var(--r-2);padding:8px var(--s-4);font-size:var(--t-label);
 margin-bottom:var(--s-4)}
 
-/* ---------------------------------------------------------------- spine */
-.c-spine{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--s-2)}
-.c-stage{position:relative;padding:var(--s-4);background:var(--sur);
-border:1px solid var(--line);border-radius:var(--r-3);border-top:2px solid var(--line2)}
-.c-stage.passed{border-top-color:var(--st-PROVEN)}
-.c-stage.stopped{border-top-color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
-.c-stage.not_reached{opacity:.5}
-.c-stage-top{display:flex;align-items:center;gap:6px;margin-bottom:7px}
-.c-stage-n{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+/* ----------------------------------------------------------------- flow
+ * The money narrowing IS the story. A bar collapsing from full width to a
+ * sliver at Verification should be readable before any number is, which five
+ * equal cards with ticks could never do — that was a stepper wearing a
+ * financial diagram's clothes. */
+.c-flow{display:flex;flex-direction:column;gap:1px}
+.c-flow-r{display:grid;grid-template-columns:96px minmax(160px,1fr) 132px auto;
+gap:var(--s-4);align-items:center;padding:7px 0}
+.c-flow-n{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
 color:var(--dim3);font-weight:600}
-.c-stage-mark{margin-left:auto;font-style:normal;font-size:var(--t-label)}
-.c-stage.passed .c-stage-mark{color:var(--st-PROVEN)}
-.c-stage.stopped .c-stage-mark{color:var(--st-CONTRADICTED)}
-.c-stage.not_reached .c-stage-mark{color:var(--dim3)}
-.c-stage-v{font-family:var(--m);font-variant-numeric:tabular-nums;
-font-size:var(--t-body);letter-spacing:-.01em;margin-bottom:4px}
-.c-stage-held{font-size:var(--t-micro);color:var(--st-CONTRADICTED);
-font-family:var(--m);margin-bottom:4px}
-.c-stage-d{font-size:var(--t-micro);color:var(--dim3);line-height:1.5}
-.c-stage-arrow{position:absolute;right:calc(var(--s-2) * -1 - 1px);top:22px;
-width:var(--s-2);height:1px;background:var(--line2)}
+.c-flow-track{height:18px;max-width:520px;background:var(--sur3);
+border-radius:var(--r-0);overflow:hidden;position:relative}
+.c-flow-bar{display:block;height:100%;background:var(--st-PROVEN);
+border-radius:var(--r-0);transition:width var(--med)}
+.c-flow-r.stopped .c-flow-bar{background:var(--st-AMBIGUOUS)}
+.c-flow-r.not_reached .c-flow-track{background:repeating-linear-gradient(
+  -45deg,var(--sur3),var(--sur3) 3px,transparent 3px,transparent 6px)}
+.c-flow-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);text-align:right}
+.c-flow-x{font-size:var(--t-label);color:var(--dim3)}
+.c-flow-r.stopped .c-flow-x{color:var(--st-CONTRADICTED)}
+.c-flow-x b{font-family:var(--m);font-weight:400}
+.c-flow-r.not_reached{opacity:.45}
+.c-flow-d{grid-column:2/5;font-size:var(--t-label);color:var(--dim2);
+padding:0 0 9px 108px;line-height:1.5;max-width:96ch}
 
 /* ---------------------------------------------------------------- action */
+/* Actions ARE the primary interactive object on Control, so they keep a
+   surface. That is the point of the discipline: the surface now means
+   something because it is not applied to everything. */
 .c-act{display:block;width:100%;text-align:left;background:var(--sur);
 border:1px solid var(--line);border-left:2px solid var(--line2);
 border-radius:var(--r-3);padding:var(--s-4);margin-bottom:5px;cursor:pointer;
+box-shadow:var(--shadow);
 transition:border-color var(--fast),transform var(--fast)}
 .c-act:hover{border-color:var(--acc);transform:translateX(2px)}
 .c-act.systemic{border-left-color:var(--st-PROVEN)}
@@ -288,7 +329,15 @@ border-radius:var(--r-0)}
   .c-stage-arrow{display:none}
 }
 @media (max-width: 620px){
-  .c-spine{grid-template-columns:1fr}
+  /* The flow needs four columns to read as a flow, and four columns do not fit
+     a phone. Stack the label and figures above a full-width bar: the narrowing
+     is still the message, it just runs down the page instead of across it. */
+  .c-flow-r{grid-template-columns:1fr auto;gap:3px var(--s-3);padding:9px 0}
+  .c-flow-n{grid-column:1}
+  .c-flow-v{grid-column:2;grid-row:1;text-align:right}
+  .c-flow-track{grid-column:1/3;grid-row:2;max-width:none}
+  .c-flow-x{grid-column:1/3;grid-row:3}
+  .c-flow-d{grid-column:1/3;padding:0 0 8px}
   #workspace{padding:var(--s-4) var(--s-4) var(--s-6)}
   .c-subject{padding:var(--s-4)}
   .c-lenses{padding:0 var(--s-4);overflow-x:auto;scrollbar-width:none}

@@ -1477,17 +1477,24 @@ def spine_view(r: Run | None, stype: str, sid: str,
         proven = f.verdict is Verdict.PROVEN and getattr(f, "postable", False)
         posts = proven and j.decision is Decision.AUTO_POST
 
+        # `continues_paise` is what is still moving after this stage. The flow
+        # renders width from it, so it has to be a number rather than a
+        # formatted string, and it has to be 0 once the subject has stopped.
+        stopped_i = (2 if not proven else (3 if not posts else 5))
         stages = [
             {"key": "source", "label": "Source", "state": "passed",
+             "continues_paise": s.net_paise,
              "value": _rs(s.net_paise),
              "detail": f"bank credit on {s.settled_on}, UTR {s.utr}"},
             {"key": "matching", "label": "Matching",
              "state": "passed" if pool else "stopped",
+             "continues_paise": s.net_paise if pool else 0,
              "value": f"{len(pool)} candidates",
              "detail": (f"{len(pool)} orders could belong to this credit"
                         if pool else "no candidate orders in the window")},
             {"key": "verification", "label": "Verification",
              "state": "passed" if proven else "stopped",
+             "continues_paise": s.net_paise if proven else 0,
              "value": f.verdict.value,
              "detail": ("unique explanation, kernel-checked, search space intact"
                         if proven else
@@ -1500,11 +1507,13 @@ def spine_view(r: Run | None, stype: str, sid: str,
                         "not enough evidence to determine the state")},
             {"key": "policy", "label": "Policy",
              "state": ("passed" if posts else "stopped" if proven else "not_reached"),
+             "continues_paise": s.net_paise if posts else 0,
              "value": j.decision.value if proven else "—",
              "detail": ((j.reasons or ("",))[-1] if proven else
                         "verification did not pass, so nothing was priced")},
             {"key": "action", "label": "Action",
              "state": "passed" if posts else "not_reached",
+             "continues_paise": s.net_paise if posts else 0,
              "value": _rs(s.net_paise) if posts else "—",
              "detail": ("a balanced journal entry would post"
                         if posts else "no entry is written")},
@@ -1524,10 +1533,10 @@ def spine_view(r: Run | None, stype: str, sid: str,
 
     stages = [
         {"key": "source", "label": "Source", "state": "passed",
-         "value": _rs(total), "count": len(r.settlements), "held": 0,
+         "continues_paise": total, "value": _rs(total), "count": len(r.settlements), "held": 0,
          "detail": f"{len(r.settlements):,} bank credits, {len(r.orders):,} orders"},
         {"key": "matching", "label": "Matching", "state": "passed",
-         "value": _rs(total), "count": pooled, "held": len(r.settlements) - pooled,
+         "continues_paise": total, "value": _rs(total), "count": pooled, "held": len(r.settlements) - pooled,
          "detail": "every credit has a candidate pool from the settlement calendar"},
         # A stage is `stopped` when value is standing at it, not when nothing
         # got through. Ticking every stage that passed ANY money made the
@@ -1535,12 +1544,14 @@ def spine_view(r: Run | None, stype: str, sid: str,
         # them — the opposite of what the heading promises.
         {"key": "verification", "label": "Verification",
          "state": "stopped" if len(proven) < len(r.findings) else "passed",
+         "continues_paise": proven_v,
          "value": _rs(proven_v), "count": len(proven),
          "held": len(r.findings) - len(proven), "held_value": _rs(total - proven_v),
          "detail": f"{len(r.findings) - len(proven)} settlements have no unique "
                    f"kernel-checked explanation"},
         {"key": "policy", "label": "Policy",
          "state": "stopped" if len(posts) < len(proven) else "passed",
+         "continues_paise": posts_v,
          "value": _rs(posts_v), "count": len(posts),
          "held": len(proven) - len(posts),
          "held_value": _rs(proven_v - posts_v),
@@ -1548,6 +1559,7 @@ def spine_view(r: Run | None, stype: str, sid: str,
                    f"get wrong than to check at {_rs(review_paise)} a review"},
         {"key": "action", "label": "Action",
          "state": "passed" if posts else "not_reached",
+         "continues_paise": posts_v,
          "value": _rs(posts_v), "count": len(posts), "held": 0,
          "detail": f"{len(posts)} balanced journal "
                    f"{'entry' if len(posts) == 1 else 'entries'}"},

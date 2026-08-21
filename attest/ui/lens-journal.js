@@ -122,11 +122,20 @@
       : EmptyState(`Nothing clears the policy at ${rupees(d.review_paise)} a review.`,
                    'The boundary is the inequality, not a setting.');
 
+    // The heading already states the reason; repeating it as the first clause
+    // of the sentence beneath is the same fact twice. Show only the part the
+    // heading does not carry.
+    const tail = (reason, example) => {
+      const i = example.indexOf('—');
+      const rest = i > 0 ? example.slice(i + 1).trim() : example;
+      return rest.toLowerCase().startsWith(reason.toLowerCase()) ? '' : rest;
+    };
     const withheld = d.refusals.map(g => `<div class=c-group>
       <div class=c-group-h><b>${esc(g.reason)}</b>
-        <span>${g.count}</span>
+        <span>${plural(g.count, 'settlement')}</span>
         <em>${esc(rupees(g.amount_paise, { whole: true }))}</em></div>
-      <div class=c-muted style="padding:0 var(--s-4) 10px">${esc(g.example)}</div>
+      ${tail(g.reason, g.example)
+        ? `<div class=c-group-d>${esc(tail(g.reason, g.example))}</div>` : ''}
     </div>`).join('');
 
     return Section({ title: "Today's accounting", body: head })

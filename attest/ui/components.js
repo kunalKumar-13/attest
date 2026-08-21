@@ -116,19 +116,37 @@ const ErrorState = (msg) => `<div class="c-empty err">${esc(msg)}</div>`;
 function StateSpine(spine, opts = {}) {
   if (!spine || !spine.stages) return '';
   const per = spine.type === 'portfolio';
-  return `<div class="c-spine${per ? ' wide' : ''}" role=list>
-    ${spine.stages.map((s, i) => `<div class="c-stage ${esc(s.state)}" role=listitem>
-      <div class=c-stage-top>
-        <span class=c-stage-n>${esc(s.label)}</span>
-        <i class=c-stage-mark aria-hidden=true>${
-          s.state === 'passed' ? '✓' : s.state === 'stopped' ? '✕' : '·'}</i>
+
+  // Proportional to what CONTINUES past each stage. The bar collapsing from
+  // full width to a sliver is the entire story of the portfolio, and it should
+  // be legible before any number is read. Five equal cards with ticks made the
+  // reader do that comparison themselves, which is a stepper wearing a
+  // financial diagram's clothes.
+  const vals = spine.stages.map(s => s.continues_paise);
+  const known = vals.every(v => typeof v === 'number');
+  const top = known ? Math.max(...vals, 1) : 1;
+  const MIN = 0.6;   // a surviving sliver must stay visible or it reads as zero
+
+  return `<div class="c-flow${per ? ' portfolio' : ''}">
+    ${spine.stages.map(s => {
+      const w = known
+        ? Math.max(s.continues_paise / top * 100, s.continues_paise > 0 ? MIN : 0)
+        : (s.state === 'not_reached' ? 0 : 100);
+      const held = per && s.held;
+      return `<div class="c-flow-r ${esc(s.state)}">
+        <span class=c-flow-n>${esc(s.label)}</span>
+        <span class=c-flow-track>
+          <i class=c-flow-bar style="width:${w.toFixed(2)}%"></i>
+        </span>
+        <span class=c-flow-v>${esc(s.value)}</span>
+        <span class=c-flow-x>${held
+          ? `<b>${esc(s.held_value || '')}</b> held · ${Number(s.held).toLocaleString()}`
+          : s.state === 'stopped' ? `<b>stopped here</b>`
+          : s.state === 'not_reached' ? 'not reached' : ''}</span>
       </div>
-      <div class=c-stage-v>${esc(s.value)}</div>
-      ${per && s.held ? `<div class=c-stage-held>${Number(s.held).toLocaleString()} held${
-        s.held_value ? ` · ${esc(s.held_value)}` : ''}</div>` : ''}
-      ${opts.detail !== false ? `<div class=c-stage-d>${esc(s.detail)}</div>` : ''}
-      ${i < spine.stages.length - 1 ? '<i class=c-stage-arrow aria-hidden=true></i>' : ''}
-    </div>`).join('')}
+      ${(held || s.state === 'stopped') && opts.detail !== false
+        ? `<div class=c-flow-d>${esc(s.detail)}</div>` : ''}`;
+    }).join('')}
   </div>`;
 }
 
