@@ -109,6 +109,29 @@ The re-run above is a real execution against the current code, not a
 transcription of the previous pass — its outcomes were printed by running every
 case and reading what came back.
 
+## Frozen boundaries
+
+The rows below are **boundaries, not bugs** — claims this integration has
+declined to make. They are frozen here so that no later reading of this file can
+mistake an absent claim for an untested one, or an untested one for a broken
+one.
+
+- **No live Razorpay account has been exercised.** `fetch` performs a real
+  authenticated request; it has never been called with real credentials.
+- **Bank statement ingestion is synthetic.** Every credit matches its settlement
+  by construction, so the adapter cannot exercise the case the engine exists for.
+- **The pagination stop condition is unverified** against live API behaviour. It
+  is read from documentation, not from responses.
+- **Fee ingestion has read-only evidence.** Read and folded into the `amount`
+  fallback; no test asserts it.
+- **Secret handling has read-only evidence.** Verified by reading, not by a test.
+- **Rejections do not outlive the process.** Correct for one pull, then gone.
+  Deferred deliberately — see the rejection-persistence ADR in `DECISIONS.md`.
+
+Never infer live validation from the existence of fetch code. The adapter is
+hardened for the implemented and fixture path. It is not production-ready, and
+this document does not say it is.
+
 ## What would be needed for a live integration
 
 1. **A bank statement source.** The synthesised `BankCredit` makes every credit

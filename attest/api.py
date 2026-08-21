@@ -560,16 +560,6 @@ def _sync_status(r: Run | None) -> dict[str, Any]:
     }
 
 
-def ask(r: Run, question: str) -> dict[str, Any]:
-    """Answer a question from the run's own records.
-
-    The translation from words to a query may one day be a model; the execution
-    never will be. That boundary is why a wrong translation can only answer the
-    wrong question — it cannot produce a number that did not come from the data.
-    """
-    from attest.ask import execute as run_query, parse
-    return run_query(parse(question), rows(r), summary(r),
-                     lambda sid: detail(r, sid) or {}).to_json()
 
 
 def _by_reason(r: Run) -> list[dict[str, Any]]:
@@ -775,120 +765,10 @@ def agents_view(r: Run | None) -> dict[str, Any]:
     }
 
 
-def trust_view(r: Run | None) -> dict[str, Any]:
-    """What version of what decided, and whether the gates still hold. §44, §45.
-
-    Every number ATTEST reports is produced by a specific set of rules, a
-    specific solver, and a specific dataset. If any of those move, the number is
-    not comparable to the last one. This makes that checkable rather than
-    assumed — and it reads the same two files the build reads, so the screen
-    cannot say the gates pass while CI says they fail.
-    """
-    import json as _json
-    import pathlib as _pl
-
-    from attest.eval.gate import GATES
-
-    root = _pl.Path(__file__).resolve().parent.parent
-
-    def _load(name: str) -> dict[str, Any]:
-        """The gate metrics live under `pooled` — the top level holds the run's
-        configuration. Reading the wrong level silently yields None for every
-        gate, which renders as 'unknown' and looks like a missing benchmark
-        rather than a bug."""
-        try:
-            d = _json.loads((root / "benchmark" / name).read_text())
-            return d.get("pooled", d)
-        except Exception:
-            return {}
-
-    cur, base = _load("results.json"), _load("baseline.json")
-    gates: list[dict[str, Any]] = []
-    for g in GATES:
-        a = cur.get(g.key)
-        b = base.get(g.key)
-        if a is None or b is None:
-            state = "unknown"
-        else:
-            a, b = float(a), float(b)
-            ok = (a <= b + g.tolerance if g.direction == "lower_is_better"
-                  else a >= b - g.tolerance)
-            state = "pass" if ok else ("fail" if g.fatal else "warn")
-        gates.append({
-            "key": g.key, "label": g.label, "direction": g.direction,
-            "tolerance": g.tolerance, "fatal": g.fatal, "why": g.why,
-            "value": a, "baseline": b, "state": state,
-            "paise": "paise" in g.key,
-        })
-
-    # The run already carries its provenance — rebuilding it here would let the
-    # screen disagree with the record the run was decided under.
-    prov = r.provenance.to_json() if r is not None and r.provenance else None
-
-    return {
-        "rules": {
-            "name": DEFAULT_RULES.name,
-            "version": DEFAULT_RULES.version,
-            "currency": DEFAULT_RULES.currency,
-            "described": [{"rule": a, "value": b, "why": c}
-                          for a, b, c in DEFAULT_RULES.describe()],
-        },
-        "solver": {"version": solver_version(), "native": _native()},
-        "provenance": prov,
-        "gates": gates,
-        "benchmark": cur,
-    }
 
 
-def _native() -> bool:
-    try:
-        import attest_native  # noqa: F401
-        return True
-    except Exception:
-        return False
 
 
-def exceptions_view(r: Run) -> dict[str, Any]:
-    """Exceptions grouped by why the engine stopped. §29.
-
-    Grouped by reason rather than by subject, because two settlements that
-    failed for the same reason are one problem. Each group carries the meaning
-    and the next step from GUIDE, so a queue item never resolves to
-    "investigate" — every entry names a record to go and find.
-    """
-    from attest.exceptions import GUIDE, ReasonCode
-
-    st = {x.settlement_id: x for x in r.settlements}
-    agg: dict[str, dict[str, Any]] = {}
-    for e in r.exceptions.values():
-        code = e.reason.value
-        g = agg.get(code)
-        if g is None:
-            meaning, step = GUIDE.get(ReasonCode(code), ("", ""))
-            g = agg[code] = {
-                "reason": code,
-                "label": code.replace("_", " ").capitalize(),
-                "why": meaning, "next_step": step,
-                "count": 0, "amount_paise": 0, "unexplained_paise": 0,
-                "high": 0, "examples": [],
-            }
-        g["count"] += 1
-        g["amount_paise"] += e.amount_paise
-        g["unexplained_paise"] += e.unexplained_paise
-        g["high"] += int(e.severity.value == "HIGH")
-        if len(g["examples"]) < 6:
-            g["examples"].append({
-                "id": e.settlement_id,
-                "amount_paise": st[e.settlement_id].net_paise
-                if e.settlement_id in st else e.amount_paise,
-            })
-
-    groups = sorted(agg.values(), key=lambda x: -x["amount_paise"])
-    return {
-        "groups": groups,
-        "total": sum(g["count"] for g in groups),
-        "amount_paise": sum(g["amount_paise"] for g in groups),
-    }
 
 
 def demonstrate_events(r: Run | None) -> dict[str, Any]:
@@ -979,77 +859,6 @@ def demonstrate_events(r: Run | None) -> dict[str, Any]:
         "uses, and the verdicts below are what that code returned.")}
 
 
-def whatchanged_view(r: Run, withhold: float = 0.06) -> dict[str, Any]:
-    """Yesterday's answer against today's, with every move attributed. §19, §30.
-
-    Reconciliation is a standing claim about a moving set of records, so the
-    question a finance team asks each morning is not "what is the state" but
-    "what changed, and why". To ask it honestly there must be two real runs, and
-    the difference between them must be a difference in the INPUTS rather than a
-    reshuffle of the same data.
-
-    So the earlier run is this same portfolio with a fraction of the orders
-    withheld — records that had not arrived yet — and the later run is the one
-    on screen. Both go through the whole engine. Nothing is narrated: the
-    attribution comes from `whatchanged.diff`, which asks whether an order that
-    appeared is actually load-bearing for the verdict that moved, and reports
-    the transition as unattributed when it is not.
-    """
-    import random as _random
-
-    from attest.pipeline import run as _pipeline
-    from attest.whatchanged import diff
-
-    rng = _random.Random(r.seed ^ 0xA11CE)
-    keep = [o for o in r.orders if rng.random() >= withhold]
-    withheld = len(r.orders) - len(keep)
-
-    _, pools_before, before = _pipeline(r.settlements, keep, cores=False)
-    d = diff(before, r.findings, pools_before, r.pools,
-             {s.settlement_id: s for s in r.settlements})
-
-    st = {s.settlement_id: s for s in r.settlements}
-    groups = []
-    for name, changes in sorted(d.by_direction().items(),
-                                key=lambda kv: -sum(c.amount_paise for c in kv[1])):
-        groups.append({
-            "direction": name,
-            "count": len(changes),
-            "amount_paise": sum(c.amount_paise for c in changes),
-            "attributed": sum(1 for c in changes if c.attributed),
-            "items": [{
-                "id": c.settlement_id,
-                "amount_paise": c.amount_paise,
-                "before": c.before.value,
-                "after": c.after.value,
-                "attributed": c.attributed,
-                "causes": [{"kind": x.kind, "detail": x.detail,
-                            "orders": list(x.order_ids)} for x in c.causes],
-            } for c in sorted(changes, key=lambda c: -c.amount_paise)[:5]],
-        })
-
-    return {
-        "withheld": withheld,
-        "withheld_pct": round(withheld / max(len(r.orders), 1) * 100, 1),
-        "orders_before": len(keep),
-        "orders_after": len(r.orders),
-        "changed": len(d.changes),
-        "unchanged": d.unchanged,
-        "unattributed": len(d.unattributed),
-        "amount_paise": sum(c.amount_paise for c in d.changes),
-        "groups": groups,
-        "meanings": {
-            "resolved": "Reached a unique explanation it did not have before.",
-            "withdrawn": "Was proven, now is not — usually the engine finding "
-                         "that its earlier uniqueness was an artefact of a "
-                         "thinner pool. That is the engine working, not failing.",
-            "reframed": "Moved between non-proven states. The evidence changed "
-                        "shape without settling.",
-            "recomposed": "Still proven, but by a different set of orders. The "
-                          "most alarming transition there is: the engine was "
-                          "certain twice and disagreed with itself.",
-        },
-    }
 
 
 def journal_view(r: Run, review_paise: int = 15_000,
@@ -1149,89 +958,6 @@ def actions_view(r: Run) -> dict[str, Any]:
     }
 
 
-def trail_view(r: Run, sid: str = "") -> dict[str, Any]:
-    """The hypothesis loop, running, with its verdict thrown away. §15, §16, D8.
-
-    This screen exists because the loop was built, measured twice, and shipped
-    disabled — and that is a more useful thing to show than a loop that appears
-    to work. The measurement is read from FAILURES.md rather than restated here,
-    so the number on the screen and the number in the record cannot drift.
-
-    If no settlement is named, the largest ambiguous one is used: the loop has
-    the most to work with there, so it is the case most favourable to the
-    feature being demonstrated.
-    """
-    from attest.eval.observatory import read as read_failures
-
-    st = {x.settlement_id: x for x in r.settlements}
-    amb = sorted((f for f in r.findings if f.verdict is Verdict.AMBIGUOUS),
-                 key=lambda f: -st[f.settlement_id].net_paise)
-
-    chosen = sid or (amb[0].settlement_id if amb else "")
-    run_trail = investigate_view(r, chosen) if chosen else None
-
-    d8 = next((e for e in read_failures() if e.ref == "D8"), None)
-
-    # Read the measurement rather than restate it, for the same reason the
-    # Accuracy screen reads the benchmark files the build reads: a number copied
-    # by hand is a number that will eventually be copied wrong, and this is the
-    # one that decides whether the feature ships.
-    import json as _json
-    import pathlib as _pl
-    try:
-        anch = _json.loads((_pl.Path(__file__).resolve().parent.parent
-                            / "benchmark" / "anchoring.json").read_text())
-    except Exception:
-        anch = {}
-
-    return {
-        "enabled": False,
-        "settlement_id": chosen,
-        "trail": run_trail,
-        "candidates": [{"id": f.settlement_id,
-                        "amount_paise": st[f.settlement_id].net_paise,
-                        "explanations": len(f.proofs)}
-                       for f in amb[:12]],
-        "measurement": {
-            "ref": d8.ref if d8 else "D8",
-            "title": d8.title if d8 else "",
-            "table": d8.measurement if d8 else "",
-            "detail": d8.detail if d8 else "",
-        },
-        "measured": anch,
-        "why_disabled": (
-            "Both variants were measured against ground truth over five seeds. "
-            "Completing a partial anchor reached 0.652 precision; selecting "
-            "among explanations the solver had already produced reached 0.521 — "
-            "a coin flip. The second is the safe design and it is the worse "
-            "number, which is the whole finding. Re-measured on five different "
-            "seeds after D22 fixed the loop's feedback channel, the safe design "
-            f"reaches {anch.get('precision', 0):.3f}."
-            if anch else
-            "Both variants were measured against ground truth over five seeds. "
-            "Completing a partial anchor reached 0.652 precision; selecting "
-            "among explanations the solver had already produced reached 0.521 — "
-            "a coin flip. The second is the safe design and it is the worse "
-            "number, which is the whole finding."),
-        "why_it_fails": (
-            "The settlement report carries no order-level reference, so every "
-            "anchor is a guess about which orders belong together. A language "
-            "model changes which guess gets made, not that it is one. This is a "
-            "missing-field problem wearing a machine-learning costume. And the "
-            "offline proposer's lens — the densest same-day capture batch — is "
-            f"vacuous on the {anch.get('single_date_share', 0) * 100:.0f}% of "
-            "candidate pools that span a single capture date: there, the "
-            "sentence is true of every order in the pool."
-            if anch else
-            "The settlement report carries no order-level reference, so every "
-            "anchor is a guess about which orders belong together."),
-        "what_it_still_does": (
-            "The loop runs here and its verdict is discarded. What survives is "
-            "the record: what was proposed, what refuted it, and that the "
-            "engine abstained. A model whose wrong answers are visible and "
-            "labelled is worth more than one whose right answers cannot be told "
-            "apart from its wrong ones."),
-    }
 
 
 def sync_view(r: Run | None) -> dict[str, Any]:

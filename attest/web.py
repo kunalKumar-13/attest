@@ -68,16 +68,6 @@ class Handler(BaseHTTPRequestHandler):
             n = max(10, min(5000, int(q.get("n", ["250"])[0])))
             self._json(api.summary(api.execute(n, 20260821)))
 
-        elif u.path == "/api/rows":
-            r = api.get(q.get("run", [""])[0])
-            self._json(api.rows(r) if r else {"error": "unknown run"},
-                       200 if r else 404)
-
-        elif u.path == "/api/investigate":
-            r = api.get(q.get("run", [""])[0])
-            v = api.investigate_view(r, q.get("id", [""])[0]) if r else None
-            self._json(v or {"error": "not found"}, 200 if v else 404)
-
         elif u.path == "/api/attention":
             r = api.get(q.get("run", [""])[0])
             self._json(api.attention(r) if r else {"error": "unknown run"},
@@ -123,14 +113,6 @@ class Handler(BaseHTTPRequestHandler):
                                       int(q.get("review", ["15000"])[0]),
                                       int(q.get("exposure", ["10000000"])[0])))
 
-        elif u.path == "/api/sync":
-            self._json(api.sync_view(api.get(q.get("run", [""])[0])))
-
-        elif u.path == "/api/trail":
-            r = api.get(q.get("run", [""])[0])
-            self._json(api.trail_view(r, q.get("id", [""])[0]) if r
-                       else {"error": "unknown run"}, 200 if r else 404)
-
         elif u.path == "/api/actions":
             r = api.get(q.get("run", [""])[0])
             self._json(api.actions_view(r) if r
@@ -144,45 +126,11 @@ class Handler(BaseHTTPRequestHandler):
                 int(q.get("exposure", ["10000000"])[0]),
             ) if r else {"error": "unknown run"}, 200 if r else 404)
 
-        elif u.path == "/api/whatchanged":
-            r = api.get(q.get("run", [""])[0])
-            self._json(api.whatchanged_view(r) if r
-                       else {"error": "unknown run"}, 200 if r else 404)
-
-        elif u.path == "/api/agents":
-            self._json(api.agents_view(api.get(q.get("run", [""])[0])))
-
-        elif u.path == "/api/trust":
-            self._json(api.trust_view(api.get(q.get("run", [""])[0])))
-
         elif u.path == "/api/observatory":
             self._json(api.observatory())
 
         elif u.path == "/api/events":
             self._json(api.event_feed())
-
-        elif u.path == "/api/integrations":
-            self._json(api.integrations(api.get(q.get("run", [""])[0])))
-
-        elif u.path == "/api/ask":
-            r = api.get(q.get("run", [""])[0])
-            self._json(api.ask(r, q.get("q", [""])[0]) if r
-                       else {"error": "unknown run"}, 200 if r else 404)
-
-        elif u.path == "/api/policy":
-            r = api.get(q.get("run", [""])[0])
-            if r is None:
-                self._json({"error": "unknown run"}, 404)
-            else:
-                self._json(api.policy_view(
-                    r,
-                    int(q.get("review", ["15000"])[0]),
-                    int(q.get("exposure", ["10000000"])[0])))
-
-        elif u.path == "/api/exceptions":
-            r = api.get(q.get("run", [""])[0])
-            self._json(api.exceptions_view(r) if r
-                       else {"error": "unknown run"}, 200 if r else 404)
 
         elif u.path == "/api/settlement":
             r = api.get(q.get("run", [""])[0])
@@ -190,7 +138,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(d or {"error": "not found"}, 200 if d else 404)
 
         else:
-            name = "index.html" if u.path in ("/", "") else u.path.lstrip("/")
+            name = "workspace.html" if u.path in ("/", "") else u.path.lstrip("/")
             path = (UI / name).resolve()
             if UI not in path.parents or not path.is_file():
                 self._reply(b"not found", "text/plain", 404)

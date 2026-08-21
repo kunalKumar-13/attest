@@ -1,5 +1,12 @@
 # UX audit and the P3 information architecture
 
+
+> **Historical.** The sixteen-screen UI this audit measures was deleted on 2026-08-22 along with
+> `app.js`, `widgets.js`, `board-widgets.js` and `index.html`. The file names
+> below no longer resolve. This document is kept because it is the evidence
+> that justified the removal — deleting it would leave the decision
+> unexplained, and the reasoning is worth more than the code was.
+
 Written before any P3 code, per §62. Everything in the inventory is what the
 repository actually contains, not what it was supposed to.
 

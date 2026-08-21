@@ -253,10 +253,11 @@ attest/actions.py      the work ranked by value unlocked per step
 eval/baseline_panel.py ATTEST against three baselines, identical conditions
 attest/rules.py        content-hashed rule set + run provenance
 attest/agents.py       capabilities, and the four granted to nothing
-attest/whatchanged.py  run-to-run diff with computed attribution
+attest/whatchanged.py  run-to-run diff with computed attribution (CLI)
 attest/webhooks.py     raw-byte HMAC, idempotency on id AND payload hash
-attest/api.py          the JSON API behind every screen
-attest/ui/             vanilla-JS SPA — four modes, fourteen screens
+attest/api.py          the JSON API behind the Case Desk
+attest/adapters/       source adapters; money.py reads amounts exactly or refuses
+attest/ui/             the Case Desk — one subject, seven lenses, three axes
 eval/                  harness, baselines, ablations, regression gates
 native/                Rust port of the DP hot path
 ```

@@ -172,3 +172,65 @@ which solver produced the proof, and whether the proof belongs to that universe
 so a proof was postable *because* it omitted the evidence it would have been
 judged on. Fixed; measured impact on legitimate proofs: none (52 postable before
 and after, all six gates +0.0000). See `reports/CORE-001-postable-fails-open.md`.
+
+## Rejection persistence is deferred to productization
+
+**Decision: `Snapshot.rejected` stays in-process for now. Persistence is a
+post-hackathon requirement, recorded here rather than built.**
+
+### Why it matters
+
+A rejection is a row an operator has to chase. It names a real record that
+Razorpay sent and ATTEST refused to read — a fractional paise amount, a row that
+identifies itself twice, a payload that isn't an object. Every one of those is a
+question for whoever owns the source data, and the answer changes money.
+
+The current representation is right: index, reason, identity, record type, which
+is enough to find the row and enough to ask about it. What is missing is
+duration. The list is built during `normalise`, carried on the snapshot, and
+dies when the process does. An operator who runs a pull, sees "3 records could
+not be read exactly", and closes the terminal has lost the only record that
+those three rows existed. Worse, the *next* pull re-reads them, re-rejects them,
+and reports the same count — so a persistent source defect is indistinguishable
+from a transient one, and nothing accumulates toward "this has been broken for
+eleven days."
+
+### Why it is not required for the current evaluation
+
+The evaluation never reads a rejection. It runs on generated data where every
+row is well-formed by construction, so the rejection path is exercised only by
+tests, which assert on the in-memory list directly. No metric, no gate and no
+claim in the register depends on a rejection surviving a process boundary.
+Building storage now would add a schema, a migration path and a retention
+question to a system whose evaluated behaviour would not change by a single
+verdict — and the six gates moving +0.0000 across the adapter hardening is the
+evidence for that.
+
+There is also a specific reason not to guess at it early. Rejection storage is
+an operational surface: it needs a retention policy, a resolution state, and an
+opinion about whether a rejection that later reads cleanly is deleted or
+retained as history. Those are product decisions, and inventing answers to them
+before anyone has run a real pull is how a schema gets built around assumptions
+that the first live account immediately contradicts.
+
+### What the future interface must preserve
+
+Whatever replaces the in-process list has to keep the properties the current one
+already has, because they were each the fix for something:
+
+1. **The row index within its pull**, and enough about the pull — source,
+   period, page — to find the row again. A reason without a location is not
+   actionable.
+2. **The source's own identity for the record**, never a fabricated one. An
+   identity ATTEST invented cannot be used to ask Razorpay about the row.
+3. **The verbatim reason**, not a category. "amount: '10.50' in paise is 10.50
+   paise, which is not a whole number" tells an operator what to do; a
+   `MALFORMED_AMOUNT` enum does not.
+4. **Rejections as records, never a count.** ADAPTER-003 was exactly this
+   mistake: a counter is a number you cannot act on.
+5. **Identity across pulls**, which is the property the in-process version does
+   not have and the reason to build this at all — the same row rejected on
+   Monday and Thursday must be recognisable as one problem.
+6. **No silent promotion.** A rejected row must never become readable because a
+   later version of the parser was more permissive; if the parser changes, the
+   old rejection stands as a record of what the old one refused.

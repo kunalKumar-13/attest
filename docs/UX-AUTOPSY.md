@@ -1,5 +1,12 @@
 # UX autopsy — ATTEST at 54 commits
 
+
+> **Historical.** The sixteen-screen UI this autopsy dissects was deleted on 2026-08-22 along with
+> `app.js`, `widgets.js`, `board-widgets.js` and `index.html`. The file names
+> below no longer resolve. This document is kept because it is the evidence
+> that justified the removal — deleting it would leave the decision
+> unexplained, and the reasoning is worth more than the code was.
+
 Written before any redesign, per the directive's step 1. Everything below is
 measured against the running application, not recalled. The scripts that
 produced each number are named so the finding can be re-derived rather than

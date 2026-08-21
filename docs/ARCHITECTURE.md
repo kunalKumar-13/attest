@@ -142,3 +142,25 @@ which solver produced the proof, and whether the proof belongs to that universe
 so a proof was postable *because* it omitted the evidence it would have been
 judged on. Fixed; measured impact on legitimate proofs: none (52 postable before
 and after, all six gates +0.0000). See `reports/CORE-001-postable-fails-open.md`.
+
+## Where the Razorpay adapter stops
+
+These are **boundaries, not bugs**. The adapter is hardened for the implemented
+path and for fixtures; it is not a validated live integration, and nothing in
+this repository should be read as claiming otherwise.
+
+| Boundary | What that means |
+|---|---|
+| No live Razorpay account has been exercised | `fetch` performs a real authenticated HTTP request and has never been called with real credentials. Code that *would* perform a live operation is not a live integration, and the presence of `urlopen` is not evidence that anything was validated against it. |
+| Bank statement ingestion is synthetic | `BankCredit` is constructed from each settlement, so the credit always matches by construction. The adapter therefore cannot exercise the one case the engine exists for: a credit that does not correspond to one settlement. |
+| The pagination stop condition is unverified | `count`/`skip` until a short page is Razorpay's documented behaviour, read from documentation rather than from responses. `test_integration_three_overlapping_pages_yield_three_records` covers the *consequence* of overlapping pages on synthetic rows; the loop itself has never met a real response. |
+| Fee ingestion has read-only evidence | `fee` and `tax` are read and folded into the `amount` fallback, then re-derived from the rule set. No test asserts the mapping. |
+| Secret handling has read-only evidence | Credentials come from the environment and `status()` truncates the key id to eight characters. That no secret reaches a snapshot, a log or the UI was established by reading the code, not by a test. |
+| Rejections do not outlive the process | `Snapshot.rejected` is correct and complete for one pull, and then it is gone. See the ADR on rejection persistence in `DECISIONS.md`. |
+
+The distinction matters more than the list. A bug is behaviour that contradicts
+what the system claims about itself; a boundary is a claim the system has
+declined to make. Filing these as bugs would imply a plan to fix them before the
+work is judged, and there isn't one — the honest position is that the evaluation
+runs on generated data with a stated envelope, and the adapter is the seam where
+that envelope ends.
