@@ -952,3 +952,76 @@ def demonstrate_events(r: Run | None) -> dict[str, Any]:
         "from Razorpay. What is real is the path: every one of these went "
         "through the same verify, de-duplicate and scope code the HTTP endpoint "
         "uses, and the verdicts below are what that code returned.")}
+
+
+def whatchanged_view(r: Run, withhold: float = 0.06) -> dict[str, Any]:
+    """Yesterday's answer against today's, with every move attributed. §19, §30.
+
+    Reconciliation is a standing claim about a moving set of records, so the
+    question a finance team asks each morning is not "what is the state" but
+    "what changed, and why". To ask it honestly there must be two real runs, and
+    the difference between them must be a difference in the INPUTS rather than a
+    reshuffle of the same data.
+
+    So the earlier run is this same portfolio with a fraction of the orders
+    withheld — records that had not arrived yet — and the later run is the one
+    on screen. Both go through the whole engine. Nothing is narrated: the
+    attribution comes from `whatchanged.diff`, which asks whether an order that
+    appeared is actually load-bearing for the verdict that moved, and reports
+    the transition as unattributed when it is not.
+    """
+    import random as _random
+
+    from attest.pipeline import run as _pipeline
+    from attest.whatchanged import diff
+
+    rng = _random.Random(r.seed ^ 0xA11CE)
+    keep = [o for o in r.orders if rng.random() >= withhold]
+    withheld = len(r.orders) - len(keep)
+
+    _, pools_before, before = _pipeline(r.settlements, keep, cores=False)
+    d = diff(before, r.findings, pools_before, r.pools,
+             {s.settlement_id: s for s in r.settlements})
+
+    st = {s.settlement_id: s for s in r.settlements}
+    groups = []
+    for name, changes in sorted(d.by_direction().items(),
+                                key=lambda kv: -sum(c.amount_paise for c in kv[1])):
+        groups.append({
+            "direction": name,
+            "count": len(changes),
+            "amount_paise": sum(c.amount_paise for c in changes),
+            "attributed": sum(1 for c in changes if c.attributed),
+            "items": [{
+                "id": c.settlement_id,
+                "amount_paise": c.amount_paise,
+                "before": c.before.value,
+                "after": c.after.value,
+                "attributed": c.attributed,
+                "causes": [{"kind": x.kind, "detail": x.detail,
+                            "orders": list(x.order_ids)} for x in c.causes],
+            } for c in sorted(changes, key=lambda c: -c.amount_paise)[:5]],
+        })
+
+    return {
+        "withheld": withheld,
+        "withheld_pct": round(withheld / max(len(r.orders), 1) * 100, 1),
+        "orders_before": len(keep),
+        "orders_after": len(r.orders),
+        "changed": len(d.changes),
+        "unchanged": d.unchanged,
+        "unattributed": len(d.unattributed),
+        "amount_paise": sum(c.amount_paise for c in d.changes),
+        "groups": groups,
+        "meanings": {
+            "resolved": "Reached a unique explanation it did not have before.",
+            "withdrawn": "Was proven, now is not — usually the engine finding "
+                         "that its earlier uniqueness was an artefact of a "
+                         "thinner pool. That is the engine working, not failing.",
+            "reframed": "Moved between non-proven states. The evidence changed "
+                        "shape without settling.",
+            "recomposed": "Still proven, but by a different set of orders. The "
+                          "most alarming transition there is: the engine was "
+                          "certain twice and disagreed with itself.",
+        },
+    }

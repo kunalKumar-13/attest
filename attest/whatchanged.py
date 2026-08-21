@@ -122,6 +122,18 @@ class Diff:
         return "\n".join(out) + "\n"
 
 
+def _s(xs: object) -> str:
+    return "" if len(xs) == 1 else "s"  # type: ignore[arg-type]
+
+
+def _are(xs: object) -> str:
+    return "is" if len(xs) == 1 else "are"  # type: ignore[arg-type]
+
+
+def _were(xs: object) -> str:
+    return "was" if len(xs) == 1 else "were"  # type: ignore[arg-type]
+
+
 def _attribute(before: Finding, after: Finding,
                pool_before: set[str], pool_after: set[str]) -> tuple[Cause, ...]:
     """Which input difference actually accounts for this transition.
@@ -141,16 +153,18 @@ def _attribute(before: Finding, after: Finding,
     if load_added:
         causes.append(Cause(
             "order_arrived", load_added,
-            f"{len(load_added)} order(s) entered the candidate universe and are "
-            f"used by the new explanation(s): {', '.join(load_added[:4])}"
+            f"{len(load_added)} order{_s(load_added)} entered the candidate "
+            f"universe and {_are(load_added)} used by the new "
+            f"explanation{_s(after.proofs)}: {', '.join(load_added[:4])}"
             + (" …" if len(load_added) > 4 else "")))
 
     load_removed = tuple(sorted(removed & cited_before))
     if load_removed:
         causes.append(Cause(
             "order_left", load_removed,
-            f"{len(load_removed)} order(s) left the candidate universe and were "
-            f"used by the old explanation(s): {', '.join(load_removed[:4])}"
+            f"{len(load_removed)} order{_s(load_removed)} left the candidate "
+            f"universe and {_were(load_removed)} used by the old "
+            f"explanation{_s(before.proofs)}: {', '.join(load_removed[:4])}"
             + (" …" if len(load_removed) > 4 else "")))
 
     n_b, n_a = len(before.proofs), len(after.proofs)

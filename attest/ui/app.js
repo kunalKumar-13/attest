@@ -79,9 +79,9 @@ const MODES = {
   },
   investigate: {
     views: [['cases', 'Settlements', false], ['exceptions', 'Exceptions', true],
-            ['ask', 'Ask ATTEST', true]],
+            ['changed', 'What changed', true], ['ask', 'Ask ATTEST', true]],
     draw: { cases: () => open_(), exceptions: () => drawExceptions(),
-            ask: () => drawAsk(null) },
+            changed: () => drawChanged(), ask: () => drawAsk(null) },
   },
   verify: {
     views: [['accuracy', 'Accuracy', true], ['observatory', 'Failures', true],
@@ -1152,6 +1152,72 @@ async function drawExceptions() {
 
   el('right').querySelectorAll('.exl').forEach(b => b.onclick = () => {
     const i = S.view.findIndex(r => r.id === b.dataset.sid);
+    if (i >= 0) { S.i = i; go('investigate', 'cases'); }
+  });
+}
+
+/* -------------------------------------------------------------- what changed
+ * §19, §30. Reconciliation is a standing claim about a moving set of records,
+ * so the morning question is not "what is the state" but "what changed, and
+ * why". Both runs here are real: the earlier one is this portfolio with a
+ * fraction of its orders withheld, as records that had not arrived yet.
+ */
+async function drawChanged() {
+  el('right').innerHTML = `<div class=empty><span class=spin></span>
+    reconciling the earlier book, then comparing…</div>`;
+  const d = await api(`/api/whatchanged?run=${S.run.run_id}`);
+  if (S.screen !== 'changed') return;
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>What changed</h1>
+      <span class=sub>${d.changed} settlements moved · ${d.unchanged} held</span></div>
+    <p class=lede>Two real runs, not a replay. The earlier one is this same
+      portfolio with ${plural(d.withheld, 'order')} withheld — ${d.withheld_pct}% of
+      the book, standing in for records that had not arrived yet — put through
+      the whole engine. Every move below is then attributed by asking whether an
+      order that appeared is actually load-bearing for the verdict that moved. An
+      order that arrived but appears in none of the new explanations did not
+      cause anything, and saying it did because it turned up at the same time is
+      exactly the confident-sounding wrongness this engine exists to refuse.</p>
+
+    <div class=fs>
+      <div class=metric><span class=k>changed</span>
+        <span class=v>${d.changed}</span>
+        <span class=s>${rs(d.amount_paise, true)} of settlement value</span></div>
+      <div class=metric><span class=k>held</span>
+        <span class=v>${d.unchanged}</span>
+        <span class=s>same verdict, same orders</span></div>
+      <div class=metric><span class=k>unattributed</span>
+        <span class=v style="color:${d.unattributed ? 'var(--st-contradicted)' : 'var(--st-proven)'}">
+          ${d.unattributed}</span>
+        <span class=s>${d.unattributed ? 'the inputs do not explain these'
+          : 'every move traced to an input difference'}</span></div>
+      <div class=metric><span class=k>orders</span>
+        <span class=v>${d.orders_before.toLocaleString()} → ${d.orders_after.toLocaleString()}</span>
+        <span class=s>the only difference between the runs</span></div>
+    </div>
+
+    ${d.groups.map(g => `<section class=grp>
+      <div class=grp-hd><b>${esc(g.direction[0].toUpperCase() + g.direction.slice(1))}</b>
+        <span class=n>${g.count}</span>
+        <span class=tot>${rs(g.amount_paise, true)}</span></div>
+      <p class=lede>${esc(d.meanings[g.direction] || '')}</p>
+      ${g.items.map(it => `<button class=att data-sid="${it.id}">
+        <span class=id>${it.id.replace('setl_', '')}</span>
+        <span class=amt>${rs(it.amount_paise)}</span>
+        <span class=move><i class="st st-${it.before}">${it.before.slice(0, 4)}</i>
+          →<i class="st st-${it.after}">${it.after.slice(0, 4)}</i></span>
+        <span class=line>${it.causes.length
+          ? esc(it.causes[0].detail)
+          : '<em>unattributed — no input difference accounts for this</em>'}</span>
+        <span class=go>Open →</span></button>`).join('')}
+      ${g.count > g.items.length
+        ? `<div class=more>+ ${g.count - g.items.length} more</div>` : ''}
+    </section>`).join('')}
+  </div>`;
+
+  el('right').querySelectorAll('.att').forEach(b => b.onclick = () => {
+    const i = S.view.findIndex(x => x.id === b.dataset.sid);
     if (i >= 0) { S.i = i; go('investigate', 'cases'); }
   });
 }

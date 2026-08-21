@@ -83,6 +83,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.attention(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/whatchanged":
+            r = api.get(q.get("run", [""])[0])
+            self._json(api.whatchanged_view(r) if r
+                       else {"error": "unknown run"}, 200 if r else 404)
+
         elif u.path == "/api/agents":
             self._json(api.agents_view(api.get(q.get("run", [""])[0])))
 
