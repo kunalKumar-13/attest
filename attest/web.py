@@ -83,6 +83,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.attention(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/investigation":
+            self._json(api.investigation_view(api.get(q.get("run", [""])[0]),
+                                              q.get("type", ["portfolio"])[0],
+                                              q.get("id", [""])[0]))
+
         elif u.path == "/api/evidence":
             self._json(api.evidence_view(api.get(q.get("run", [""])[0]),
                                          q.get("type", ["portfolio"])[0],

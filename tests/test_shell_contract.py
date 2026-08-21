@@ -486,3 +486,151 @@ def test_a_stale_evidence_fetch_cannot_land_on_another_subject(page):
     body = page.inner_text("#workspace").lower()
     assert "could belong to this credit" not in body, "a stale settlement view landed"
     assert "the evidence in this run" in body
+
+
+# --------------------------------------------------------- P4: Investigate
+
+def test_portfolio_investigate_is_questions_not_a_table_of_settlements(page):
+    """§13. "197 ambiguous settlements" is a queue nobody can finish; one
+    question worth ₹47L that a single answer settles is work."""
+    _ev(page, "#/portfolio/investigate")
+    assert _state(page)[:2] == ["portfolio:portfolio", "investigate"]
+    cases = page.eval_on_selector_all(".i-case", "x => x.length")
+    assert 1 <= cases <= 12, f"{cases} rows is a table, not a queue"
+    txt = page.inner_text("#w-main")
+    assert "?" in txt, "the queue does not ask anything"
+    assert "one answer" in txt.lower()
+
+
+def test_settlement_investigate_states_the_question_first(page):
+    _ev(page, "#/settlement/setl_000089/investigate")
+    q = page.inner_text(".i-q h2")
+    assert q.endswith("?"), f"not a question: {q!r}"
+    assert "indistinguishable" in q.lower()
+
+
+def test_the_timeline_names_actor_action_input_and_result(page):
+    """§16. Never a sentence the reader has to parse to work out who did what."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    steps = page.eval_on_selector_all(".i-tl-s", "x => x.length")
+    assert steps >= 3, "no trail"
+    actors = page.eval_on_selector_all(".i-tl-a", "x => x.map(n => n.textContent)")
+    assert "Model" in actors and "Solver" in actors and "Engine" in actors
+    # and the order is the argument: the model cannot appear after the verdict
+    assert actors.index("Model") < actors.index("Solver") < actors.index("Engine")
+
+
+def test_the_three_actors_are_visually_distinct(page):
+    """§4, §28. The model proposes, the solver tests, the engine decides, and
+    the layout must make that impossible to misread."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    colours = page.evaluate("""(() => {
+      const pick = c => {
+        const n = document.querySelector('.e-act-' + c + ' .i-tl-m');
+        return n ? getComputedStyle(n).borderColor : null; };
+      return [pick('model'), pick('solver'), pick('engine')]; })()""")
+    assert all(colours), "an actor has no marker"
+    assert len(set(colours)) == 3, f"actors share a colour: {colours}"
+
+
+def test_the_solver_result_is_a_named_state_not_a_confidence(page):
+    """§18. "AI confidence" collapses six different findings into one."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    results = page.eval_on_selector_all(".i-tl-r", "x => x.map(n => n.textContent.trim())")
+    assert results, "the solver reported nothing"
+    assert any("NON DISCRIMINATIVE" in r for r in results)
+    body = page.inner_text("#workspace").lower()
+    assert "confidence" not in body
+
+
+def test_abstention_is_shown_as_restraint_and_changes_no_verdict(page):
+    """§8, §9, §25. The investigation ran; the verdict did not move."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    abs_ = page.inner_text(".i-abs")
+    assert "abstained" in abs_.lower()
+    assert "no financial action" in abs_.lower()
+    assert "AMBIGUOUS" in abs_
+    # the subject header still carries the same verdict
+    assert "AMBIGUOUS" in page.inner_text(".c-subject")
+
+
+def test_a_failed_hypothesis_is_not_hidden(page):
+    """§6. A trail cleaned up to make the model look competent is worth
+    nothing."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    txt = page.inner_text("#workspace")
+    assert "capture-batch" in txt, "the refuted hypothesis was removed"
+    assert "does not distinguish" in txt.lower()
+
+
+def test_the_lens_failure_is_derived_from_this_pool_not_hardcoded(page):
+    """§7. D22 should emerge because it is true here, not because it was typed
+    into the interface."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    sig = page.inner_text(".i-sig-r") + page.inner_text(".i-sig-d")
+    assert "capture date" in sig.lower()
+    assert "73" in sig, "the pool size is not stated"
+    body = page.inner_text("#workspace")
+    assert "D22" not in body, "a failure reference leaked into the product copy"
+
+
+def test_a_trail_step_opens_as_context_without_offering_promotion(page):
+    """§11, §12. A hypothesis is not a subject anything can be about, so no
+    promotion is offered — an affordance that leads nowhere teaches the wrong
+    model."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    before = page.inner_text("#w-main")
+    page.click(".i-tl-s")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "settlement:setl_000089"
+    assert lens == "investigate"
+    assert context and context.startswith("step:")
+    assert page.inner_text("#w-main") == before
+    assert page.query_selector("[data-close-ctx]")
+    assert not page.query_selector(".c-ctx-b.go"), "promotion was offered"
+
+
+def test_closing_an_investigation_step_restores_the_workspace(page):
+    _ev(page, "#/settlement/setl_000089/investigate")
+    before = page.inner_text("#w-main")
+    page.click(".i-tl-s")
+    page.wait_for_timeout(1300)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(900)
+    assert _state(page) == ["settlement:setl_000089", "investigate", None]
+    assert page.inner_text("#w-main") == before
+
+
+def test_investigate_to_evidence_preserves_the_subject(page):
+    """§21."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    page.click("[data-lens=evidence]")
+    page.wait_for_timeout(2000)
+    subject, lens, _ = _state(page)
+    assert subject == "settlement:setl_000089"
+    assert lens == "evidence"
+
+
+def test_investigate_offers_no_way_to_execute_a_financial_action(page):
+    """§22, §24. It discovers. Policy decides. Action executes."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    body = page.inner_text("#workspace").lower()
+    for word in ("post entry", "approve", "auto-post now", "execute", "confirm"):
+        assert word not in body, f"Investigate offers {word!r}"
+    buttons = page.eval_on_selector_all(
+        "#w-main button", "x => x.map(n => n.textContent.trim().toLowerCase())")
+    assert not [b for b in buttons if "post" in b or "approve" in b]
+
+
+def test_a_stale_investigation_cannot_land_on_another_subject(page):
+    """§31.13 — D15 at this layer."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    page.route("**/api/investigation*", lambda route: (page.wait_for_timeout(2500),
+                                                       route.continue_()))
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'}})")
+    page.wait_for_timeout(3600)
+    page.unroute("**/api/investigation*")
+    subject, _, _ = _state(page)
+    assert subject == "portfolio:portfolio"
+    assert "indistinguishable" not in page.inner_text("#workspace").lower()

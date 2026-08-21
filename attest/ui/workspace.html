@@ -428,6 +428,96 @@ color:var(--dim3);font-weight:600}
   .e-set-v{display:none}
 }
 
+/* ------------------------------------------------------------- investigate
+ * Temporal and forensic, where Evidence is structural and calm. A rail with
+ * three actors on it, and the order is the argument: the model proposes, the
+ * solver tests, the engine decides. */
+.i-q{margin-bottom:var(--s-6)}
+.i-q-k{display:block;font-size:var(--t-micro);letter-spacing:.14em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:5px}
+.i-q h2{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
+line-height:1.3;max-width:44ch}
+
+.i-tl{list-style:none;position:relative;padding-left:var(--s-5)}
+.i-tl::before{content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;
+background:var(--line2)}
+.i-tl-s{position:relative;padding:0 0 var(--s-5) var(--s-4);cursor:pointer;
+border-radius:var(--r-2);transition:background var(--fast)}
+.i-tl-s:hover{background:var(--sur)}
+.i-tl-s.sel{background:var(--sur)}
+.i-tl-m{position:absolute;left:-19px;top:4px;width:9px;height:9px;
+border-radius:var(--r-full);background:var(--bg);border:2px solid var(--line2)}
+.e-act-model .i-tl-m{border-color:var(--st-INVESTIGATE);
+transform:rotate(45deg);border-radius:2px}
+.e-act-solver .i-tl-m{border-color:var(--st-AMBIGUOUS)}
+.e-act-engine .i-tl-m{border-color:var(--ink);background:var(--ink)}
+.i-tl-h{display:flex;align-items:baseline;gap:var(--s-3);flex-wrap:wrap;
+margin-bottom:4px}
+.i-tl-a{font-size:var(--t-micro);letter-spacing:.12em;text-transform:uppercase;
+font-weight:600}
+.e-act-model .i-tl-a{color:var(--st-INVESTIGATE)}
+.e-act-solver .i-tl-a{color:var(--st-AMBIGUOUS)}
+.e-act-engine .i-tl-a{color:var(--ink)}
+.i-tl-v{font-size:var(--t-label);color:var(--dim3)}
+.i-tl-i{font-family:var(--m);font-size:var(--t-micro);color:var(--dim2);
+background:var(--sur3);border-radius:var(--r-1);padding:1px 6px}
+.i-tl-r{margin-left:auto;font-family:var(--m);font-size:var(--t-micro);
+letter-spacing:.06em;color:var(--st-CONTRADICTED)}
+.i-tl-r.r-VALID{color:var(--st-PROVEN)}
+.i-tl-r.r-ABSTAINED{color:var(--dim2)}
+.i-tl-d{font-size:var(--t-label);color:var(--dim2);line-height:1.55;max-width:88ch}
+.i-tl-w{font-size:var(--t-label);color:var(--dim3);line-height:1.5;margin-top:3px;
+max-width:88ch}
+
+/* the signal the pool itself gives about the lens the model chose */
+.i-sig-r{display:flex;align-items:baseline;gap:var(--s-4);margin-bottom:7px}
+.i-sig-n{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-num);line-height:1;letter-spacing:-.03em}
+.i-sig-l{font-size:var(--t-label);color:var(--dim3)}
+.i-sig-d{font-size:var(--t-label);color:var(--dim2);line-height:1.6;max-width:88ch}
+
+/* §25 — restraint, not error */
+.i-abs{border-left:2px solid var(--ink);padding:var(--s-4) 0 var(--s-4) var(--s-5);
+margin:0 0 var(--s-6)}
+.i-abs-n{display:flex;gap:var(--s-5);font-size:var(--t-label);color:var(--dim3);
+margin-bottom:7px}
+.i-abs-n b{font-family:var(--m);font-size:var(--t-body);color:var(--ink)}
+.i-abs-v{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
+margin-bottom:7px}
+.i-abs-d{font-size:var(--t-label);color:var(--dim2);line-height:1.65;max-width:82ch}
+
+.i-res{display:flex;flex-direction:column;gap:1px}
+.i-res-r{display:grid;grid-template-columns:106px 1fr 1fr;gap:var(--s-4);
+align-items:baseline;padding:9px var(--s-3);border-bottom:1px solid var(--line)}
+.i-res-s{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;
+color:var(--st-AMBIGUOUS)}
+.i-res-s.s-available-now{color:var(--st-PROVEN)}
+.i-res-w{font-size:var(--t-label)}
+.i-res-d{font-size:var(--t-label);color:var(--dim3)}
+
+.i-case{display:block;width:100%;text-align:left;background:transparent;
+border:0;border-bottom:1px solid var(--line);border-left:2px solid transparent;
+padding:11px var(--s-3);cursor:pointer;font:inherit;color:inherit;
+transition:background var(--fast),border-left-color var(--fast)}
+.i-case:hover{background:var(--sur)}
+.i-case.sel{background:var(--sur);border-left-color:var(--acc)}
+.i-case.one{border-left-color:var(--st-PROVEN)}
+.i-case.one.sel{border-left-color:var(--acc)}
+.i-case-q{display:block;font-size:var(--t-body);line-height:1.4;
+margin-bottom:6px;max-width:52ch}
+.i-case-m{display:flex;align-items:baseline;gap:var(--s-4);
+font-size:var(--t-label);color:var(--dim3)}
+.i-case-m em{font-style:normal;font-family:var(--m);
+font-variant-numeric:tabular-nums;font-size:var(--t-body);color:var(--ink)}
+.i-case-k{margin-left:auto;font-size:var(--t-micro);letter-spacing:.08em;
+text-transform:uppercase}
+.i-case.one .i-case-k{color:var(--st-PROVEN)}
+
+@media (max-width:900px){
+  .i-res-r{grid-template-columns:1fr;gap:2px}
+  .i-tl-r{margin-left:0}
+}
+
 /* ---------------------------------------------------------------- action */
 /* Actions ARE the primary interactive object on Control, so they keep a
    surface. That is the point of the discipline: the surface now means
@@ -560,6 +650,7 @@ border-radius:var(--r-0)}
 <script src=lens-control.js></script>
 <script src=lens-journal.js></script>
 <script src=lens-evidence.js></script>
+<script src=lens-investigate.js></script>
 <script>
 'use strict';
 const root = document.documentElement;

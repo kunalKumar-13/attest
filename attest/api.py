@@ -1724,3 +1724,205 @@ def _evidence_portfolio(r: Run) -> dict[str, Any]:
         "ai": {"enabled": False,
                "note": "No AI relationship is load-bearing anywhere in this run."},
     }
+
+
+#: Solver outcomes as named states, not a confidence number. §18: "AI confidence"
+#: collapses six different findings into one, and the difference between "no
+#: explanation contains this" and "every explanation contains this" is the whole
+#: of what the operator needs to know.
+SOLVER_RESULT: dict[str, tuple[str, str]] = {
+    "uniqueness": ("NON_DISCRIMINATIVE",
+                   "every surviving explanation contains it, so it cannot "
+                   "choose between them"),
+    "consistency": ("NO_FEASIBLE_SOLUTION",
+                    "no valid explanation contains it; the anchor and the "
+                    "arithmetic disagree"),
+    "existence": ("INVALID",
+                  "it cites records that are not in the candidate pool"),
+    "kernel": ("INVALID",
+               "the selected explanation was rejected by the independent "
+               "verifier"),
+}
+
+
+def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
+    """What should I check next? §1, §5, §16.
+
+    Evidence reports established relationships. This reports inquiry: what was
+    asked, what was proposed, what the solver did to it, and what was learned
+    when it failed. Failures are the point rather than an embarrassment — a
+    trail cleaned up to make the model look competent is worth nothing, because
+    the reader cannot tell a good answer from a lucky one.
+
+    Runs the existing loop; does not reimplement it.
+    """
+    if r is None:
+        return {"error": "no run"}
+    if stype == "portfolio":
+        return _investigation_queue(r)
+    if stype != "settlement":
+        return {"error": f"nothing to investigate about a {stype}"}
+
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None or sid not in st:
+        return {"error": "unknown settlement"}
+
+    question = {
+        Verdict.AMBIGUOUS: "Why are these explanations indistinguishable?",
+        Verdict.CONTRADICTED: "Why does nothing explain this credit?",
+        Verdict.INSUFFICIENT: "What evidence is missing?",
+        Verdict.PROVEN: "What could still be wrong about this?",
+    }[f.verdict]
+
+    raw = (investigate_view(r, sid) or {}).get("events", []) \
+        if f.verdict is Verdict.AMBIGUOUS else []
+
+    steps, tested, discriminative = [], 0, 0
+    for e in raw:
+        actor, act = e.get("actor"), e.get("act")
+        if actor == "model" and act == "propose":
+            steps.append({"actor": "model", "action": "proposed",
+                          "input": e.get("lens", ""), "detail": e.get("detail", ""),
+                          "result": None})
+        elif actor == "solver":
+            tested += 1
+            constraint = str(e.get("detail", "")).split(":")[0].strip()
+            code, why = SOLVER_RESULT.get(constraint, ("REFUTED", ""))
+            if act == "accept":
+                code, why = "VALID", "it selects exactly one explanation"
+                discriminative += 1
+            steps.append({"actor": "solver", "action": "tested",
+                          "input": constraint or "constraint",
+                          "detail": e.get("detail", ""),
+                          "result": code, "why": why})
+        elif actor == "model" and act == "exhausted":
+            steps.append({"actor": "model", "action": "exhausted",
+                          "input": "", "detail": e.get("detail", ""), "result": None})
+        elif actor == "engine":
+            steps.append({"actor": "engine", "action": act,
+                          "input": "", "detail": e.get("detail", ""),
+                          "result": "ABSTAINED" if act == "abstain" else None})
+
+    # -- what the pool itself says about the lens the model chose. §7 -------
+    # Computed from this settlement's own pool and the recorded measurement, so
+    # the finding appears when it is true rather than being written into the UI.
+    pool = r.pools.get(sid, [])
+    dates = {o.captured_on for o in pool}
+    signal = None
+    if pool and any(s["input"] == "capture-batch" for s in steps
+                    if s["actor"] == "model"):
+        share = None
+        try:
+            import json as _json
+            import pathlib as _pl
+            share = _json.loads((_pl.Path(__file__).resolve().parent.parent
+                                 / "benchmark" / "anchoring.json").read_text()
+                                )["single_date_share"]
+        except Exception:
+            pass
+        signal = {
+            "lens": "capture-batch", "pool": len(pool),
+            "capture_dates": len(dates),
+            "vacuous": len(dates) == 1,
+            "share_single_date": share,
+            "note": (f"Every order in this pool was captured on the same day, so "
+                     f"'the densest same-day batch' is true of all {len(pool)} of "
+                     f"them and separates nothing."
+                     if len(dates) == 1 else
+                     f"This pool spans {len(dates)} capture dates, so the lens "
+                     f"has something to distinguish."),
+        }
+
+    ex = r.exceptions.get(sid)
+    resolvers = []
+    if f.verdict is Verdict.AMBIGUOUS:
+        resolvers.append({
+            "what": "an order-level reference on the settlement report",
+            "would": f"distinguish all {len(f.proofs)} explanations",
+            "status": "missing"})
+        sp = getattr(f, "space", None)
+        if sp is not None and sp.integrity.value != "validated":
+            resolvers.append({
+                "what": "a wider settlement window, re-run",
+                "would": "test whether uniqueness is global rather than local",
+                "status": "available now"})
+    elif ex is not None:
+        resolvers.append({"what": ex.next_step, "would": "resolve the exception",
+                          "status": "unknown"})
+
+    return {
+        "subject": sid, "type": "settlement",
+        "question": question,
+        "verdict": f.verdict.value,
+        "state": ("abstained" if steps and discriminative == 0
+                  else "resolved" if discriminative else "open"),
+        "verdict_changed": False,
+        "tested": tested, "discriminative": discriminative,
+        "steps": steps,
+        "signal": signal,
+        "resolvers": resolvers,
+        "provenance": (r.provenance.to_json() if r.provenance else {}),
+        "note": ("The loop ran and its verdict was discarded. Abstention is a "
+                 "result, not a failure to produce one."),
+    }
+
+
+def _investigation_queue(r: Run) -> dict[str, Any]:
+    """What to investigate first. §13, §14.
+
+    Grouped by cause, ordered by what an investigation could unlock — not by
+    amount, and not by a value-of-information number the project has never
+    measured. The honest ordering available is: how much value is behind this
+    cause, and whether one answer settles all of it or each case needs its own.
+    """
+    from attest.actions import Kind, plan
+
+    amounts = {x.settlement_id: x.net_paise for x in r.settlements}
+    acts = plan(r.exceptions, amounts)
+
+    groups = []
+    for a in acts:
+        one = a.kind is not Kind.PER_ITEM
+        groups.append({
+            "reason": a.reason.value,
+            "cause": a.why or a.reason.value.replace("_", " ").lower(),
+            "settlements": a.settlements,
+            "value_paise": a.value_paise,
+            "kind": a.kind.value,
+            "one_answer": one,
+            "worth": ("One answer settles all of them."
+                      if one else
+                      f"Each of the {a.settlements} needs its own answer."),
+            "question": _question_for(a.reason.value),
+            "examples": list(a.examples),
+        })
+    return {
+        "subject": "portfolio", "type": "portfolio",
+        "groups": groups,
+        "total_paise": sum(g["value_paise"] for g in groups),
+        "note": "Ordered by what an answer would unlock, not by amount. A cause "
+                "worth ₹47L that one change settles outranks fifty separate "
+                "questions worth ₹10k each.",
+    }
+
+
+def _question_for(reason: str) -> str:
+    return {
+        "MULTIPLE_VALID_ASSIGNMENTS":
+            "What evidence would separate the surviving explanations?",
+        "SEARCH_SPACE_UNCERTAIN":
+            "Does the explanation survive a wider window?",
+        "NO_VALID_ASSIGNMENT":
+            "What record is missing from the candidate pool?",
+        "UNKNOWN_ADJUSTMENT":
+            "What is the unmatched amount, and where would it be recorded?",
+        "REFUND_MISMATCH": "Which refund accounts for the shortfall?",
+        "CHARGEBACK": "Which reversal accounts for the shortfall?",
+        "PARTIAL_SETTLEMENT": "Was this order paid out across more than one credit?",
+        "MISSING_TRANSACTION": "Which capture is absent from the export?",
+        "DUPLICATE_AMOUNT": "What breaks the tie between identical candidates?",
+        "TIMING_MISMATCH": "What is this merchant's actual payout calendar?",
+        "INSUFFICIENT_EVIDENCE": "What would make this examinable at all?",
+        "DATA_QUALITY": "Which rows are malformed, and how?",
+    }.get(reason, "What should be checked next?")
