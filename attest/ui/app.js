@@ -9,6 +9,7 @@
 
 const S = { mode: 'control', sub: null, att: null, evdemo: null, events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
+const MAC = /Mac|iP(hone|ad)/.test(navigator.platform || navigator.userAgent);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SHORT = {
@@ -114,6 +115,15 @@ function go(mode, view) {
     `<button class="sub${k === S.screen ? ' on' : ''}" data-view="${k}">${label}</button>`
   ).join('');
   el('panes').classList.toggle('solo', !!M.views.find(v => v[0] === S.screen)[2]);
+  // The bar advertised j/k/filter/verdict on every screen; those only bind on
+  // the settlements ledger. A shortcut hint that does nothing is worse than no
+  // hint, because it teaches the wrong thing.
+  const led = mode === 'investigate' && S.screen === 'cases';
+  el('barkeys').innerHTML =
+    `<span><kbd>${MAC ? '⌘' : 'ctrl'}</kbd><kbd>K</kbd> go anywhere</span>
+     <span><kbd>↵</kbd> re-run</span>`
+    + (led ? `<span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>/</kbd> filter</span>
+      <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> verdict</span><span><kbd>0</kbd> all</span>` : '');
   if (!S.run) { el('right').innerHTML = '<div class=empty>press Run</div>'; return; }
   M.draw[S.screen]();
 }
@@ -870,8 +880,18 @@ el('filter').addEventListener('keydown', e => {
   e.stopPropagation();
 });
 document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault(); openPalette(); return;
+  }
+  if (PAL.open) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
+  // The ledger keys move a selection that only exists on the settlements
+  // screen. Firing them elsewhere silently re-filtered a list the user could
+  // not see, which they then found already filtered when they returned.
+  const onLedger = S.mode === 'investigate' && S.screen === 'cases';
+  if (k === 'Enter') { run(); return; }
+  if (!onLedger) return;
   if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); move(1); }
   else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); move(-1); }
   else if (k === 'g') { S.i = 0; open_(); }
@@ -881,8 +901,122 @@ document.addEventListener('keydown', e => {
   else if (k === '2') setVF('AMBIGUOUS');
   else if (k === '3') setVF('CONTRADICTED');
   else if (k === '0') setVF('');
-  else if (k === 'Enter') run();
 });
+
+/* ------------------------------------------------------------ command palette
+ * §57. Four modes and thirteen screens is a small enough product to navigate by
+ * hand and a large enough one to be worth not having to. The palette is the
+ * only place that enumerates every destination, which is deliberate: the top
+ * bar states what the product is for, and this states what is in it.
+ */
+const PAL = { open: false, i: 0, hits: [] };
+
+function commands() {
+  const out = [];
+  for (const [mode, M] of Object.entries(MODES)) {
+    for (const [view, label] of M.views) {
+      // No per-row hint: the group header is the mode, and repeating "why"
+      // down four rows is noise where a distinguishing detail should be.
+      out.push({
+        group: `${mode[0].toUpperCase() + mode.slice(1)} · ${MODE_HINT[mode]}`,
+        label, hint: '',
+        run: () => go(mode, view),
+      });
+    }
+  }
+  out.push({ group: 'Action', label: 'Run reconciliation',
+             hint: 'Enter', run: () => run() });
+  out.push({ group: 'Action', label: 'Toggle theme', hint: '', run: () => el('theme').click() });
+  for (const n of ['120', '250', '500', '1200']) {
+    out.push({ group: 'Portfolio', label: `${n} settlements`, hint: 're-runs',
+               run: () => { el('size').value = n; run(); } });
+  }
+  if (S.att) {
+    for (const g of S.att.groups) {
+      for (const it of g.items.slice(0, 3)) {
+        out.push({
+          group: 'Needs attention', label: it.id,
+          hint: `${rs(it.amount_paise)} · ${g.label.toLowerCase()}`,
+          run: () => { go('control', 'attention'); S.sub = it.id; drawState(it.id); },
+        });
+      }
+    }
+  }
+  return out;
+}
+
+const MODE_HINT = {
+  control: 'what is happening', investigate: 'why',
+  verify: 'can we prove it', automate: 'what is allowed',
+};
+
+function openPalette() {
+  if (PAL.open) return;
+  PAL.open = true; PAL.i = 0;
+  const host = document.createElement('div');
+  host.id = 'pal'; host.className = 'pal-wrap';
+  host.innerHTML = `<div class=pal role=dialog aria-modal=true aria-label="Command palette">
+    <input id=pal-q placeholder="Go to a screen, or run something…" autocomplete=off
+      aria-label="Command" aria-controls=pal-list aria-expanded=true>
+    <div id=pal-list role=listbox></div>
+    <div class=pal-foot><kbd>↑</kbd><kbd>↓</kbd> move
+      <kbd>↵</kbd> select <kbd>esc</kbd> close</div>
+  </div>`;
+  document.body.appendChild(host);
+
+  const all = commands();
+  const q = el('pal-q');
+
+  const paint = () => {
+    const t = q.value.trim().toLowerCase();
+    PAL.hits = !t ? all : all.filter(c =>
+      (c.group + ' ' + c.label + ' ' + c.hint).toLowerCase().includes(t));
+    if (PAL.i >= PAL.hits.length) PAL.i = Math.max(PAL.hits.length - 1, 0);
+    let last = '';
+    el('pal-list').innerHTML = PAL.hits.length
+      ? PAL.hits.map((c, i) => {
+          const head = c.group !== last ? `<div class=pal-g>${esc(c.group)}</div>` : '';
+          last = c.group;
+          return head + `<div class="pal-i${i === PAL.i ? ' on' : ''}" data-i="${i}"
+            role=option aria-selected="${i === PAL.i}">
+            <span class=pal-l>${esc(c.label)}</span>
+            <span class=pal-h>${esc(c.hint || '')}</span></div>`;
+        }).join('')
+      : '<div class=pal-none>Nothing matches.</div>';
+    const on = el('pal-list').querySelector('.pal-i.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+  };
+
+  const choose = () => {
+    const c = PAL.hits[PAL.i];
+    closePalette();
+    if (c) c.run();
+  };
+
+  q.addEventListener('input', () => { PAL.i = 0; paint(); });
+  q.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Escape') { closePalette(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); PAL.i = Math.min(PAL.i + 1, PAL.hits.length - 1); paint(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); PAL.i = Math.max(PAL.i - 1, 0); paint(); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(); }
+  });
+  el('pal-list').addEventListener('click', ev => {
+    const row = ev.target.closest('.pal-i');
+    if (row) { PAL.i = +row.dataset.i; choose(); }
+  });
+  host.addEventListener('mousedown', ev => { if (ev.target === host) closePalette(); });
+
+  paint();
+  q.focus();
+}
+
+function closePalette() {
+  const h = el('pal');
+  if (h) h.remove();
+  PAL.open = false;
+}
+
 run();
 
 /* ------------------------------------------------------------------ verify
