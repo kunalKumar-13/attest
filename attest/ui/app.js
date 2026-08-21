@@ -311,12 +311,115 @@ async function drawState(sid) {
 
 /* ------------------------------------------------------------------ ledger */
 
+/* --------------------------------------------------------------- filtering
+ * A small query language rather than a rack of dropdowns. The product is
+ * already a command line in two other places, and a filter you can type is a
+ * filter you can save, name and hand to someone else — which is the whole point
+ * of the saved views below it.
+ *
+ *   >5000        amount at or above ₹5,000        <500   at or below
+ *   unexplained  something is unaccounted for     clean  nothing is
+ *   high         severity HIGH                    local  uniqueness not global
+ *   proven       verdict, any of the four         multi  reason substring
+ *   anything else matches the id, date, layer or reason as text
+ */
+const VERDICTS = ['PROVEN', 'AMBIGUOUS', 'CONTRADICTED', 'INSUFFICIENT'];
+
+function matches(r, token) {
+  const t = token.toLowerCase();
+  let m;
+  if ((m = t.match(/^>=?(\d+)$/))) return r.amount >= +m[1] * 100;
+  if ((m = t.match(/^<=?(\d+)$/))) return r.amount <= +m[1] * 100;
+  if (t === 'unexplained') return r.unexplained > 0;
+  if (t === 'clean') return !r.unexplained;
+  if (['high', 'medium', 'low'].includes(t)) return (r.severity || '').toLowerCase() === t;
+  if (t === 'local') return (r.layer || '').includes('/r') && r.verdict === 'PROVEN';
+  const v = VERDICTS.find(x => x.toLowerCase().startsWith(t) && t.length >= 3);
+  if (v) return r.verdict === v;
+  return (r.id + ' ' + r.date + ' ' + (r.layer || '') + ' ' + (r.reason || ''))
+    .toLowerCase().includes(t);
+}
+
 function apply() {
-  const q = S.q.toLowerCase();
-  S.view = S.rows.filter(r => (!S.vf || r.verdict === S.vf) &&
-    (!q || r.id.includes(q) || r.date.includes(q)));
+  const tokens = S.q.trim().split(/\s+/).filter(Boolean);
+  S.view = S.rows.filter(r =>
+    (!S.vf || r.verdict === S.vf) && tokens.every(t => matches(r, t)));
   el('count').textContent = `${S.view.length}/${S.rows.length}`;
+  if (S.i >= S.view.length) S.i = Math.max(S.view.length - 1, 0);
   paint();
+  paintViews();
+}
+
+/* ------------------------------------------------------------- saved views
+ * A filter is only worth typing once. These persist across sessions because a
+ * reconciliation is a recurring job, and the query someone worked out at
+ * month-end is the one they want again next month.
+ */
+const VIEWS_KEY = 'attest.views.v1';
+
+function savedViews() {
+  try { return JSON.parse(localStorage.getItem(VIEWS_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function writeViews(v) {
+  try { localStorage.setItem(VIEWS_KEY, JSON.stringify(v.slice(0, 24))); }
+  catch { /* private mode; the views are a convenience, not state */ }
+}
+
+//: Shipped starting points. Not stored, so they cannot be deleted and cannot
+//: drift — they are examples of the language as much as they are filters.
+const BUILTIN_VIEWS = [
+  { name: 'Money at risk', q: 'unexplained', vf: '' },
+  { name: 'Large ambiguity', q: '>50000 ambiguous', vf: '' },
+  { name: 'Locally unique', q: 'local', vf: 'PROVEN' },
+  { name: 'Contradicted', q: '', vf: 'CONTRADICTED' },
+];
+
+function paintViews() {
+  const host = el('views');
+  if (!host) return;
+  const saved = savedViews();
+  const active = v => v.q === S.q.trim() && (v.vf || '') === (S.vf || '');
+  host.innerHTML =
+    BUILTIN_VIEWS.concat(saved).map((v, i) => `<button class="vw${active(v) ? ' on' : ''}"
+        data-i="${i}" title="${esc(v.q || 'no filter')}">${esc(v.name)}${
+        i >= BUILTIN_VIEWS.length ? '<i data-del="' + (i - BUILTIN_VIEWS.length) + '">×</i>' : ''
+      }</button>`).join('')
+    + `<button class="vw add" id=vw-save title="Save the current filter">+ save</button>`;
+}
+
+function bindViews() {
+  const host = el('views');
+  if (!host) return;
+  host.addEventListener('click', e => {
+    const del = e.target.closest('i[data-del]');
+    if (del) {
+      e.stopPropagation();
+      const v = savedViews(); v.splice(+del.dataset.del, 1); writeViews(v); paintViews();
+      return;
+    }
+    if (e.target.closest('#vw-save')) {
+      const q = S.q.trim();
+      if (!q && !S.vf) return;
+      const name = (prompt('Name this view', q || S.vf) || '').trim();
+      if (!name) return;
+      const v = savedViews();
+      v.unshift({ name, q, vf: S.vf || '' });
+      writeViews(v); paintViews();
+      return;
+    }
+    const b = e.target.closest('.vw');
+    if (!b || b.id === 'vw-save') return;
+    const all = BUILTIN_VIEWS.concat(savedViews());
+    const v = all[+b.dataset.i];
+    if (!v) return;
+    S.q = v.q; S.vf = v.vf || '';
+    el('filter').value = v.q;
+    document.querySelectorAll('#tabs b').forEach(x =>
+      x.classList.toggle('on', (x.dataset.v || '') === (v.vf || '')));
+    S.i = 0; apply(); open_();
+  });
 }
 
 const gly = g => `<span class=gly>${g.map(v =>
@@ -972,6 +1075,19 @@ function commands() {
     out.push({ group: 'Portfolio', label: `${n} settlements`, hint: 're-runs',
                run: () => { el('size').value = n; run(); } });
   }
+  for (const v of BUILTIN_VIEWS.concat(savedViews())) {
+    out.push({
+      group: 'View', label: v.name, hint: v.q || v.vf.toLowerCase(),
+      run: () => {
+        S.q = v.q; S.vf = v.vf || '';
+        go('investigate', 'cases');
+        el('filter').value = v.q;
+        document.querySelectorAll('#tabs b').forEach(x =>
+          x.classList.toggle('on', (x.dataset.v || '') === (v.vf || '')));
+        S.i = 0; apply(); open_();
+      },
+    });
+  }
   if (S.att) {
     for (const g of S.att.groups) {
       for (const it of g.items.slice(0, 3)) {
@@ -1058,6 +1174,7 @@ function closePalette() {
   PAL.open = false;
 }
 
+bindViews();
 run();
 
 /* ------------------------------------------------------------------ verify

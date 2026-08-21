@@ -682,6 +682,22 @@ background:var(--sur2);border:1px solid transparent;border-radius:var(--r-1);
 padding:3px 8px;cursor:pointer;transition:border-color var(--fast),color var(--fast)}
 .exl:hover{border-color:var(--acc);color:var(--ink)}
 
+/* ---------------- saved views ---------------- */
+#views{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px 10px;
+border-bottom:1px solid var(--line);background:var(--sur)}
+#views:empty{display:none}
+.vw{font:inherit;font-size:var(--t-micro);color:var(--dim2);background:var(--sur2);
+border:1px solid transparent;border-radius:var(--r-full);padding:3px 9px;
+cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+transition:border-color var(--fast),color var(--fast)}
+.vw:hover{color:var(--ink);border-color:var(--line2)}
+.vw.on{color:var(--acc);border-color:var(--acc);background:var(--acc-d)}
+.vw i{font-style:normal;color:var(--dim3);font-size:var(--t-micro)}
+.vw i:hover{color:var(--st-contradicted)}
+.vw.add{background:transparent;color:var(--dim3);border-style:dashed;
+border-color:var(--line2)}
+.vw.add:hover{color:var(--acc);border-color:var(--acc)}
+
 /* ---------------- sync health ---------------- */
 .sync{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-3);
 padding:var(--s-4) var(--s-5);margin:var(--s-4) 0 var(--s-5)}
@@ -937,13 +953,15 @@ code{font-family:var(--m);font-size:var(--t-label);color:var(--dim2)}
 
   <main id=panes>
     <div id=left>
-      <div class=lh><input id=filter placeholder="filter settlements…" autocomplete=off
-        aria-label="Filter settlements">
+      <div class=lh><input id=filter placeholder="filter — try >50000 unexplained" autocomplete=off
+        aria-label="Filter settlements"
+        title="&gt;5000 amount at or above ₹5,000 · &lt;500 at or below · unexplained · clean · high · local · proven/ambiguous/contradicted · anything else matches id, date, layer or reason">
         <span class=ct id=count></span></div>
       <div class=tabs id=tabs>
         <b data-v="" class=on>All</b><b data-v=PROVEN>Proven</b>
         <b data-v=AMBIGUOUS>Ambiguous</b><b data-v=CONTRADICTED>Contradicted</b>
       </div>
+      <div id=views></div>
       <div id=ledger><div class=empty>press Run</div></div>
     </div>
     <div id=right tabindex="-1"><div class=empty>press Run</div></div>
