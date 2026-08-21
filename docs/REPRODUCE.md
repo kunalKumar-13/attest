@@ -50,12 +50,22 @@ in the project had ever noticed.
 ./.venv/bin/python -m pytest tests/ -q
 ```
 
-Expect **246 passed** with the server and Playwright present, or **156 passed,
-90 skipped** without them. The 90 skips are the browser contracts; they skip
-themselves when nothing is listening on `:8420`.
+Three outcomes, all measured on a fresh clone:
+
+| environment | result |
+|---|---|
+| Playwright installed **and** `attest.web` running | **247 passed** |
+| Playwright installed, server not running | **157 passed, 90 skipped** |
+| Playwright not installed | **157 passed, 1 skipped** |
+
+The 90 are the browser contracts, which skip themselves when nothing is
+listening on `:8420`. Without Playwright the whole module skips as one, so the
+count of what did not run is *invisible* — which is why `ci/verify.sh` asserts
+the number 90 rather than trusting a green exit code.
 
 `tests/test_partition.py` needs `ortools`, which is not a dependency of the
-package because the engine does not require it:
+package because the engine does not require it. Without it that module skips
+too:
 
 ```bash
 ./.venv/bin/pip install ortools
