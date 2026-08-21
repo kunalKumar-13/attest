@@ -183,6 +183,30 @@ the machine. It leads with rupees rather than row counts, because the question a
 merchant has is never "what is your exact-set match rate", it is **how much of my
 money is accounted for, and what happened to the rest.**
 
+Navigation is four verbs, and depth lives inside a mode rather than beside it:
+
+```
+CONTROL      what is happening      Attention · Overview
+INVESTIGATE  why                    Settlements · Exceptions · What changed · Ask
+VERIFY       can we prove it        Accuracy · Failures · Trust centre
+AUTOMATE     what is allowed        Policy · Agents · Sources · Live events
+```
+
+CONTROL opens on what needs a person, ordered by value at stake rather than by
+count, and every item opens **Financial State**: what we know, why, what would
+resolve it, what ATTEST will do — in that order, refusing to open with a status.
+
+Three of these screens demonstrate rather than assert. *Live events* sends four
+webhook deliveries through the same verify/de-duplicate/scope path the HTTP
+endpoint uses and prints what came back. *Agents* runs the permission pipeline
+against the current run's findings, so `post_accounting_entry` being refused at
+the capability stage is something the code did. *Accuracy* reads the same two
+benchmark files the build reads, so the screen cannot report a pass CI would
+fail. `⌘K` reaches any screen, and any settlement in the attention queue.
+
+See `docs/UX-AUDIT.md` for what the audit found, what was chosen, and the eight
+defects that reading the screens turned up.
+
 ```
 processed         ₹53,02,702.35
 auto-reconciled    ₹4,99,574.15     proven — arithmetic you can check by hand
@@ -206,7 +230,14 @@ attest/blocking.py     calendar-inverted candidate generation, escalating
 attest/subsetsum.py    counting DP over the amount axis
 attest/evidence.py     cross-settlement propagation (off by default)
 attest/generate/       hazard taxonomy + generator — FROZEN
-eval/                  harness, baselines, ablations
+attest/policy.py       Wilson-priced risk, the auto-post inequality
+attest/rules.py        content-hashed rule set + run provenance
+attest/agents.py       capabilities, and the four granted to nothing
+attest/whatchanged.py  run-to-run diff with computed attribution
+attest/webhooks.py     raw-byte HMAC, idempotency on id AND payload hash
+attest/api.py          the JSON API behind every screen
+attest/ui/             vanilla-JS SPA — four modes, fourteen screens
+eval/                  harness, baselines, ablations, regression gates
 native/                Rust port of the DP hot path
 ```
 
