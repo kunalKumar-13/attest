@@ -25,14 +25,42 @@
   --glow:rgba(31,111,235,.05);
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
+
+  /* Scale, not a collection of numbers. The audit found 11 radii and 19 font
+     sizes across 428 lines of CSS — tokens existed, discipline did not. A
+     one-off value now has to justify itself against one of these. */
+  --r-1:6px; --r-2:9px; --r-3:12px; --r-4:16px; --r-full:999px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:34px; --s-7:48px;
+  --t-micro:9px; --t-label:10.5px; --t-body:13px; --t-lead:15px;
+  --t-h3:19px; --t-h2:24px; --t-num:30px; --t-hero:42px;
+  --e-1:0 1px 2px rgba(16,20,24,.05);
+  --e-2:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
+  --e-3:0 12px 40px rgba(16,20,24,.10);
+  --fast:.12s cubic-bezier(.2,0,0,1);
+  --med:.2s cubic-bezier(.2,0,0,1);
+
+  /* Status is semantic and never decorative (§24). Each state gets an ink, a
+     ground and an edge so it can be expressed at any weight without inventing
+     a new colour at the call site. */
+  --st-proven:var(--ok);        --st-proven-bg:var(--ok-d);
+  --st-ambiguous:var(--warn);   --st-ambiguous-bg:var(--warn-d);
+  --st-contradicted:#b4442e;    --st-contradicted-bg:#fdeeeb;
+  --st-insufficient:var(--dead);--st-insufficient-bg:var(--sur2);
+  --st-investigate:var(--acc);  --st-investigate-bg:var(--acc-d);
 }
 :root[data-theme=dark]{
+  --e-1:none; --e-2:none; --e-3:0 12px 40px rgba(0,0,0,.4);
+  --st-contradicted:#e0715a; --st-contradicted-bg:#241310;
   --bg:#0b0f14; --sunk:#080b0f; --sur:#0f151c; --sur2:#131b24; --sur3:#18222c;
   --line:#151d26; --line2:#22303d;
   --ink:#dfe7ee; --dim:#9aa8b5; --dim2:#5c6b7a; --dim3:#3d4a57;
   --ok:#7ee3c1; --ok-d:#0d2019; --warn:#e2b34e; --warn-d:#1c1708;
   --dead:#5c6b7a; --acc:#4d7fa8; --acc-d:#0c1720;
   --shadow:none; --glow:rgba(126,227,193,.07);
+  --st-proven:var(--ok);        --st-proven-bg:var(--ok-d);
+  --st-ambiguous:var(--warn);   --st-ambiguous-bg:var(--warn-d);
+  --st-insufficient:var(--dead);--st-insufficient-bg:var(--sur2);
+  --st-investigate:var(--acc);  --st-investigate-bg:var(--acc-d);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -373,6 +401,37 @@ margin-right:8px;vertical-align:-1px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .case{animation:in .2s ease-out}
 @keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+/* ---------------- primitives (§54, §55) ----------------
+   One definition per concept. PROVEN must look identical everywhere it appears,
+   which is only true if there is one place it is defined. */
+.st{display:inline-flex;align-items:center;gap:var(--s-2);font-family:var(--m);
+font-size:var(--t-micro);font-weight:700;letter-spacing:.14em;padding:4px 9px;
+border-radius:var(--r-1);border:1px solid currentColor;text-transform:uppercase}
+.st-PROVEN{color:var(--st-proven);background:var(--st-proven-bg)}
+.st-AMBIGUOUS{color:var(--st-ambiguous);background:var(--st-ambiguous-bg)}
+.st-CONTRADICTED{color:var(--st-contradicted);background:var(--st-contradicted-bg)}
+.st-INSUFFICIENT{color:var(--st-insufficient);background:var(--st-insufficient-bg)}
+
+.metric{display:flex;flex-direction:column;gap:var(--s-1)}
+.metric .k{font-size:var(--t-micro);letter-spacing:.18em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.metric .v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-num);letter-spacing:-.035em;line-height:1.05}
+.metric .s{font-size:var(--t-label);color:var(--dim3)}
+.metric.lg .v{font-size:var(--t-hero)}
+.metric.sm .v{font-size:var(--t-h3)}
+
+/* Every number that has a provenance path carries this, and it is the same
+   affordance everywhere (§15, §47). A dotted underline is a promise that
+   clicking explains where the figure came from. */
+.why{border-bottom:1px dashed var(--line2);cursor:help}
+.why:hover{border-bottom-color:var(--acc);color:var(--acc)}
+
+.card{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-4);
+box-shadow:var(--e-2)}
+.muted{color:var(--dim2)}
+.mono{font-family:var(--m);font-variant-numeric:tabular-nums}
+
 /* ---------------- accessibility ---------------- */
 /* Focus is visible everywhere and never removed. A focus ring is how a keyboard
    user knows where they are; suppressing it to tidy the mouse experience makes
