@@ -321,6 +321,113 @@ font-size:var(--t-body);text-align:right}
 .c-flow-d{grid-column:2/5;font-size:var(--t-label);color:var(--dim2);
 padding:0 0 9px 108px;line-height:1.5;max-width:96ch}
 
+/* ---------------------------------------------------------------- evidence
+ * The candidate universe, proportionally: the drop from the book to the pool
+ * must be visible as a drop, and the reductions that are conventions rather
+ * than facts must say so. That distinction is what the 32/92 failure was about.
+ */
+.e-uni{display:flex;flex-direction:column;gap:2px}
+.e-uni-r{display:grid;grid-template-columns:78px minmax(120px,300px) 1fr;
+gap:var(--s-4);align-items:center;padding:5px 0}
+.e-uni-n{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);text-align:right}
+.e-uni-t{height:16px;background:var(--sur3);border-radius:var(--r-0);
+overflow:hidden}
+.e-uni-t i{display:block;height:100%;border-radius:var(--r-0)}
+.e-uni-t i.all{background:var(--dim3);opacity:.45}
+.e-uni-t i.kept{background:var(--st-PROVEN)}
+.e-uni-l{font-size:var(--t-label);color:var(--dim3)}
+.e-uni-c{display:grid;grid-template-columns:70px 210px 96px 1fr;gap:var(--s-4);
+align-items:baseline;padding:5px 0 5px var(--s-4);
+border-left:2px solid var(--line)}
+.e-uni-c.conv{border-left-color:var(--st-AMBIGUOUS)}
+.e-uni-c.det{border-left-color:var(--st-PROVEN)}
+.e-uni-m{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-label);color:var(--dim2);text-align:right}
+.e-uni-w{font-size:var(--t-label)}
+.e-uni-k{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase}
+.e-uni-c.conv .e-uni-k{color:var(--st-AMBIGUOUS)}
+.e-uni-c.det .e-uni-k{color:var(--st-PROVEN)}
+.e-uni-j{font-size:var(--t-label);color:var(--dim3);line-height:1.5}
+.e-red{margin-top:var(--s-4);display:flex;flex-direction:column;gap:2px}
+
+/* agreement as a block, disagreement as the sliver beside it */
+.e-set{display:flex;flex-direction:column;gap:2px}
+.e-set-hd{display:grid;grid-template-columns:22px minmax(160px,420px) 1fr;
+gap:var(--s-4);font-size:var(--t-micro);letter-spacing:.12em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;padding-bottom:5px}
+.e-set-hd .e-set-a{grid-column:2}
+.e-set-r{display:grid;grid-template-columns:22px minmax(160px,420px) 108px 1fr;
+gap:var(--s-4);align-items:center;width:100%;border:0;
+border-left:2px solid transparent;background:transparent;padding:5px var(--s-3);
+font:inherit;color:inherit;cursor:pointer;text-align:left;
+transition:background var(--fast),border-left-color var(--fast)}
+.e-set-r:hover{background:var(--sur)}
+.e-set-r.sel{background:var(--sur);border-left-color:var(--acc)}
+.e-set-l{font-family:var(--m);color:var(--dim3)}
+.e-set-bar{display:flex;height:16px;background:var(--sur3);
+border-radius:var(--r-0);overflow:hidden}
+.e-set-bar i{display:block;height:100%}
+.e-set-bar .s{background:var(--dim3);opacity:.38}
+.e-set-bar .u{background:var(--st-AMBIGUOUS)}
+.e-set-n{font-family:var(--m);font-size:var(--t-label);color:var(--dim2);
+text-align:right}
+.e-set-n b{color:var(--st-AMBIGUOUS)}
+.e-set-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-label)}
+.e-set-ft{display:flex;flex-direction:column;gap:3px;
+padding:10px 0 0 calc(22px + var(--s-4));font-size:var(--t-label);
+color:var(--dim3)}
+.e-set-ft b{color:var(--ink);font-family:var(--m)}
+.e-set-ft b.warn{color:var(--st-AMBIGUOUS)}
+
+.e-rel{border-bottom:1px solid var(--line);padding:9px var(--s-3)}
+.e-rel-h{display:flex;align-items:baseline;gap:var(--s-3)}
+.e-rel-h b{font-size:var(--t-body)}
+.e-rel-n{font-family:var(--m);font-size:var(--t-label);color:var(--dim3)}
+.e-rel-v{margin-left:auto;font-size:var(--t-micro);color:var(--st-PROVEN);
+letter-spacing:.08em;text-transform:uppercase}
+.e-rel-w{font-size:var(--t-label);color:var(--dim3);margin-top:3px;max-width:92ch}
+.e-ok{color:var(--st-PROVEN);font-size:var(--t-micro)}
+
+/* the model's proposals get a different visual language on purpose: a dashed
+   rail and a diamond, so a hypothesis can never be mistaken for a fact */
+.e-ai-tag{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;
+color:var(--st-INVESTIGATE);border:1px dashed var(--st-INVESTIGATE);
+border-radius:var(--r-full);padding:2px 9px}
+.e-ai{border-left:2px dashed var(--st-INVESTIGATE);padding-left:var(--s-4);
+display:flex;flex-direction:column;gap:7px}
+.e-ai-r{display:grid;grid-template-columns:74px 1fr;gap:var(--s-4);
+align-items:baseline;font-size:var(--t-label)}
+.e-ai-w{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;
+color:var(--dim3)}
+.e-ai-r.proposed .e-ai-w{color:var(--st-INVESTIGATE)}
+.e-ai-d{color:var(--dim2);line-height:1.55}
+.e-ai-v{font-size:var(--t-label);color:var(--dim2);padding-top:7px;
+border-top:1px solid var(--line);margin-top:4px}
+.e-ai-v b{color:var(--st-CONTRADICTED)}
+.e-ai-none{font-size:var(--t-label);color:var(--dim3)}
+
+
+
+
+
+
+
+
+.e-prov{display:grid;grid-template-columns:100px 1fr;gap:6px var(--s-4)}
+.e-prov>div{display:contents}
+.e-prov dt{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.e-prov dd{font-size:var(--t-label);color:var(--dim2)}
+
+@media (max-width:900px){
+  .e-uni-r,.e-uni-c{grid-template-columns:1fr;gap:2px}
+  .e-uni-n,.e-uni-m{text-align:left}
+  .e-set-r,.e-set-hd{grid-template-columns:20px 1fr auto}
+  .e-set-v{display:none}
+}
+
 /* ---------------------------------------------------------------- action */
 /* Actions ARE the primary interactive object on Control, so they keep a
    surface. That is the point of the discipline: the surface now means
@@ -452,6 +559,7 @@ border-radius:var(--r-0)}
 <script src=shell.js></script>
 <script src=lens-control.js></script>
 <script src=lens-journal.js></script>
+<script src=lens-evidence.js></script>
 <script>
 'use strict';
 const root = document.documentElement;

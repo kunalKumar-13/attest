@@ -340,3 +340,149 @@ def test_the_master_scroll_position_survives_open_and_close(page):
     page.click("[data-close-ctx]")
     page.wait_for_timeout(900)
     assert page.evaluate("document.getElementById('w-main').scrollTop") == 420
+
+
+# ------------------------------------------------------------ P3: Evidence
+
+def _ev(page, hash_):
+    page.evaluate(f"location.hash = {hash_!r}")
+    page.wait_for_timeout(2200)
+
+
+def test_portfolio_evidence_loads_scoped(page):
+    """§28: the evidence landscape, not every record in the book."""
+    _ev(page, "#/portfolio/evidence")
+    assert _state(page)[:2] == ["portfolio:portfolio", "evidence"]
+    nodes = page.eval_on_selector_all("#workspace *", "x => x.length")
+    assert nodes < 400, f"portfolio evidence rendered {nodes} elements"
+    assert "convention" in page.inner_text("#workspace").lower()
+
+
+def test_settlement_evidence_shows_the_search_space_boundary(page):
+    """§16. A proof can be perfect inside a space that excluded the truth, and a
+    reader cannot judge that without seeing what was CONSIDERED."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    txt = page.inner_text("#workspace")
+    assert "WHAT WAS CONSIDERED" in txt.upper()
+    # the funnel states both ends and names each reduction's status
+    assert "2,368" in txt and "73" in txt
+    assert "CONVENTION" in txt.upper()
+    assert "DETERMINISTIC" in txt.upper()
+
+
+def test_an_ambiguous_settlement_shows_shared_versus_unique(page):
+    """§7, §8. Ambiguity shown, not stated."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    rows = page.eval_on_selector_all(".e-set-r", "x => x.length")
+    assert rows >= 2, "no explanation set rendered"
+    txt = page.inner_text("#workspace")
+    assert "settled whichever explanation is right" in txt
+    assert "turns on which one is" in txt
+
+
+def test_the_model_is_visually_and_semantically_separate_from_evidence(page):
+    """§6, §18. A hypothesis must never look as authoritative as a fact."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    assert page.query_selector(".e-ai"), "no model section"
+    assert "not evidence" in page.inner_text(".e-ai-tag").lower()
+    # and it is not inside the verified-relationship section
+    verified = page.eval_on_selector_all(".e-rel .e-ai", "x => x.length")
+    assert verified == 0, "a hypothesis rendered among verified relationships"
+    assert "non-discriminative" in page.inner_text("#workspace").lower()
+
+
+def test_an_evidence_object_opens_as_context_not_navigation(page):
+    """§10. Evidence uses the existing shell from day one."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    before = page.inner_text("#w-main")
+    page.click(".e-set-r")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "settlement:setl_000089"
+    assert lens == "evidence"
+    assert context == "explanation:A"
+    assert page.inner_text("#w-main") == before, "the workspace re-rendered"
+    assert "EXPLANATION" in page.inner_text(".c-crumb").upper()
+
+
+def test_evidence_context_nests_from_explanation_to_order(page):
+    """§25, and §35's north star: money → record → relationship → evidence
+    without losing the case."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    page.click(".e-set-r")
+    page.wait_for_timeout(1400)
+    page.click("#w-ctx .c-row.link")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "settlement:setl_000089", "the case was lost"
+    assert lens == "evidence"
+    assert context.startswith("order:")
+    assert "PROVENANCE" in page.inner_text("#w-ctx").upper()
+
+
+def test_closing_evidence_context_restores_the_workspace(page):
+    _ev(page, "#/settlement/setl_000089/evidence")
+    before = page.inner_text("#w-main")
+    page.click(".e-set-r")
+    page.wait_for_timeout(1300)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(900)
+    assert _state(page) == ["settlement:setl_000089", "evidence", None]
+    assert page.inner_text("#w-main") == before
+
+
+def test_switching_to_evidence_preserves_the_subject(page):
+    _ev(page, "#/settlement/setl_000020/control")
+    page.click("[data-lens=evidence]")
+    page.wait_for_timeout(2000)
+    subject, lens, _ = _state(page)
+    assert subject == "settlement:setl_000020"
+    assert lens == "evidence"
+
+
+def test_a_proven_settlement_shows_no_competing_explanations(page):
+    """The lens must understand the verdict states. §7."""
+    _ev(page, "#/settlement/setl_000020/evidence")
+    txt = page.inner_text("#workspace").upper()
+    assert "WHAT WAS CONSIDERED" in txt
+    assert "VERIFIED RELATIONSHIPS" in txt
+    assert "AGREE ON" not in txt, "a proven settlement has nothing to disagree about"
+
+
+def test_evidence_relationships_state_their_kind_and_status(page):
+    """§5: never node → node → node with the relationship unexplained."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    rels = page.eval_on_selector_all(".e-rel", "x => x.length")
+    assert rels >= 1
+    first = page.inner_text(".e-rel")
+    assert "verified" in first.lower()
+    assert len(page.inner_text(".e-rel-w").strip()) > 10, "the edge does not say why"
+
+
+def test_evidence_survives_a_reload_with_context_open(page):
+    _ev(page, "#/settlement/setl_000089/evidence")
+    page.click(".e-set-r")
+    page.wait_for_timeout(1300)
+    page.reload(wait_until="networkidle")
+    page.wait_for_function("() => SHELL.record", timeout=90000)
+    page.wait_for_timeout(1600)
+    assert _state(page) == ["settlement:setl_000089", "evidence", "explanation:A"]
+
+
+def test_a_stale_evidence_fetch_cannot_land_on_another_subject(page):
+    """§30.12 — D15 at the evidence layer."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    page.route("**/api/evidence*", lambda route: (page.wait_for_timeout(2500),
+                                                  route.continue_()))
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.wait_for_timeout(400)
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'}})")
+    page.wait_for_timeout(3600)
+    page.unroute("**/api/evidence*")
+    subject, lens, _ = _state(page)
+    assert subject == "portfolio:portfolio"
+    # "2,368" appears in BOTH views — the portfolio counts the whole book too —
+    # so the marker has to be something only a settlement renders.
+    body = page.inner_text("#workspace").lower()
+    assert "could belong to this credit" not in body, "a stale settlement view landed"
+    assert "the evidence in this run" in body

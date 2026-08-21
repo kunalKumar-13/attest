@@ -1568,3 +1568,159 @@ def spine_view(r: Run | None, stype: str, sid: str,
     return {"subject": "portfolio", "type": "portfolio", "stages": stages,
             "stopped_at": stopped,
             "processed_paise": total, "posted_paise": posts_v}
+
+
+def evidence_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
+    """Why should I believe this? §2, §16, §18.
+
+    Assembled from the models that already exist — `graph`, `searchspace`,
+    `coincidence`, `hypothesis` — rather than a second evidence model. The
+    important thing this returns that no other endpoint does is the SHAPE of the
+    candidate universe: what was considered, not only what was selected. The
+    32/92 search-space failure happened because a proof can be arithmetically
+    perfect inside a space that excluded the truth, and a reader cannot judge
+    that without seeing the boundary.
+
+    AI-asserted relationships are carried in their own key, never mixed into
+    `chain`. Putting them in the same list and relying on a flag is how they end
+    up rendered the same way.
+    """
+    if r is None:
+        return {"error": "no run"}
+
+    from attest.graph import DETERMINISTIC, EdgeKind
+
+    if stype == "portfolio":
+        return _evidence_portfolio(r)
+    if stype != "settlement":
+        return {"error": f"evidence has nothing to say about a {stype}"}
+
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None or sid not in st:
+        return {"error": "unknown settlement"}
+    s = st[sid]
+    pool = r.pools.get(sid, [])
+    by_id = {o.order_id: o for o in r.orders}
+    d = detail(r, sid) or {}
+
+    # -- what records are in play, by kind ---------------------------------
+    counts = [{"kind": "order", "n": len(pool),
+               "paise": sum(o.gross_paise for o in pool),
+               "note": "in the candidate pool"}]
+    if f.proofs:
+        counts.append({"kind": "explanation", "n": len(f.proofs), "paise": 0,
+                       "note": "satisfy the amount exactly"})
+    counts.append({"kind": "bank credit", "n": 1, "paise": s.net_paise,
+                   "note": f"UTR {s.utr}"})
+
+    # -- the shared / unique decomposition. §8: ambiguity must be visual ----
+    ex = r.exceptions.get(sid)
+    settled = getattr(ex, "settled", None)
+    shared_ids = set(settled.order_ids) if settled else set()
+    explanations = []
+    for i, p in enumerate(f.proofs):
+        uniq = [o for o in (by_id[x] for x in p.order_ids if x in by_id)
+                if o.order_id not in shared_ids]
+        explanations.append({
+            "letter": chr(65 + i),
+            "orders": len(p.order_ids),
+            "shared": len(p.order_ids) - len(uniq),
+            "net_paise": p.net_paise,
+            "residual_paise": p.residual_paise,
+            "tolerance_paise": p.tolerance_paise,
+            "unique": [{"id": o.order_id, "method": o.method,
+                        "captured_on": str(o.captured_on),
+                        "paise": o.gross_paise} for o in uniq],
+        })
+
+    # -- the deterministic chain, from the graph that already exists -------
+    g = d.get("graph") or {"nodes": [], "edges": []}
+    nodes = {n["id"]: n for n in g.get("nodes", [])}
+    chain, ai = [], []
+    for e in g.get("edges", []):
+        rec = {
+            "from": nodes.get(e["src"], {"label": e["src"]}),
+            "to": nodes.get(e["dst"], {"label": e["dst"]}),
+            "kind": e["kind"], "why": e.get("why", ""),
+            "paise": e.get("paise", 0), "proven": bool(e.get("proven")),
+        }
+        (chain if rec["proven"] else ai).append(rec)
+
+    # -- AI hypotheses are a separate key on purpose. §6, §18 --------------
+    hypotheses = []
+    if f.verdict is Verdict.AMBIGUOUS:
+        trail = investigate_view(r, sid) or {}
+        for ev in trail.get("events", []):
+            if ev.get("actor") == "model" and ev.get("act") == "propose":
+                hypotheses.append({"stage": "proposed", "lens": ev.get("lens", ""),
+                                   "detail": ev.get("detail", "")})
+            elif ev.get("actor") == "solver":
+                hypotheses.append({"stage": ev.get("act"), "lens": ev.get("lens", ""),
+                                   "detail": ev.get("detail", "")})
+
+    return {
+        "subject": sid, "type": "settlement", "verdict": f.verdict.value,
+        "amount_paise": s.net_paise,
+        "counts": counts,
+        "space": d.get("space"),
+        "coincidence": d.get("coincidence"),
+        "shared": {"n": len(shared_ids),
+                   "paise": settled.net_paise if settled else 0,
+                   "disputed_paise": settled.disputed_paise if settled else 0,
+                   "differing": settled.differing_orders if settled else 0},
+        "explanations": explanations,
+        "chain": chain,
+        "ai": {"edges": ai, "trail": hypotheses,
+               "enabled": False,
+               "note": "Asserted by a model and never load-bearing. An AI "
+                       "relationship may suggest where to look; it may not "
+                       "justify a posting."},
+        "missing": ([{"what": ex.reason.value.replace("_", " ").lower(),
+                      "next": ex.next_step}] if ex else []),
+        "edge_kinds": {k.value: (k in DETERMINISTIC) for k in EdgeKind},
+    }
+
+
+def _evidence_portfolio(r: Run) -> dict[str, Any]:
+    """The evidence landscape, scoped. §28: never render thousands of nodes.
+
+    What a reader needs at portfolio scale is not every record but the shape of
+    the boundary — how much of the book rests on reductions that are conventions
+    rather than proofs, because that is the number the 32/92 failure was about.
+    """
+    integ: dict[str, int] = {}
+    reductions: dict[str, dict[str, Any]] = {}
+    for f in r.findings:
+        sp = getattr(f, "space", None)
+        if sp is None:
+            continue
+        integ[sp.integrity.value] = integ.get(sp.integrity.value, 0) + 1
+        for red in sp.reductions:
+            g = reductions.setdefault(red.name, {
+                "name": red.name, "deterministic": red.deterministic,
+                "justification": red.justification, "settlements": 0, "removed": 0})
+            g["settlements"] += 1
+            g["removed"] += red.removed
+
+    st = {x.settlement_id: x for x in r.settlements}
+    heur = sum(st[f.settlement_id].net_paise for f in r.findings
+               if getattr(f, "space", None)
+               and f.space.integrity.value != "validated")
+
+    return {
+        "subject": "portfolio", "type": "portfolio",
+        "counts": [
+            {"kind": "order", "n": len(r.orders), "paise": 0,
+             "note": "the whole book"},
+            {"kind": "bank credit", "n": len(r.settlements),
+             "paise": sum(x.net_paise for x in r.settlements), "note": "received"},
+            {"kind": "explanation", "n": sum(len(f.proofs) for f in r.findings),
+             "paise": 0, "note": "found across every settlement"},
+        ],
+        "integrity": integ,
+        "heuristic_paise": heur,
+        "reductions": sorted(reductions.values(), key=lambda x: -x["removed"]),
+        "ai": {"enabled": False,
+               "note": "No AI relationship is load-bearing anywhere in this run."},
+    }
