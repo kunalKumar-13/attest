@@ -26,6 +26,16 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
+import pytest
+
+# ortools is not a dependency of the package: the engine does not require it,
+# and the L4b packing it backs is a REJECTED implementation kept as evidence
+# (FAILURES.md D12). Imported at module scope it turned a missing optional
+# dependency into a COLLECTION ERROR, which aborts the whole run — a clean
+# checkout following docs/REPRODUCE.md got "1 error" where the document
+# promises "157 passed, 1 skipped". An optional dependency should skip.
+pytest.importorskip("ortools", reason="ortools is optional; pip install ortools")
+
 from attest.blocking import PoolIndex
 from attest.model import Method, Order, Settlement
 from attest.partition import (
