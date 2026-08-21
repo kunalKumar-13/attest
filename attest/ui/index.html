@@ -68,7 +68,7 @@ body{background:var(--bg);color:var(--ink);font:13.5px/1.5 var(--s);
 -webkit-font-smoothing:antialiased;overflow:hidden}
 .n{font-family:var(--m);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 
-#app{display:grid;grid-template-rows:60px auto 1fr 24px;height:100vh}
+#app{display:grid;grid-template-rows:56px auto 1fr 24px;height:100vh}
 
 /* ---------------- masthead ---------------- */
 #top{display:flex;align-items:center;gap:16px;padding:0 26px;
@@ -98,8 +98,12 @@ margin-top:7px;letter-spacing:-.035em;line-height:1.05}
 .kpi .mt i{display:block;height:100%;transition:width .3s}
 
 /* ---------------- panes ---------------- */
-#panes{display:grid;grid-template-columns:326px 1fr;gap:16px;overflow:hidden;
-padding:0 26px 20px}
+#panes{display:grid;grid-template-columns:326px 1fr;gap:var(--s-4);overflow:hidden;
+padding:var(--s-4) var(--s-5) var(--s-5)}
+/* Modes that do not read a settlement list do not get one. The audit found the
+   ledger occupying 326px of every screen, including source health. */
+#panes.solo{grid-template-columns:1fr}
+#panes.solo #left{display:none}
 #left{background:var(--sur);border:1px solid var(--line);border-radius:14px;
 overflow-y:auto;box-shadow:var(--shadow)}
 #right{overflow-y:auto}
@@ -401,6 +405,260 @@ margin-right:8px;vertical-align:-1px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .case{animation:in .2s ease-out}
 @keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+/* ---------------- modes (§17) ---------------- */
+.modes{display:flex;gap:2px;margin-left:var(--s-5)}
+.mode{background:transparent;border:0;border-radius:var(--r-2);padding:6px 13px 5px;
+cursor:pointer;color:var(--dim2);font:inherit;font-size:var(--t-body);
+font-weight:500;display:flex;flex-direction:column;align-items:flex-start;
+line-height:1.15;transition:color var(--fast),background var(--fast)}
+.mode em{font-style:normal;font-size:var(--t-micro);color:var(--dim3);
+letter-spacing:.04em;margin-top:2px}
+.mode:hover{color:var(--ink);background:var(--sur2)}
+.mode.on{color:var(--ink);background:var(--sur2)}
+.mode.on em{color:var(--acc)}
+
+#subnav{display:flex;gap:2px;padding:0 var(--s-5);border-bottom:1px solid var(--line);
+background:var(--bg)}
+#subnav:empty{display:none}
+.sub{background:transparent;border:0;border-bottom:2px solid transparent;
+padding:9px 12px 7px;margin-bottom:-1px;cursor:pointer;color:var(--dim3);
+font:inherit;font-size:var(--t-label);font-weight:500;
+transition:color var(--fast),border-color var(--fast)}
+.sub:hover{color:var(--ink)}
+.sub.on{color:var(--ink);border-bottom-color:var(--acc)}
+
+/* ---------------- control ---------------- */
+.ctl{padding:var(--s-5) var(--s-6) var(--s-7);max-width:1180px}
+.ctl-hd{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:var(--s-5)}
+.ctl-hd h1{font-size:var(--t-h2);font-weight:600;letter-spacing:-.02em}
+.ctl-hd .sub{color:var(--dim3);font-size:var(--t-body)}
+/* Five figures across. The numbers are Indian-grouped and long, so the column
+   floor is set by the widest realistic amount rather than by taste — at the old
+   floor a crore-scale figure ran into its neighbour. */
+.fs{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+gap:var(--s-4) var(--s-5);padding-bottom:var(--s-5);
+border-bottom:1px solid var(--line);margin-bottom:var(--s-5)}
+.fs .metric .v{font-size:var(--t-h2);letter-spacing:-.02em}
+.fs .metric .s{line-height:1.45;max-width:24ch}
+.att-hd{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:var(--s-4)}
+.att-hd h2{font-size:var(--t-h3);font-weight:600;letter-spacing:-.01em}
+.att-hd .amt{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
+color:var(--dim2);font-size:var(--t-body)}
+.grp{margin-bottom:var(--s-5)}
+.grp-hd{padding-bottom:5px}
+.grp-hd{display:flex;align-items:baseline;gap:var(--s-2);padding:0 0 var(--s-2)}
+.grp-hd b{font-size:var(--t-body);font-weight:600}
+.grp-hd .n{font-family:var(--m);color:var(--dim3);font-size:var(--t-label)}
+.grp-hd .tot{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body)}
+/* Explanatory prose. Deliberately NOT `.why` — that class is the dotted-underline
+   provenance affordance, and a paragraph wearing it promises a click that
+   explains a number. Prose explains itself. */
+.lede{color:var(--dim3);font-size:var(--t-label);line-height:1.65;
+margin-bottom:var(--s-4);max-width:86ch}
+.grp .lede{margin-bottom:10px;line-height:1.55}
+.att{display:flex;align-items:center;gap:var(--s-4);padding:9px var(--s-4);
+background:var(--sur);border:1px solid var(--line);border-radius:var(--r-2);
+margin-bottom:4px;cursor:pointer;transition:border-color var(--fast),
+transform var(--fast);text-align:left;width:100%;font:inherit;color:var(--ink)}
+.att:hover{border-color:var(--acc);transform:translateX(2px)}
+.att .dot{width:6px;height:6px;border-radius:var(--r-full);flex:none;
+background:currentColor}
+/* The verdict is the group, so the row does not repeat it in words — a dot
+   carries the colour and the group heading carries the meaning. */
+.att .dot.st-PROVEN{color:var(--st-proven)}
+.att .dot.st-AMBIGUOUS{color:var(--st-ambiguous)}
+.att .dot.st-CONTRADICTED{color:var(--st-contradicted)}
+.att .dot.st-INSUFFICIENT{color:var(--st-insufficient)}
+.att .id{font-family:var(--m);font-size:var(--t-label);color:var(--dim3);
+min-width:74px}
+.att .amt{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);min-width:124px;text-align:right}
+.att .line{flex:1;color:var(--dim2);font-size:var(--t-label);line-height:1.5}
+.att .go{color:var(--acc);font-size:var(--t-label);opacity:0;
+transition:opacity var(--fast);white-space:nowrap}
+.att:hover .go,.att:focus-visible .go{opacity:1}
+.more{font-size:var(--t-label);color:var(--dim3);padding:6px 0 0}
+
+/* ---------------- financial state (the signature screen) ---------------- */
+.state{padding:var(--s-5) var(--s-6) var(--s-7);max-width:940px}
+.back{background:transparent;border:0;color:var(--dim3);font:inherit;
+font-size:var(--t-label);cursor:pointer;padding:0 0 var(--s-4);
+transition:color var(--fast)}
+.back:hover{color:var(--acc)}
+.state-hd{padding-bottom:var(--s-5);border-bottom:1px solid var(--line);
+margin-bottom:var(--s-6)}
+.state-amt{font-size:var(--t-hero);font-weight:600;letter-spacing:-.03em;
+font-variant-numeric:tabular-nums;line-height:1.05;margin-top:4px}
+.state-sub{color:var(--dim3);font-size:var(--t-label);margin-top:var(--s-3)}
+.blockq{margin-bottom:var(--s-6)}
+.blockq h4{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;
+color:var(--dim3);font-weight:600;margin-bottom:var(--s-4)}
+.knw{display:flex;flex-direction:column;gap:10px}
+.kn{font-size:var(--t-lead);line-height:1.45;color:var(--dim1)}
+.kn b{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+.kn b.warn{color:var(--st-ambiguous)}
+.cands{display:flex;flex-direction:column;gap:5px}
+.cand{display:flex;align-items:center;gap:var(--s-3);font-size:var(--t-label)}
+.cl{font-family:var(--m);color:var(--dim3);width:16px}
+.cbar{flex:1;max-width:420px;height:7px;background:var(--sur2);
+border-radius:var(--r-full);overflow:hidden;display:flex}
+.cbar i{display:block;height:100%}
+.cbar .cs{background:var(--dim3);opacity:.42}
+.cbar .cu{background:var(--st-ambiguous)}
+.cn{font-family:var(--m);color:var(--dim2);min-width:104px;text-align:right}
+.cv{font-family:var(--m);font-variant-numeric:tabular-nums;min-width:106px;
+text-align:right}
+.cok{font-family:var(--m);font-size:var(--t-micro);min-width:78px;text-align:right}
+.qnote{color:var(--dim3);font-size:var(--t-label);line-height:1.6;
+margin-top:var(--s-3);max-width:72ch}
+.res{font-size:var(--t-lead);line-height:1.5;color:var(--dim1)}
+.will{display:flex;flex-direction:column;gap:8px;margin-bottom:var(--s-4)}
+.w1{display:flex;align-items:flex-start;gap:10px;font-size:var(--t-body);
+line-height:1.5;color:var(--dim1)}
+.w1 i{width:7px;height:7px;border-radius:var(--r-full);background:var(--dim3);
+margin-top:7px;flex:none}
+.w1 i.y{background:var(--st-proven)}
+.w1 b{color:var(--ink)}
+.acts{display:flex;gap:var(--s-3)}
+
+/* ---------------- verify ---------------- */
+.rgates{display:flex;flex-direction:column;gap:6px;margin-bottom:var(--s-6)}
+.rgate{display:grid;grid-template-columns:24px 1fr 108px 118px;
+grid-template-areas:"s l v b" ". w w w";gap:2px var(--s-3);align-items:baseline;
+padding:11px var(--s-4);background:var(--sur);border:1px solid var(--line);
+border-radius:var(--r-3)}
+.rgate.fail{border-color:var(--st-contradicted)}
+.rgate.warn{border-color:var(--st-ambiguous)}
+.gs{grid-area:s;font-size:var(--t-body)}
+.rgate.pass .gs{color:var(--st-proven)}
+.rgate.fail .gs{color:var(--st-contradicted)}
+.rgate.warn .gs{color:var(--st-ambiguous)}
+.rgate.unknown .gs{color:var(--dim3)}
+.gl{grid-area:l;font-size:var(--t-body);font-weight:500}
+.gl em{font-style:normal;font-size:var(--t-micro);color:var(--st-contradicted);
+letter-spacing:.06em;text-transform:uppercase;margin-left:8px}
+.gl em.adv{color:var(--dim3)}
+.gv{grid-area:v;font-family:var(--m);font-variant-numeric:tabular-nums;
+text-align:right;font-size:var(--t-label)}
+.gb{grid-area:b;font-family:var(--m);font-variant-numeric:tabular-nums;
+text-align:right;font-size:var(--t-micro);color:var(--dim3)}
+.gw{grid-area:w;color:var(--dim3);font-size:var(--t-label);line-height:1.5;
+max-width:78ch}
+.bnote{background:var(--sur2);border-radius:var(--r-3);padding:var(--s-4);
+color:var(--dim2);font-size:var(--t-label);line-height:1.65;max-width:82ch}
+.bnote b{display:block;color:var(--ink);font-size:var(--t-micro);
+letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+
+.fails{display:flex;flex-direction:column;gap:6px;margin:var(--s-4) 0 var(--s-5)}
+.fail{display:flex;gap:var(--s-4);padding:12px var(--s-4);background:var(--sur);
+border:1px solid var(--line);border-radius:var(--r-3)}
+.fail.ref{border-left:2px solid var(--st-investigate)}
+.fid{font-family:var(--m);font-size:var(--t-label);color:var(--dim3);
+min-width:32px;padding-top:1px}
+.fbody{flex:1;min-width:0}
+.fh{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:5px}
+.fh b{font-size:var(--t-body);font-weight:600}
+.fsev{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;
+color:var(--st-investigate);border:1px solid var(--st-investigate);
+border-radius:var(--r-full);padding:1px 7px}
+.fp{color:var(--dim2);font-size:var(--t-label);line-height:1.6;max-width:88ch}
+.fp.meas{display:flex;gap:8px;margin-top:6px;color:var(--dim1);
+font-family:var(--m);font-size:var(--t-micro)}
+.fp.meas i{width:2px;background:var(--acc);flex:none;border-radius:1px}
+
+.prov{display:flex;flex-direction:column;gap:1px;background:var(--line);
+border:1px solid var(--line);border-radius:var(--r-3);overflow:hidden}
+.pr{display:grid;grid-template-columns:150px 1fr;gap:var(--s-4);
+background:var(--sur);padding:10px var(--s-4)}
+.prk{color:var(--dim3);font-size:var(--t-label)}
+.pv{font-size:var(--t-label)}
+.rules{display:flex;flex-direction:column;gap:1px;background:var(--line);
+border:1px solid var(--line);border-radius:var(--r-3);overflow:hidden}
+.rl{display:grid;grid-template-columns:168px 220px 1fr;gap:var(--s-4);
+background:var(--sur);padding:11px var(--s-4);align-items:baseline}
+.rn{font-size:var(--t-label);font-weight:500}
+.rv{font-family:var(--m);font-size:var(--t-label);color:var(--dim1)}
+.rw{color:var(--dim3);font-size:var(--t-label);line-height:1.5}
+
+/* ---------------- automate ---------------- */
+.blocked{display:flex;flex-wrap:wrap;gap:6px}
+.bl{display:inline-flex;align-items:center;gap:7px;font-family:var(--m);
+font-size:var(--t-label);color:var(--dim1);background:var(--sur);
+border:1px solid var(--line);border-radius:var(--r-full);padding:5px 13px 5px 10px}
+.bl i{font-style:normal;color:var(--st-contradicted)}
+.atts{display:flex;flex-direction:column;gap:8px}
+.atmpt{padding:var(--s-4);background:var(--sur);border:1px solid var(--line);
+border-radius:var(--r-3)}
+.atmpt.ok{border-left:2px solid var(--st-proven)}
+.atmpt.no{border-left:2px solid var(--st-contradicted)}
+.ah{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+margin-bottom:var(--s-3)}
+.an{font-size:var(--t-body);font-weight:600}
+.ai{color:var(--dim2);font-size:var(--t-label)}
+.aj{color:var(--dim3);font-size:var(--t-micro)}
+.ares{margin-left:auto;font-size:var(--t-micro);letter-spacing:.08em;
+text-transform:uppercase}
+.ares.y{color:var(--st-proven)}
+.ares.n{color:var(--st-contradicted)}
+.stg{display:flex;align-items:center;gap:0;margin-bottom:10px}
+.sg{display:flex;align-items:center;gap:6px;font-size:var(--t-micro);
+color:var(--dim3);padding-right:var(--s-3);cursor:help}
+.sg::after{content:"";width:14px;height:1px;background:var(--line);
+margin-left:var(--s-3)}
+.sg:last-child::after{display:none}
+.sg i{width:8px;height:8px;border-radius:var(--r-full);background:var(--sur2);
+border:1px solid var(--line);flex:none}
+.sg.pass i{background:var(--st-proven);border-color:var(--st-proven)}
+.sg.pass span{color:var(--dim1)}
+.sg.stop i{background:var(--st-contradicted);border-color:var(--st-contradicted)}
+.sg.stop span{color:var(--st-contradicted)}
+.areason{color:var(--dim2);font-size:var(--t-label);line-height:1.6;max-width:88ch}
+.rost{display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));
+gap:8px}
+.ag{padding:var(--s-4);background:var(--sur);border:1px solid var(--line);
+border-radius:var(--r-3)}
+.agn{font-size:var(--t-body);margin-bottom:5px}
+.agp{color:var(--dim3);font-size:var(--t-label);line-height:1.55;
+margin-bottom:10px}
+.agc{display:flex;flex-wrap:wrap;gap:4px}
+.cap{font-family:var(--m);font-size:var(--t-micro);color:var(--dim2);
+background:var(--sur2);border-radius:var(--r-1);padding:2px 6px}
+
+.evs{display:flex;flex-direction:column;gap:1px;background:var(--line);
+border:1px solid var(--line);border-radius:var(--r-3);overflow:hidden;
+margin-top:var(--s-4)}
+.ev{display:grid;grid-template-columns:150px 200px 1fr 92px;gap:var(--s-4);
+background:var(--sur);padding:9px var(--s-4);align-items:baseline;
+font-size:var(--t-label)}
+.et{color:var(--dim3);font-family:var(--m);font-size:var(--t-micro)}
+.ek{font-size:var(--t-micro)}
+.ed{color:var(--dim2)}
+.est{text-align:right;font-size:var(--t-micro);letter-spacing:.06em;
+text-transform:uppercase;color:var(--dim3)}
+.est.accepted,.est.ok{color:var(--st-proven)}
+.est.rejected,.est.duplicate{color:var(--st-contradicted)}
+
+/* ---------------- exceptions ---------------- */
+.exg{display:flex;flex-direction:column;gap:8px;margin-top:var(--s-4)}
+.exc{padding:var(--s-4) var(--s-5);background:var(--sur);
+border:1px solid var(--line);border-radius:var(--r-3)}
+.eh{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:8px}
+.eh b{font-size:var(--t-lead);font-weight:600}
+.en{font-family:var(--m);color:var(--dim3);font-size:var(--t-label)}
+.ev2{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body)}
+.ew{color:var(--dim2);font-size:var(--t-label);line-height:1.6;max-width:84ch}
+.ex-next{color:var(--dim1);font-size:var(--t-label);line-height:1.6;
+margin-top:8px;max-width:84ch}
+.ex-next b{color:var(--dim3);font-size:var(--t-micro);letter-spacing:.08em;
+text-transform:uppercase;margin-right:7px}
+.exs{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
+.exl{font-family:var(--m);font-size:var(--t-micro);color:var(--dim2);
+background:var(--sur2);border:1px solid transparent;border-radius:var(--r-1);
+padding:3px 8px;cursor:pointer;transition:border-color var(--fast),color var(--fast)}
+.exl:hover{border-color:var(--acc);color:var(--ink)}
+
 /* ---------------- primitives (§54, §55) ----------------
    One definition per concept. PROVEN must look identical everywhere it appears,
    which is only true if there is one place it is defined. */
@@ -499,28 +757,24 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
         stroke="var(--acc)" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="m8.4 12.3 2.6 2.6 4.9-5.2" stroke="var(--ok)" stroke-width="1.9"
         stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class=wm>ATTEST</span><span class=rule></span>
-    <span class=tag>The verification engine for agentic finance</span>
+    <span class=wm>ATTEST</span>
+    <nav class=modes role=tablist aria-label="Modes">
+      <button class="mode on" data-mode=control role=tab aria-selected=true>
+        Control<em>what is happening</em></button>
+      <button class=mode data-mode=investigate role=tab aria-selected=false>
+        Investigate<em>why</em></button>
+      <button class=mode data-mode=verify role=tab aria-selected=false>
+        Verify<em>can we prove it</em></button>
+      <button class=mode data-mode=automate role=tab aria-selected=false>
+        Automate<em>what is allowed</em></button>
+    </nav>
     <span class=sp></span>
     <button class=btn id=theme aria-label="Toggle light and dark theme">◐</button>
     <select class=btn id=size aria-label="Portfolio size"><option>120</option><option selected>250</option><option>500</option><option>1200</option></select>
-    <button class=btn id=board>Board</button>
-    <button class=btn id=integ>Sources</button>
-    <button class=btn id=ask>Ask</button>
-    <button class=btn id=policy>Policy</button>
     <button class="btn go" id=run>Run</button>
   </div>
 
-  <div id=kpis>
-    <div class=kpi><div class=k>processed</div><div class=v id=m-proc>—</div>
-      <div class=s id=s-proc>—</div><div class=mt><i id=b-proc style="width:100%;background:var(--dim2)"></i></div></div>
-    <div class=kpi><div class=k>auto-posted</div><div class="v ok" id=m-post>—</div>
-      <div class=s id=s-post>—</div><div class=mt><i id=b-post style="background:var(--ok)"></i></div></div>
-    <div class=kpi><div class=k id=k-held>held for review</div><div class="v warn" id=m-held>—</div>
-      <div class=s id=s-held>—</div><div class=mt><i id=b-held style="background:var(--warn)"></i></div></div>
-    <div class=kpi><div class=k>false proofs</div><div class=v id=m-wrong>—</div>
-      <div class=s id=s-wrong>—</div><div class=mt><i id=b-wrong style="background:var(--dim2)"></i></div></div>
-  </div>
+  <div id=subnav role=tablist aria-label="Views"></div>
 
   <main id=panes>
     <div id=left>
@@ -533,7 +787,7 @@ code{font-family:var(--m);font-size:11px;color:var(--dim2)}
       </div>
       <div id=ledger><div class=empty>press Run</div></div>
     </div>
-    <div id=right tabindex="-1"><div class=empty>select a settlement</div></div>
+    <div id=right tabindex="-1"><div class=empty>press Run</div></div>
 
   </main>
 

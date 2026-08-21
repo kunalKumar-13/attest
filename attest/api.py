@@ -335,6 +335,105 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
     }
 
 
+def attention(r: Run) -> dict[str, Any]:
+    """What needs a person, ordered by money. §5, §6.
+
+    The board reports state. This answers the question a person actually opens
+    the product with, which is not "how are we doing" but "what do I have to deal
+    with". A user handed 198 unresolved settlements and left to prioritise by eye
+    is doing the labour the product claims to remove.
+
+    Ordering is by value at stake, not by count. Seven contradictions worth
+    ₹200 matter less than one ambiguity worth ₹3 lakh, and a queue that sorted by
+    count would say the opposite.
+    """
+    st = {x.settlement_id: x for x in r.settlements}
+    groups: list[dict[str, Any]] = []
+
+    def group(key: str, label: str, why: str, action: str,
+              pick) -> None:
+        items = [f for f in r.findings if pick(f)]
+        if not items:
+            return
+        items.sort(key=lambda f: -st[f.settlement_id].net_paise)
+        total = sum(st[f.settlement_id].net_paise for f in items)
+        groups.append({
+            "key": key, "label": label, "why": why, "action": action,
+            "count": len(items), "amount_paise": total,
+            "items": [{
+                "id": f.settlement_id,
+                "amount_paise": st[f.settlement_id].net_paise,
+                "verdict": f.verdict.value,
+                "candidates": len(f.proofs),
+                "unexplained_paise": (r.exceptions[f.settlement_id].unexplained_paise
+                                      if f.settlement_id in r.exceptions else 0),
+                "settled_paise": (r.exceptions[f.settlement_id].settled.net_paise
+                                  if f.settlement_id in r.exceptions
+                                  and r.exceptions[f.settlement_id].settled else 0),
+                "line": _attention_line(r, f, st[f.settlement_id]),
+            } for f in items[:5]],
+        })
+
+    group("contradicted", "Contradicted",
+          "No combination of candidate orders satisfies the amount constraint.",
+          "Investigate",
+          lambda f: f.verdict is Verdict.CONTRADICTED)
+    group("insufficient", "Insufficient evidence",
+          "The settlement was never examined — it exceeds what the solver will "
+          "attempt with the evidence available.",
+          "Request evidence",
+          lambda f: f.verdict is Verdict.INSUFFICIENT)
+    group("high-value-ambiguity", "High-value ambiguity",
+          "Several explanations satisfy every constraint exactly. Arithmetic "
+          "cannot choose, so the engine does not.",
+          "Investigate",
+          lambda f: f.verdict is Verdict.AMBIGUOUS
+          and st[f.settlement_id].net_paise >= 50_00_00)
+    group("ambiguity", "Ambiguity",
+          "Several valid explanations remain. Most of the value is usually not "
+          "in dispute.",
+          "Review",
+          lambda f: f.verdict is Verdict.AMBIGUOUS
+          and st[f.settlement_id].net_paise < 50_00_00)
+
+    groups.sort(key=lambda g: -g["amount_paise"])
+    return {
+        "groups": groups,
+        "total_items": sum(g["count"] for g in groups),
+        "total_paise": sum(g["amount_paise"] for g in groups),
+    }
+
+
+def _attention_line(r: Run, f: Finding, s: Settlement) -> str:
+    """One sentence that says what is actually known. Never a status restated."""
+    e = r.exceptions.get(f.settlement_id)
+    if e and e.settled and e.settled.order_ids:
+        return (f"{len(e.settled.order_ids)} orders already settled; "
+                f"{_rs(e.settled.disputed_paise)} across "
+                f"{e.settled.differing_orders} orders in dispute")
+    if e and e.partial:
+        return (f"{len(e.partial.order_ids)} orders explain "
+                f"{_rs(e.partial.net_paise)}; {_rs(e.partial.unexplained_paise)} "
+                f"unexplained")
+    if f.verdict is Verdict.AMBIGUOUS:
+        return f"{len(f.proofs)} valid explanations remain"
+    return e.missing if e else ""
+
+
+def _rs(paise: int) -> str:
+    neg, n = paise < 0, abs(paise)
+    r, p = divmod(n, 100)
+    t = str(r)
+    if len(t) > 3:
+        head, tail = t[:-3], t[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        t = ",".join(([head] if head else []) + parts + [tail])
+    return f"{'-' if neg else ''}₹{t}.{p:02d}"
+
+
 def observatory() -> dict[str, Any]:
     """The failure log, read from disk. §38.
 
@@ -576,4 +675,192 @@ def detail(r: Run, sid: str) -> dict[str, Any] | None:
         "exception": (r.exceptions[sid].to_json() if sid in r.exceptions else None),
         "judgement": _judgement_json(r, f, s),
         "certificate": issue(f, s, _judge(r, f, s)).to_json(),
+    }
+
+
+def agents_view(r: Run | None) -> dict[str, Any]:
+    """The roster, and the pipeline refusing things for real. §41, §43.
+
+    A permissions page that lists capabilities is a description of a policy. This
+    runs the actual pipeline against the actual findings of the current run, so
+    what the screen shows is what the code did — including the stage each attempt
+    died at. The most important row is the one that asks for POST_ENTRY and is
+    refused at the first stage, because that refusal is the whole argument: the
+    capability exists, it is named, and nothing holds it.
+    """
+    from attest.agents import ROSTER, Capability, NEVER_GRANTED, Pipeline
+
+    roster = [a.to_json() for a in ROSTER.values()]
+    attempts: list[dict[str, Any]] = []
+
+    if r is not None and r.findings:
+        p = Pipeline()
+        st = {x.settlement_id: x for x in r.settlements}
+
+        # Pick a proven finding the policy actually clears, so the screen shows
+        # the pipeline permitting as well as refusing. A permissions page on
+        # which nothing ever passes proves only that the demo is stuck.
+        from attest.policy import Decision
+        postable = next(
+            (f for f in r.findings
+             if f.verdict is Verdict.PROVEN
+             and _judge(r, f, st[f.settlement_id]).decision is Decision.AUTO_POST),
+            None)
+        by_v: dict[Verdict, Finding] = {}
+        for f in r.findings:
+            by_v.setdefault(f.verdict, f)
+
+        def attempt(agent: str, intent: str, cap: Capability,
+                    f: Finding | None, evidence: object) -> None:
+            j = _judge(r, f, st[f.settlement_id]) if f is not None else None
+            a = p.request(agent, intent, f.settlement_id if f else "—",
+                          cap, evidence=evidence, finding=f, judgement=j)
+            attempts.append({
+                "agent": ROSTER[agent].name if agent in ROSTER else agent,
+                "intent": intent, "subject": a.subject,
+                "capability": cap.value,
+                "reached": a.steps[-1].stage.value if a.steps else "—",
+                "allowed": bool(a.steps and a.steps[-1].passed
+                                and a.steps[-1].stage.value == "action"),
+                "steps": [{"stage": s.stage.value, "passed": s.passed,
+                           "detail": s.detail} for s in a.steps],
+            })
+
+        proven = postable or by_v.get(Verdict.PROVEN)
+        amb = by_v.get(Verdict.AMBIGUOUS)
+        if proven is not None:
+            attempt("reconciliation", "post the accounting entry",
+                    Capability.POST_ENTRY, proven, "unique explanation")
+            attempt("reconciliation", "run the solver over the pool",
+                    Capability.RUN_SOLVER, proven, "candidate pool + rule set")
+            attempt("explanation", "explain the verdict",
+                    Capability.EXPLAIN, proven, "proof and kernel result")
+        if amb is not None:
+            attempt("investigation", "open an investigation",
+                    Capability.CREATE_INVESTIGATION, amb, "candidate pool")
+            attempt("investigation", "mark it reconciled",
+                    Capability.MARK_RECONCILED, amb, "a hypothesis")
+            attempt("policy", "recommend an action",
+                    Capability.RECOMMEND, amb, None)
+
+    return {
+        "roster": roster,
+        "blocked": sorted(c.value for c in NEVER_GRANTED),
+        "attempts": attempts,
+    }
+
+
+def trust_view(r: Run | None) -> dict[str, Any]:
+    """What version of what decided, and whether the gates still hold. §44, §45.
+
+    Every number ATTEST reports is produced by a specific set of rules, a
+    specific solver, and a specific dataset. If any of those move, the number is
+    not comparable to the last one. This makes that checkable rather than
+    assumed — and it reads the same two files the build reads, so the screen
+    cannot say the gates pass while CI says they fail.
+    """
+    import json as _json
+    import pathlib as _pl
+
+    from attest.eval.gate import GATES
+
+    root = _pl.Path(__file__).resolve().parent.parent
+
+    def _load(name: str) -> dict[str, Any]:
+        """The gate metrics live under `pooled` — the top level holds the run's
+        configuration. Reading the wrong level silently yields None for every
+        gate, which renders as 'unknown' and looks like a missing benchmark
+        rather than a bug."""
+        try:
+            d = _json.loads((root / "benchmark" / name).read_text())
+            return d.get("pooled", d)
+        except Exception:
+            return {}
+
+    cur, base = _load("results.json"), _load("baseline.json")
+    gates: list[dict[str, Any]] = []
+    for g in GATES:
+        a = cur.get(g.key)
+        b = base.get(g.key)
+        if a is None or b is None:
+            state = "unknown"
+        else:
+            a, b = float(a), float(b)
+            ok = (a <= b + g.tolerance if g.direction == "lower_is_better"
+                  else a >= b - g.tolerance)
+            state = "pass" if ok else ("fail" if g.fatal else "warn")
+        gates.append({
+            "key": g.key, "label": g.label, "direction": g.direction,
+            "tolerance": g.tolerance, "fatal": g.fatal, "why": g.why,
+            "value": a, "baseline": b, "state": state,
+            "paise": "paise" in g.key,
+        })
+
+    # The run already carries its provenance — rebuilding it here would let the
+    # screen disagree with the record the run was decided under.
+    prov = r.provenance.to_json() if r is not None and r.provenance else None
+
+    return {
+        "rules": {
+            "name": DEFAULT_RULES.name,
+            "version": DEFAULT_RULES.version,
+            "currency": DEFAULT_RULES.currency,
+            "described": [{"rule": a, "value": b, "why": c}
+                          for a, b, c in DEFAULT_RULES.describe()],
+        },
+        "solver": {"version": solver_version(), "native": _native()},
+        "provenance": prov,
+        "gates": gates,
+        "benchmark": cur,
+    }
+
+
+def _native() -> bool:
+    try:
+        import attest_native  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def exceptions_view(r: Run) -> dict[str, Any]:
+    """Exceptions grouped by why the engine stopped. §29.
+
+    Grouped by reason rather than by subject, because two settlements that
+    failed for the same reason are one problem. Each group carries the meaning
+    and the next step from GUIDE, so a queue item never resolves to
+    "investigate" — every entry names a record to go and find.
+    """
+    from attest.exceptions import GUIDE, ReasonCode
+
+    st = {x.settlement_id: x for x in r.settlements}
+    agg: dict[str, dict[str, Any]] = {}
+    for e in r.exceptions.values():
+        code = e.reason.value
+        g = agg.get(code)
+        if g is None:
+            meaning, step = GUIDE.get(ReasonCode(code), ("", ""))
+            g = agg[code] = {
+                "reason": code,
+                "label": code.replace("_", " ").capitalize(),
+                "why": meaning, "next_step": step,
+                "count": 0, "amount_paise": 0, "unexplained_paise": 0,
+                "high": 0, "examples": [],
+            }
+        g["count"] += 1
+        g["amount_paise"] += e.amount_paise
+        g["unexplained_paise"] += e.unexplained_paise
+        g["high"] += int(e.severity.value == "HIGH")
+        if len(g["examples"]) < 6:
+            g["examples"].append({
+                "id": e.settlement_id,
+                "amount_paise": st[e.settlement_id].net_paise
+                if e.settlement_id in st else e.amount_paise,
+            })
+
+    groups = sorted(agg.values(), key=lambda x: -x["amount_paise"])
+    return {
+        "groups": groups,
+        "total": sum(g["count"] for g in groups),
+        "amount_paise": sum(g["amount_paise"] for g in groups),
     }

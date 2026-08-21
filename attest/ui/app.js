@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { mode: 'board', events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'control', sub: null, att: null, events: null, obs: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,6 +34,7 @@ function rs(paise, whole) {
   return (neg ? '−' : '') + '₹' + (whole ? r : r + '.' + String(p).padStart(2, '0'));
 }
 const api = p => fetch(p).then(r => r.json());
+const plural = (n, w) => `${n.toLocaleString()} ${w}${n === 1 ? '' : 's'}`;
 window.ATTEST_rs = rs;
 
 /* One guard for every async path in the app. D15 and §30. */
@@ -51,31 +52,244 @@ async function run() {
   el('run').textContent = 'Run';
   GUARD.invalidateAll();
   renderTop(); apply(); S.i = 0;
-  if (S.mode === 'board') { el('board').style.color = 'var(--acc)'; drawBoard(); }
-  else open_();
+  // Stay where the user was. Re-running a portfolio is a data refresh, not a
+  // navigation, and dropping them back to Attention loses their place — which
+  // is most annoying on exactly the screens people re-run from.
+  go(S.mode, S.screen);
 }
 
 function renderTop() {
-  const s = S.run, m = s.money, c = s.counts, T = s.processed_paise || 1;
-  el('m-proc').textContent = rs(s.processed_paise, true);
-  el('s-proc').textContent = `${s.settlements.toLocaleString()} settlements · ${s.orders.toLocaleString()} orders`;
-  el('m-post').textContent = rs(m.PROVEN, true);
-  el('s-post').textContent = `${c.PROVEN} proven`;
-  el('b-post').style.width = (m.PROVEN / T * 100).toFixed(2) + '%';
-  const acct = (m.PROVEN + (s.settled_paise || 0)) / T;
-  el('m-held').textContent = rs(s.settled_paise || 0, true);
-  el('s-held').textContent = `agreed by every explanation · ${(acct * 100).toFixed(1)}% accounted for`;
-  el('b-held').style.width = (acct * 100).toFixed(2) + '%';
-  el('k-held').textContent = 'settled, not proven';
-  el('m-wrong').textContent = s.wrong;
-  el('s-wrong').textContent = `precision ${s.precision.toFixed(3)} · this seed`;
-  el('b-wrong').style.width = Math.max(s.wrong / s.settlements * 100, 0.6).toFixed(2) + '%';
-  el('b-wrong').style.background = s.wrong ? 'var(--warn)' : 'var(--ok)';
+  const s = S.run;
   el('barmeta').innerHTML = `${s.run_id} · seed ${s.seed} · <b>${s.seconds}s</b> · ` +
     `exact <b>${(s.exact * 100).toFixed(1)}%</b> · precision <b>${s.precision.toFixed(3)}</b> · ` +
     `blocking ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>` +
     (s.provenance ? ` · <b>${s.provenance.rules_version}</b>` : '');
 }
+
+/* ------------------------------------------------------------- mode router
+ * Four verbs, per §17. The navigation states what the product is for, and depth
+ * lives inside a mode rather than beside it — which is what stops the sidebar
+ * growing to eighteen items as features arrive.
+ */
+const MODES = {
+  control: {
+    views: [['attention', 'Attention', true], ['overview', 'Overview', true]],
+    draw: { attention: () => drawControl(), overview: () => drawBoard() },
+  },
+  investigate: {
+    views: [['cases', 'Settlements', false], ['exceptions', 'Exceptions', true],
+            ['ask', 'Ask ATTEST', true]],
+    draw: { cases: () => open_(), exceptions: () => drawExceptions(),
+            ask: () => drawAsk(null) },
+  },
+  verify: {
+    views: [['accuracy', 'Accuracy', true], ['observatory', 'Failures', true],
+            ['trust', 'Trust centre', true]],
+    draw: { accuracy: () => drawAccuracy(), observatory: () => drawObservatory(),
+            trust: () => drawTrust() },
+  },
+  automate: {
+    views: [['policy', 'Policy', true], ['agents', 'Agents', true],
+            ['sources', 'Sources', true], ['events', 'Live events', true]],
+    draw: { policy: () => loadPolicy(), agents: () => drawAgents(),
+            sources: () => drawIntegrations(), events: () => drawEvents() },
+  },
+};
+
+function go(mode, view) {
+  const M = MODES[mode];
+  if (!M) return;
+  const names = M.views.map(v => v[0]);
+  S.mode = mode;
+  S.screen = names.includes(view) ? view : names[0];
+  S.sub = null;
+
+  document.querySelectorAll('.mode').forEach(b => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  el('subnav').innerHTML = M.views.map(([k, label]) =>
+    `<button class="sub${k === S.screen ? ' on' : ''}" data-view="${k}">${label}</button>`
+  ).join('');
+  el('panes').classList.toggle('solo', !!M.views.find(v => v[0] === S.screen)[2]);
+  if (!S.run) { el('right').innerHTML = '<div class=empty>press Run</div>'; return; }
+  M.draw[S.screen]();
+}
+
+document.querySelector('.modes').addEventListener('click', e => {
+  const b = e.target.closest('.mode');
+  if (b) go(b.dataset.mode);
+});
+el('subnav').addEventListener('click', e => {
+  const b = e.target.closest('.sub');
+  if (b) go(S.mode, b.dataset.view);
+});
+
+/* ------------------------------------------------------------------ control
+ * Financial state, then what needs a person. In that order and nothing between
+ * them — the audit's finding was that a board reports state and never says what
+ * requires attention, which leaves the prioritising to the user's eye.
+ */
+async function drawControl() {
+  if (S.sub) return drawState(S.sub);
+  const s = S.run, m = s.money;
+  const acct = (m.PROVEN + (s.settled_paise || 0)) / Math.max(s.processed_paise, 1);
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Financial control</h1>
+      <span class=sub>${s.settlements.toLocaleString()} settlements ·
+        ${s.orders.toLocaleString()} orders · seed ${s.seed}</span></div>
+    <div class=fs>
+      <div class=metric><span class=k>processed</span>
+        <span class=v>${rs(s.processed_paise, true)}</span>
+        <span class=s>today</span></div>
+      <div class=metric><span class=k>proven</span>
+        <span class=v style="color:var(--st-proven)">${rs(m.PROVEN, true)}</span>
+        <span class=s>${plural(s.counts.PROVEN, 'settlement')}</span></div>
+      <div class=metric><span class=k>uncertain</span>
+        <span class=v style="color:var(--st-ambiguous)">${rs(m.AMBIGUOUS, true)}</span>
+        <span class=s>${plural(s.counts.AMBIGUOUS, 'settlement')}</span></div>
+      <div class=metric><span class=k>contradicted</span>
+        <span class=v style="color:var(--st-contradicted)">${rs(m.CONTRADICTED, true)}</span>
+        <span class=s>${plural(s.counts.CONTRADICTED, 'settlement')}</span></div>
+      <div class=metric><span class=k>protected</span>
+        <span class=v>${rs(s.processed_paise - m.PROVEN, true)}</span>
+        <span class=s>refused deliberately · ${(acct * 100).toFixed(0)}% accounted for</span></div>
+    </div>
+    <div id=att><div class=empty><span class=spin></span>building the queue…</div></div>
+  </div>`;
+
+  const a = await api(`/api/attention?run=${S.run.run_id}`);
+  S.att = a;
+  // Guard on the screen, not the mode: Overview lives in this same mode, so a
+  // late attention fetch would otherwise paint over the board.
+  if (S.screen !== 'attention' || S.sub) return;
+
+  el('att').innerHTML = `
+    <div class=att-hd><h2>${a.total_items} things need your attention</h2>
+      <span class=amt>${rs(a.total_paise, true)} at stake</span></div>
+    ${a.groups.map(g => `<section class=grp>
+      <div class=grp-hd><b>${esc(g.label)}</b>
+        <span class=n>${g.count}</span>
+        <span class=tot>${rs(g.amount_paise, true)}</span></div>
+      <p class=lede>${esc(g.why)}</p>
+      ${g.items.map(it => `<button class=att data-sid="${it.id}">
+        <i class="dot st-${it.verdict}"></i>
+        <span class=id>${it.id.replace('setl_', '')}</span>
+        <span class=amt>${rs(it.amount_paise)}</span>
+        <span class=line>${esc(it.line)}</span>
+        <span class=go>${esc(g.action)} →</span></button>`).join('')}
+      ${g.count > g.items.length
+        ? `<div class=more>+ ${g.count - g.items.length} more in this group</div>` : ''}
+    </section>`).join('')}`;
+
+  el('att').querySelectorAll('.att').forEach(b =>
+    b.onclick = () => { S.sub = b.dataset.sid; drawState(b.dataset.sid); });
+}
+
+/* ------------------------------------------------------------ financial state
+ * The signature screen. It answers four questions in order and refuses to open
+ * with a status: what we know, why, what would resolve it, what ATTEST will do.
+ * A settlement is one instance of financial state, and this is what looking at
+ * one should feel like.
+ */
+async function drawState(sid) {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>loading financial state…</div>';
+  const g = await GUARD.run(sid, () =>
+    api(`/api/settlement?run=${S.run.run_id}&id=${sid}`), id => S.sub === id);
+  if (!g.ok) return;
+  const d = g.value;
+  const ex = d.exception, st = ex && ex.settled, p = d.proofs[0];
+  const j = d.judgement || {};
+
+  // The intersection is what every surviving explanation agrees on, so it is
+  // settled whichever one is right. Stating it as "27 of 31" would be arithmetic
+  // nonsense — the explanations do not share a denominator.
+  const known = st && st.order_ids.length ? `
+      <div class=kn><b>${st.order_ids.length} orders</b> appear in
+        ${d.proofs.length === 1 ? 'the explanation' : `all ${d.proofs.length} explanations`}</div>
+      <div class=kn><b>${rs(st.net_paise)}</b> is settled whichever explanation is right</div>
+      <div class=kn><b class=warn>${rs(st.disputed_paise)}</b> depends on which one is,
+        across ${st.differing_orders} orders that differ between them</div>`
+    : p ? `
+      <div class=kn><b>${p.orders.length}</b> orders explain this credit exactly</div>
+      <div class=kn><b>${rs(p.net_paise)}</b> accounted for</div>
+      <div class=kn><b>${rs(p.residual_paise)}</b> residual against a bound of
+        ±${p.tolerance} paise</div>`
+    : `<div class=kn>No combination of the ${d.space ? d.space.candidates : 0}
+        candidate orders reaches this credit</div>
+       ${ex && ex.partial ? `<div class=kn><b>${rs(ex.partial.net_paise)}</b> explained,
+        <b class=warn>${rs(ex.partial.unexplained_paise)}</b> unexplained</div>` : ''}`;
+
+  // Every explanation is the same size and the same amount, so a bar of the
+  // total says nothing. What separates them is where they disagree, so the bar
+  // is split: shared orders, then the ones only this explanation uses.
+  const shared = new Set(st ? st.order_ids : []);
+  const widest = Math.max(...d.proofs.map(q => q.orders.length), 1);
+  const cands = d.proofs.length > 1
+    ? d.proofs.map((q, i) => {
+        const uniq = q.orders.filter(o => !shared.has(o.id)).length;
+        const both = q.orders.length - uniq;
+        return `<div class=cand>
+          <span class=cl>${String.fromCharCode(65 + i)}</span>
+          <span class=cbar>
+            <i class=cs style="width:${(both / widest * 100).toFixed(1)}%"></i>
+            <i class=cu style="width:${(uniq / widest * 100).toFixed(1)}%"></i></span>
+          <span class=cn>${both} shared${uniq ? ` + ${uniq}` : ''}</span>
+          <span class=cv>${rs(q.net)}</span>
+          <span class="cok ok">within ±${q.tolerance}p</span></div>`;
+      }).join('')
+    : '';
+
+  el('right').innerHTML = `<div class=state>
+    <button class=back id=back>← Attention</button>
+    <div class=state-hd>
+      <div class=mono style="color:var(--dim3);font-size:var(--t-label)">${esc(d.id)}</div>
+      <div class=state-amt>${rs(d.amount)}</div>
+      <div class="st st-${d.verdict}" style="margin-top:var(--s-3)">${d.verdict}</div>
+      ${d.proofs.length > 1
+        ? `<div class=state-sub>${d.proofs.length} valid explanations</div>` : ''}
+    </div>
+
+    <section class=blockq><h4>What we know</h4><div class=knw>${known}</div></section>
+
+    ${cands ? `<section class=blockq><h4>Why</h4>
+      <div class=cands>${cands}</div>
+      <p class=qnote>Every one of these satisfies the amount constraint exactly.
+        Arithmetic cannot distinguish them, so the engine does not.</p></section>` : ''}
+
+    ${d.graph && d.graph.nodes.length ? `<section class=blockq>
+      <h4>Composition${d.proofs.length > 1 ? ' · explanation A' : ''}</h4>
+      ${flow(d.graph)}</section>` : ''}
+
+    <section class=blockq><h4>What would resolve this</h4>
+      <div class=res>${ex ? esc(ex.next_step) : 'Nothing outstanding.'}</div>
+      ${d.space ? `<div class=qnote>${esc(d.space.claim)}</div>` : ''}</section>
+
+    <section class=blockq><h4>What ATTEST will do</h4>
+      <div class=will>
+        ${(j.reasons || []).map(r => `<div class=w1><i></i>${esc(r)}</div>`).join('')}
+        <div class=w1><i class="${j.decision === 'AUTO_POST' ? 'y' : ''}"></i>
+          <b>${j.decision === 'AUTO_POST' ? 'Post automatically' : 'No automatic action'}</b></div>
+        ${j.decision !== 'AUTO_POST'
+          ? `<div class=w1><i></i>Preserve the exception</div>
+             <div class=w1><i></i>Continue to accept evidence</div>` : ''}
+      </div>
+      <div class=acts>
+        <button class="btn go" id=st-inv>Investigate</button>
+        <button class=btn id=st-full>Full case file</button>
+      </div></section>
+  </div>`;
+
+  el('back').onclick = () => { S.sub = null; drawControl(); };
+  el('st-inv').onclick = () => runInvestigation(d.id);
+  el('st-full').onclick = () => {
+    const i = S.view.findIndex(r => r.id === d.id);
+    if (i >= 0) { S.i = i; go('investigate'); }
+  };
+}
+
 
 /* ------------------------------------------------------------------ ledger */
 
@@ -185,7 +399,7 @@ function flow(g) {
 /* --------------------------------------------------------------- case file */
 
 async function open_() {
-  if (S.mode !== 'work') return;
+  if (S.mode !== 'investigate') return;
   const r = S.view[S.i];
   if (!r) return void (el('right').innerHTML = '<div class=empty>no selection</div>');
   paint();
@@ -357,13 +571,6 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
-el('integ').onclick = () => {
-  S.mode = S.mode === 'integ' ? 'work' : 'integ';
-  ['board', 'integ', 'ask', 'policy'].forEach(k =>
-    el(k).style.color = k === S.mode ? 'var(--acc)' : '');
-  S.mode === 'integ' ? drawIntegrations() : open_();
-};
-
 async function drawIntegrations() {
   el('right').innerHTML = '<div class=empty><span class=spin></span>reading source state…</div>';
   const d = await api(`/api/integrations?run=${S.run ? S.run.run_id : ''}`);
@@ -414,13 +621,6 @@ async function drawIntegrations() {
   </div>`;
 }
 
-el('board').onclick = () => {
-  S.mode = S.mode === 'board' ? 'work' : 'board';
-  ['board', 'integ', 'ask', 'policy'].forEach(k =>
-    el(k).style.color = k === S.mode ? 'var(--acc)' : '');
-  S.mode === 'board' ? drawBoard() : open_();
-};
-
 function boardContext() {
   return {
     summary: S.run, rows: S.rows, policy: S.pol, events: S.events,
@@ -428,7 +628,7 @@ function boardContext() {
     open: sid => {
       const i = S.view.findIndex(r => r.id === sid);
       if (i < 0) return;
-      S.mode = 'work'; el('board').style.color = ''; S.i = i; open_();
+      S.i = i; go('investigate', 'cases');
     },
   };
 }
@@ -452,13 +652,6 @@ function drawBoard() {
     if (row) boardContext().open(row.dataset.sid);
   });
 }
-
-el('ask').onclick = () => {
-  S.mode = S.mode === 'ask' ? 'work' : 'ask';
-  el('ask').style.color = S.mode === 'ask' ? 'var(--acc)' : '';
-  el('policy').style.color = ''; el('board').style.color = ''; el('integ').style.color = '';
-  S.mode === 'ask' ? drawAsk(null) : open_();
-};
 
 /* ------------------------------------------------------------------ ask
  * §34: not a chatbot. No bubbles, no avatar, no sidebar. A command line over
@@ -516,16 +709,9 @@ function drawAsk(a, text = '', busy = false) {
   el('right').querySelectorAll('.ev b[data-sid]').forEach(b =>
     b.onclick = () => {
       const i = S.view.findIndex(r => r.id === b.dataset.sid);
-      if (i >= 0) { S.mode = 'work'; el('ask').style.color = ''; S.i = i; open_(); }
+      if (i >= 0) { S.i = i; go('investigate', 'cases'); }
     });
 }
-
-el('policy').onclick = () => {
-  S.mode = S.mode === 'policy' ? 'work' : 'policy';
-  el('policy').style.color = S.mode === 'policy' ? 'var(--acc)' : '';
-  el('ask').style.color = ''; el('board').style.color = ''; el('integ').style.color = '';
-  S.mode === 'policy' ? loadPolicy() : open_();
-};
 
 /* ------------------------------------------------------------- simulator
  * §36. The point is not the numbers at any one setting — it is that the
@@ -689,3 +875,241 @@ document.addEventListener('keydown', e => {
   else if (k === 'Enter') run();
 });
 run();
+
+/* ------------------------------------------------------------------ verify
+ * Three questions a reviewer actually asks, in the order they ask them: is it
+ * accurate, where does it fail, and what decided. The audit found all three
+ * scattered across widgets on a board where a reader had to already know what
+ * to look for.
+ */
+async function drawAccuracy() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>reading the benchmark…</div>';
+  const t = await api(`/api/trust?run=${S.run ? S.run.run_id : ''}`);
+  if (S.screen !== 'accuracy') return;
+  const b = t.benchmark, g = t.gates;
+  const pct = v => (v * 100).toFixed(1) + '%';
+
+  const headline = [
+    ['money wrongly auto-posted', rs(b.incorrectly_auto_posted_paise || 0, true),
+     'across every evaluation seed', b.incorrectly_auto_posted_paise ? 'bad' : 'good'],
+    ['proof precision', (b.proof_precision || 0).toFixed(3),
+     `${b.proven || 0} proven, ${b.false_proofs || 0} of them wrong`, 'plain'],
+    ['exact set recovery', pct(b.exact_set_recovery || 0),
+     `${b.exact_sets || 0} settlements resolved to the exact order set`, 'plain'],
+    ['value accounted for', pct(b.accounted_rate || 0),
+     'proven, plus undisputed inside ambiguity', 'plain'],
+  ];
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Accuracy</h1>
+      <span class=sub>${(b.evaluation_seeds || []).length || 5} held-out seeds ·
+        pooled, not a best run</span></div>
+    <div class=fs>
+      ${headline.map(([k, v, s, tone]) => `<div class=metric>
+        <span class=k>${k}</span>
+        <span class=v style="color:${tone === 'good' ? 'var(--st-proven)'
+          : tone === 'bad' ? 'var(--st-contradicted)' : 'var(--ink)'}">${v}</span>
+        <span class=s>${s}</span></div>`).join('')}
+    </div>
+
+    <div class=att-hd><h2>Regression gates</h2>
+      <span class=amt>${g.filter(x => x.state === 'pass').length}/${g.length} holding</span></div>
+    <p class=lede>A gate compares this build to the recorded baseline. The
+      first three are fatal — a breach fails the build. The last three are
+      advisory on purpose: three documented decisions (D4, D8, D12) traded
+      coverage for safety, and a gate that punished them would have argued for
+      shipping them.</p>
+    <div class=rgates>
+      ${g.map(x => `<div class="rgate ${x.state}">
+        <span class=gs>${x.state === 'pass' ? '✓' : x.state === 'fail' ? '✕'
+          : x.state === 'warn' ? '!' : '—'}</span>
+        <span class=gl>${esc(x.label)}
+          ${x.fatal ? '<em>fatal</em>' : '<em class=adv>advisory</em>'}</span>
+        <span class=gv>${x.value === null ? '—'
+          : x.paise ? rs(x.value, true) : Number(x.value).toFixed(4)}</span>
+        <span class=gb>base ${x.baseline === null ? '—'
+          : x.paise ? rs(x.baseline, true) : Number(x.baseline).toFixed(4)}</span>
+        <span class=gw>${esc(x.why)}</span></div>`).join('')}
+    </div>
+
+    ${b.note ? `<div class=bnote><b>Note</b>${esc(b.note)}</div>` : ''}
+  </div>`;
+}
+
+async function drawObservatory() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>loading failures…</div>';
+  if (!S.obs) S.obs = await api('/api/observatory');
+  if (S.screen !== 'observatory') return;
+  const o = S.obs, es = o.entries || [];
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Failure observatory</h1>
+      <span class=sub>${o.count} recorded · ${o.refusals} of them cases where the
+        fix was to ship less · ${o.words.toLocaleString()} words</span></div>
+    <p class=lede>Every one of these was a real defect in a real build, and most
+      were found by something other than a passing test. They are kept because a
+      system that only records its successes cannot tell you where it is weak.
+      The ones marked <b>refused</b> are the useful kind: a feature worked,
+      measured worse than not having it, and was disabled rather than shipped
+      because it demoed well.</p>
+    <div class=fails>
+      ${es.map(e => `<article class="fail${e.refusal ? ' ref' : ''}">
+        <span class=fid>${esc(e.ref)}</span>
+        <div class=fbody>
+          <div class=fh><b>${esc(e.title)}</b>
+            ${e.refusal ? '<span class=fsev>refused</span>' : ''}</div>
+          <p class=fp>${esc(e.headline)}</p>
+          ${e.measurement ? `<p class="fp meas"><i></i>${esc(e.measurement)}</p>` : ''}
+        </div>
+      </article>`).join('')}
+    </div>
+    ${o.note ? `<div class=bnote><b>Note</b>${esc(o.note)}</div>` : ''}
+  </div>`;
+}
+
+async function drawTrust() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>reading provenance…</div>';
+  const t = await api(`/api/trust?run=${S.run ? S.run.run_id : ''}`);
+  if (S.screen !== 'trust') return;
+  const p = t.provenance || {};
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Trust centre</h1>
+      <span class=sub>what decided, and under which rules</span></div>
+
+    <section class=blockq><h4>Provenance of this run</h4>
+      <p class=lede>A result without these is not reproducible whatever the seed
+        says: the same data reconciled under a different fee schedule is a
+        different answer to a different question. The solver version is a hash of
+        the code that decides, so a change shows up whether or not anyone
+        remembered to bump a number.</p>
+      <div class=prov>
+        ${Object.entries(p).map(([k, v]) => `<div class=pr>
+          <span class=prk>${esc(k.replace('_version', ''))}</span>
+          <span class="pv mono">${esc(v)}</span></div>`).join('')}
+        <div class=pr><span class=prk>native kernel</span>
+          <span class="pv mono">${t.solver.native ? 'attest_native (Rust)' : 'numpy fallback'}</span></div>
+      </div></section>
+
+    <section class=blockq><h4>Rules in force
+        <span class="mono" style="color:var(--dim3);font-weight:400;font-size:var(--t-micro)">
+          ${esc(t.rules.version)}</span></h4>
+      <p class=lede>These are the rules, not a description of them — the version
+        is a content hash of the rule set the engine ran. Change any rule and it
+        changes, which is what makes a run's provenance meaningful rather than
+        decorative.</p>
+      <div class=rules>
+        ${t.rules.described.map(x => `<div class=rl>
+          <span class=rn>${esc(x.rule)}</span>
+          <span class=rv>${esc(x.value)}</span>
+          <span class=rw>${esc(x.why)}</span></div>`).join('')}
+      </div></section>
+  </div>`;
+}
+
+/* ----------------------------------------------------------------- automate */
+async function drawAgents() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>running the pipeline…</div>';
+  const d = await api(`/api/agents?run=${S.run ? S.run.run_id : ''}`);
+  if (S.screen !== 'agents') return;
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Agent permissions</h1>
+      <span class=sub>${d.roster.length} agents · ${d.blocked.length} capabilities
+        held by none of them</span></div>
+
+    <section class=blockq><h4>Granted to nothing</h4>
+      <p class=lede>These are defined and refused rather than simply absent,
+        because an absence is silent and a refusal is auditable. When an agent
+        asks, the log says what it asked for and that it was denied — which is
+        the record you want when someone asks what the automation tried to do.
+        The engine posts entries, after a unique explanation has been
+        kernel-checked and the policy has priced the risk. No agent is in that
+        path.</p>
+      <div class=blocked>${d.blocked.map(c =>
+        `<span class=bl><i>✕</i>${esc(c)}</span>`).join('')}</div></section>
+
+    <section class=blockq><h4>The pipeline, run against this portfolio</h4>
+      <p class=lede>Agent → intent → evidence → verification → policy → action.
+        Every stage can refuse. What follows is not a description of that path —
+        it is that path, executed against the findings of the run you are
+        looking at.</p>
+      <div class=atts>
+        ${d.attempts.map(a => `<article class="atmpt ${a.allowed ? 'ok' : 'no'}">
+          <div class=ah><span class=an>${esc(a.agent)}</span>
+            <span class=ai>wants to ${esc(a.intent)}</span>
+            <span class="mono aj">${esc(a.subject)}</span>
+            <span class="ares ${a.allowed ? 'y' : 'n'}">${a.allowed ? 'eligible' : 'refused'}</span></div>
+          <div class=stg>${['capability', 'evidence', 'verification', 'policy', 'action']
+            .map(name => {
+              const st = a.steps.find(x => x.stage === name);
+              const cls = !st ? 'never' : st.passed ? 'pass' : 'stop';
+              return `<div class="sg ${cls}" title="${st ? esc(st.detail) : 'not reached'}">
+                <i></i><span>${name}</span></div>`;
+            }).join('')}</div>
+          <div class=areason>${esc((a.steps[a.steps.length - 1] || {}).detail || '')}</div>
+        </article>`).join('')}
+      </div></section>
+
+    <section class=blockq><h4>Roster</h4>
+      <div class=rost>${d.roster.map(a => `<div class=ag>
+        <div class=agn><b>${esc(a.name)}</b></div>
+        <div class=agp>${esc(a.purpose)}</div>
+        <div class=agc>${a.allowed.map(c => `<span class=cap>${esc(c)}</span>`).join('')}</div>
+      </div>`).join('')}</div></section>
+  </div>`;
+}
+
+async function drawEvents() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>reading the event log…</div>';
+  await refreshEvents();
+  if (S.screen !== 'events') return;
+  const e = S.events || { events: [] }, xs = e.events || [];
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Live events</h1>
+      <span class=sub>${xs.length} in the log</span></div>
+    <p class=lede>Webhook deliveries, verified over the raw request bytes before
+      anything is parsed, and de-duplicated on both the event id and a hash of the
+      payload — an id that arrives twice with different contents is not the same
+      event, and treating it as one is how a replay becomes a double posting.</p>
+    ${xs.length ? `<div class=evs>${xs.map(x => `<div class="ev ${esc(x.status || '')}">
+      <span class=et>${esc(x.at || '')}</span>
+      <span class="ek mono">${esc(x.event || x.type || '')}</span>
+      <span class=ed>${esc(x.detail || x.subject || '')}</span>
+      <span class="est ${esc(x.status || '')}">${esc(x.status || '')}</span>
+    </div>`).join('')}</div>`
+      : `<div class=empty>No events yet. Nothing is fabricated here — an empty
+         log means nothing has been delivered.</div>`}
+  </div>`;
+}
+
+async function drawExceptions() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>grouping exceptions…</div>';
+  const d = await api(`/api/exceptions?run=${S.run.run_id}`);
+  if (S.screen !== 'exceptions') return;
+  const gs = d.groups || d.reasons || [];
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Exceptions</h1>
+      <span class=sub>${gs.reduce((a, g) => a + (g.count || 0), 0)} across
+        ${gs.length} reasons</span></div>
+    <p class=lede>Grouped by why the engine stopped, not by what it was looking
+      at. Two settlements that failed for the same reason are one problem;
+      working them one at a time is how a queue stops being finishable.</p>
+    <div class=exg>${gs.map(g => `<article class=exc>
+      <div class=eh><b>${esc(g.label || g.reason || '')}</b>
+        <span class=en>${g.count || 0}</span>
+        <span class=ev2>${rs(g.amount_paise || 0, true)}</span></div>
+      <p class=ew>${esc(g.why || g.description || '')}</p>
+      ${g.next_step ? `<p class=ex-next><b>Next</b> ${esc(g.next_step)}</p>` : ''}
+      ${(g.examples || []).length ? `<div class=exs>${g.examples.map(x =>
+        `<button class=exl data-sid="${esc(x.id || x)}">${esc(x.id || x)}</button>`).join('')}</div>` : ''}
+    </article>`).join('')}</div>
+  </div>`;
+
+  el('right').querySelectorAll('.exl').forEach(b => b.onclick = () => {
+    const i = S.view.findIndex(r => r.id === b.dataset.sid);
+    if (i >= 0) { S.i = i; go('investigate', 'cases'); }
+  });
+}

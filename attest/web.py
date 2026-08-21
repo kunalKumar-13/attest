@@ -75,6 +75,17 @@ class Handler(BaseHTTPRequestHandler):
             v = api.investigate_view(r, q.get("id", [""])[0]) if r else None
             self._json(v or {"error": "not found"}, 200 if v else 404)
 
+        elif u.path == "/api/attention":
+            r = api.get(q.get("run", [""])[0])
+            self._json(api.attention(r) if r else {"error": "unknown run"},
+                       200 if r else 404)
+
+        elif u.path == "/api/agents":
+            self._json(api.agents_view(api.get(q.get("run", [""])[0])))
+
+        elif u.path == "/api/trust":
+            self._json(api.trust_view(api.get(q.get("run", [""])[0])))
+
         elif u.path == "/api/observatory":
             self._json(api.observatory())
 
@@ -101,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif u.path == "/api/exceptions":
             r = api.get(q.get("run", [""])[0])
-            self._json([e.to_json() for e in r.exceptions.values()] if r
+            self._json(api.exceptions_view(r) if r
                        else {"error": "unknown run"}, 200 if r else 404)
 
         elif u.path == "/api/settlement":
