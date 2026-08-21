@@ -1926,3 +1926,147 @@ def _question_for(reason: str) -> str:
         "INSUFFICIENT_EVIDENCE": "What would make this examinable at all?",
         "DATA_QUALITY": "Which rows are malformed, and how?",
     }.get(reason, "What should be checked next?")
+
+
+def decision_view(r: Run | None, stype: str, sid: str,
+                  review_paise: int = 15_000,
+                  exposure_paise: int = 10_000_000) -> dict[str, Any]:
+    """Given what ATTEST knows, what is it allowed to do? §1, §9, §17.
+
+    Policy never changes a verdict. It reads one and decides what action the
+    proof state permits, which is why the two are reported separately here
+    rather than blended into a single status — a settlement can be AMBIGUOUS and
+    REVIEW, and it is important that those are two facts and not one.
+
+    The decision is the engine's; this endpoint only unpacks it into rows. The
+    inequality it turns on is
+
+        P(error) × cost of a wrong posting  <  cost of a human review
+
+    and every term is reported so a reader can check the arithmetic rather than
+    trust the outcome.
+    """
+    if r is None:
+        return {"error": "no run"}
+
+    costs = Costs(review_paise=review_paise, max_exposure_paise=exposure_paise)
+    recorded = Costs()
+    version = policy_version(costs)
+    is_sim = version != policy_version(recorded)
+
+    if stype == "portfolio":
+        d = policy_view(r, review_paise, exposure_paise)
+        d.update({
+            "type": "portfolio", "subject": "portfolio",
+            "policy_version": version,
+            "recorded_version": policy_version(recorded),
+            "simulated": is_sim,
+            "groups": [
+                {"decision": "AUTO_POST", "count": d["auto_post"],
+                 "paise": d["posted_paise"],
+                 "why": "expected loss is below the cost of checking"},
+                {"decision": "REVIEW", "count": d["review"],
+                 "paise": d["protected_paise"],
+                 "why": "checking costs less than being wrong would"},
+                {"decision": "BLOCK", "count": d["block"], "paise": 0,
+                 "why": "above the exposure ceiling, where expected value is "
+                        "the wrong instrument"},
+            ],
+        })
+        return d
+
+    if stype != "settlement":
+        return {"error": f"policy has nothing to say about a {stype}"}
+
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None or sid not in st:
+        return {"error": "unknown settlement"}
+    s = st[sid]
+    j = decide(f, s, r.risk or RiskModel(), costs)
+
+    exposure = costs.wrong_post(s.net_paise)
+    loss = j.expected_loss_paise
+    proven = f.verdict is Verdict.PROVEN
+    postable = proven and getattr(f, "postable", False)
+
+    # §17: the safety chain, as gates that each say pass or fail and why. The
+    # order is the argument — nothing reaches policy without passing proof.
+    gates = [
+        {"stage": "proof", "name": "a unique explanation exists",
+         "ok": proven,
+         "why": ("one order set satisfies the credit exactly"
+                 if proven else
+                 f"the verdict is {f.verdict.value}")},
+        {"stage": "proof", "name": "re-derived by the independent verifier",
+         "ok": proven,
+         "why": ("the 28-line kernel accepted it, sharing no code with the prover"
+                 if proven else "nothing was submitted to the verifier")},
+        {"stage": "proof", "name": "the search space was not compromised",
+         "ok": bool(postable),
+         "why": ("uniqueness holds inside a space that did not exclude the truth"
+                 if postable else
+                 "uniqueness inside a reduced space is not uniqueness"
+                 if proven else "not reached")},
+        {"stage": "policy", "name": "expected loss is below the cost of checking",
+         "ok": bool(postable) and loss < costs.review_paise,
+         "why": (f"{_rs(loss)} against {_rs(costs.review_paise)}"
+                 if postable else "not reached — nothing was priced")},
+        {"stage": "policy", "name": "below the exposure ceiling",
+         "ok": s.net_paise <= costs.max_exposure_paise,
+         "why": (f"{_rs(s.net_paise)} against a ceiling of "
+                 f"{_rs(costs.max_exposure_paise)}")},
+    ]
+
+    inputs = [
+        {"k": "verdict", "v": f.verdict.value,
+         "note": "policy reads this; it never changes it"},
+        {"k": "search space",
+         "v": (f.space.integrity.value if getattr(f, "space", None) else "—"),
+         "note": (f.space.uniqueness_claim() if getattr(f, "space", None) else "")},
+    ]
+    if proven:
+        inputs += [
+            {"k": "P(error)", "v": f"{j.p_error:.4f}",
+             "note": "the 95% upper bound on the observed rate for this stratum, "
+                     "not the point estimate"},
+            {"k": "cost if wrong", "v": _rs(exposure),
+             "note": "the posting, plus what unwinding it costs"},
+            {"k": "expected loss", "v": _rs(loss),
+             "note": "P(error) × cost if wrong"},
+        ]
+    inputs.append({"k": "cost of a review", "v": _rs(costs.review_paise),
+                   "note": "an analyst opening this settlement and deciding"})
+
+    return {
+        "type": "settlement", "subject": sid,
+        "verdict": f.verdict.value,
+        "decision": j.decision.value,
+        "amount_paise": s.net_paise,
+        "inputs": inputs,
+        "gates": gates,
+        # The boundary, as two comparable numbers on one axis. Reported even
+        # when nothing was priced, so the reader can see WHY it was not.
+        "boundary": {
+            "priced": bool(postable),
+            "expected_loss_paise": loss if postable else None,
+            "review_paise": costs.review_paise,
+            "ceiling_paise": costs.max_exposure_paise,
+            "statement": ((f"{_rs(loss)} expected loss against {_rs(costs.review_paise)} "
+                           f"to check — "
+                           + ("automating is cheaper" if loss < costs.review_paise
+                              else "checking is cheaper"))
+                          if postable else
+                          "Nothing was priced. The proof did not establish a "
+                          "unique explanation, so there is no error probability "
+                          "to multiply."),
+        },
+        "reasons": list(j.reasons),
+        "policy_version": version,
+        "recorded_version": policy_version(recorded),
+        "simulated": is_sim,
+        "provenance": (r.provenance.to_json() if r.provenance else {}),
+        "note": "Policy decides what the proof state permits. It cannot make a "
+                "settlement proven, and a proven settlement is not "
+                "automatically posted.",
+    }

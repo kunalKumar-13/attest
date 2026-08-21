@@ -634,3 +634,155 @@ def test_a_stale_investigation_cannot_land_on_another_subject(page):
     subject, _, _ = _state(page)
     assert subject == "portfolio:portfolio"
     assert "indistinguishable" not in page.inner_text("#workspace").lower()
+
+
+# -------------------------------------------------------------- P5: Policy
+
+def test_portfolio_policy_groups_by_what_is_permitted(page):
+    """§21."""
+    _ev(page, "#/portfolio/policy")
+    assert _state(page)[:2] == ["portfolio:portfolio", "policy"]
+    groups = page.eval_on_selector_all(".p-grp .p-grp-d",
+                                       "x => x.map(n => n.textContent.trim())")
+    assert set(groups) == {"AUTO-POST", "REVIEW", "BLOCK"}
+
+
+def test_settlement_policy_states_the_decision_and_the_verdict_apart(page):
+    """§4, §8. A settlement can be AMBIGUOUS and REVIEW; those are two facts."""
+    _ev(page, "#/settlement/setl_000089/policy")
+    head = page.inner_text(".p-head")
+    assert "REVIEW" in head
+    assert "AMBIGUOUS" in head
+    assert "does not change it" in head
+
+
+def test_the_decision_is_expressed_as_a_cost_comparison(page):
+    """§1, §15, §27. Not a score, not a confidence — an inequality."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    body = page.inner_text("#workspace")
+    assert "expected loss" in body.lower()
+    assert "to check" in body.lower()
+    assert "₹" in page.inner_text(".p-bound-k")
+
+
+def test_the_word_confidence_never_appears_in_policy(page):
+    """§15."""
+    for h in ("#/portfolio/policy", "#/settlement/setl_000020/policy",
+              "#/settlement/setl_000089/policy"):
+        _ev(page, h)
+        assert "confidence" not in page.inner_text("#workspace").lower()
+
+
+def test_an_unproven_settlement_is_never_priced(page):
+    """§16, §33. Policy cannot reach a settlement the proof did not establish,
+    so there is no expected loss to compare — and the UI must say that rather
+    than show a number it does not have."""
+    _ev(page, "#/settlement/setl_000089/policy")
+    bound = page.inner_text(".p-bound")
+    assert "nothing was priced" in bound.lower()
+    assert page.eval_on_selector_all(".p-bound-mark", "x => x.length") == 0
+    # every proof gate failed, so no policy gate could pass
+    ok = page.eval_on_selector_all(".p-gate.ok", "x => x.length")
+    assert ok == 0, "a policy gate passed without proof"
+
+
+def test_the_proof_gates_precede_the_policy_gates(page):
+    """§17, §33. AI never skips proof, and the layout is the argument."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    stages = page.eval_on_selector_all(".p-stage-h",
+                                       "x => x.map(n => n.textContent.trim().toLowerCase())")
+    assert stages == ["proof", "policy"], stages
+
+
+def test_the_policy_version_is_visible_and_derived_from_the_costing(page):
+    """§12, §25. A what-if is a different policy version, not a recomputation."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    body = page.inner_text("#workspace")
+    assert "policy_" in body
+    recorded = page.evaluate("""(async () => {
+      const a = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
+        + `&id=setl_000020&review=15000`)).json();
+      const b = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
+        + `&id=setl_000020&review=50000`)).json();
+      return [a.policy_version, b.policy_version, a.simulated, b.simulated];
+    })()""")
+    assert recorded[0] != recorded[1], "the costing did not change the version"
+    assert recorded[2] is False and recorded[3] is True
+
+
+def test_the_ui_decision_matches_the_engine(page):
+    """§5, §30.8. The UI represents the engine; it does not re-derive it."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    shown = page.inner_text(".p-head-d").strip()
+    from_api = page.evaluate("""(async () => {
+      const d = await (await fetch(`/api/decision?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000020&review=${SHELL.review}`)).json();
+      return d.decision; })()""")
+    assert shown.replace("-", "_") == from_api
+
+
+def test_simulating_a_costing_does_not_change_the_recorded_decision(page):
+    """§19, §26. Simulation operates on a snapshot and executes nothing."""
+    _ev(page, "#/portfolio/policy")
+    before = page.evaluate("""(async () => (await (await fetch(
+      `/api/decision?run=${SHELL.run}&type=portfolio&review=15000`)).json()).auto_post)()""")
+    page.evaluate("SHELL.review = 250000; navigate({}, {replace:true})")
+    page.wait_for_timeout(2200)
+    assert page.query_selector(".p-sim"), "the simulation was not labelled"
+    after = page.evaluate("""(async () => (await (await fetch(
+      `/api/decision?run=${SHELL.run}&type=portfolio&review=15000`)).json()).auto_post)()""")
+    assert before == after, "simulating mutated the recorded decision"
+    page.evaluate("SHELL.review = 15000; navigate({}, {replace:true})")
+    page.wait_for_timeout(1800)
+
+
+def test_policy_offers_no_way_to_execute_an_action(page):
+    """§22. Policy says ALLOWED. Action executes. Keep the boundary."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    buttons = page.eval_on_selector_all(
+        "#w-main button", "x => x.map(n => n.textContent.trim().toLowerCase())")
+    for b in buttons:
+        assert "post now" not in b and "execute" not in b and "approve" not in b
+
+
+def test_a_policy_decision_opens_as_context(page):
+    _ev(page, "#/portfolio/policy")
+    before = page.inner_text("#w-main")
+    page.click(".p-grp")
+    page.wait_for_timeout(1400)
+    subject, lens, context = _state(page)
+    assert subject == "portfolio:portfolio"
+    assert lens == "policy"
+    assert context and context.startswith("decision:")
+    assert page.inner_text("#w-main") == before
+    assert "DECISION" in page.inner_text(".c-crumb").upper()
+
+
+def test_policy_to_journal_preserves_the_subject(page):
+    """§23. The chain is followable without losing the case."""
+    _ev(page, "#/settlement/setl_000020/policy")
+    page.click("[data-lens=journal]")
+    page.wait_for_timeout(1900)
+    subject, lens, _ = _state(page)
+    assert subject == "settlement:setl_000020"
+    assert lens == "journal"
+
+
+def test_policy_decisions_are_readable_without_colour(page):
+    """§29. Colour may reinforce; it cannot be the only signal."""
+    _ev(page, "#/settlement/setl_000089/policy")
+    gates = page.eval_on_selector_all(
+        ".p-gate .p-gate-s", "x => x.map(n => n.textContent.trim().toLowerCase())")
+    assert gates and all(g in ("passed", "not satisfied") for g in gates)
+    assert page.eval_on_selector_all(".p-gate i", "x => x.map(n => n.textContent.trim())")
+
+
+def test_a_stale_policy_fetch_cannot_land_on_another_subject(page):
+    _ev(page, "#/settlement/setl_000089/policy")
+    page.route("**/api/decision*", lambda route: (page.wait_for_timeout(2500),
+                                                  route.continue_()))
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.wait_for_timeout(3600)
+    page.unroute("**/api/decision*")
+    assert _state(page)[0] == "settlement:setl_000020"
+    assert "1,00,036.83" not in page.inner_text("#workspace")
