@@ -186,23 +186,31 @@ money is accounted for, and what happened to the rest.**
 Navigation is four verbs, and depth lives inside a mode rather than beside it:
 
 ```
-CONTROL      what is happening      Attention · Overview
-INVESTIGATE  why                    Settlements · Exceptions · What changed · Ask
-VERIFY       can we prove it        Accuracy · Failures · Trust centre
-AUTOMATE     what is allowed        Policy · Journal · Agents · Sources · Live events
+CONTROL      what is happening   Attention · Act · Overview
+INVESTIGATE  why                 Settlements · Exceptions · What changed · AI trail · Ask
+VERIFY       can we prove it     Accuracy · Failures · Trust centre
+AUTOMATE     what is allowed     Policy · Journal · Agents · Sources · Live events
 ```
 
 CONTROL opens on what needs a person, ordered by value at stake rather than by
 count, and every item opens **Financial State**: what we know, why, what would
 resolve it, what ATTEST will do — in that order, refusing to open with a status.
 
-Three of these screens demonstrate rather than assert. *Live events* sends four
+Four of these screens demonstrate rather than assert. *Live events* sends four
 webhook deliveries through the same verify/de-duplicate/scope path the HTTP
 endpoint uses and prints what came back. *Agents* runs the permission pipeline
 against the current run's findings, so `post_accounting_entry` being refused at
 the capability stage is something the code did. *Accuracy* reads the same two
 benchmark files the build reads, so the screen cannot report a pass CI would
-fail. `⌘K` reaches any screen, and any settlement in the attention queue.
+fail. *AI trail* runs the disabled hypothesis loop, throws its verdict away, and
+shows the measurement that disabled it — read from `benchmark/anchoring.json`
+rather than transcribed.
+
+**Act** ranks the work by what each piece of it unlocks rather than by what is
+stuck: 197 ambiguous settlements is one action, not 197, because they are all
+ambiguous for the same missing field. **Journal** is the double-entry accounting
+a proof implies, balanced to the paisa. `⌘K` reaches any screen, any saved view,
+and any settlement in the attention queue.
 
 See `docs/UX-AUDIT.md` for what the audit found, what was chosen, and the eight
 defects that reading the screens turned up.
@@ -232,6 +240,7 @@ attest/evidence.py     cross-settlement propagation (off by default)
 attest/generate/       hazard taxonomy + generator — FROZEN
 attest/policy.py       Wilson-priced risk, the auto-post inequality
 attest/ledger.py       the journal entry a proof implies, balanced to the paisa
+attest/actions.py      the work ranked by value unlocked per step
 attest/rules.py        content-hashed rule set + run provenance
 attest/agents.py       capabilities, and the four granted to nothing
 attest/whatchanged.py  run-to-run diff with computed attribution

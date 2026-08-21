@@ -93,10 +93,10 @@ Fourteen screens across the four modes. Sub-navigation lives inside a mode, so
 adding a surface does not add a top-level item — which was the failure the audit
 predicted for the flat top bar.
 
-    CONTROL      Attention · Overview
-    INVESTIGATE  Settlements · Exceptions · What changed · Ask ATTEST
+    CONTROL      Attention · Act · Overview
+    INVESTIGATE  Settlements · Exceptions · What changed · AI trail · Ask ATTEST
     VERIFY       Accuracy · Failures · Trust centre
-    AUTOMATE     Policy · Agents · Sources · Live events
+    AUTOMATE     Policy · Journal · Agents · Sources · Live events
 
 Three of these had modules but no surface before this pass: **Trust centre**
 (`rules.py` provenance and `eval/gate.py`), **Agent permissions** (`agents.py`),
@@ -153,3 +153,41 @@ The contrast result was the one that mattered. The old de-emphasis ramp bottomed
 out at 2.38:1, and that is where nearly all the explanatory prose lived — so the
 writing this product depends on to make its case was the writing hardest to
 read.
+
+## F · The second pass
+
+Four more surfaces, each of which changed something about the engine rather than
+only rendering it.
+
+**Act** (`actions.py`) inverts Exceptions. Exceptions groups by why the engine
+stopped, which reads as a queue of 197 things; Act groups by what you would do
+about it, which is one thing. The ranking is value unlocked *per piece of work*,
+and each action states whether it is systemic (one change at the source), a free
+re-run (no new data), or per-item (someone finds a record, and it does not
+amortise). A queue sorted by amount alone puts a week of individual work above a
+one-line change worth eighty times more.
+
+**Journal** (`ledger.py`) is the accounting a proof implies — the thing that was
+always the point and had never been written down. It balances because
+`net = gross - fee - tax` is the identity the engine rests on, so the balance
+check is the fee model restated. Two decisions it forced: the bank line carries
+the credit that *actually arrived* rather than the modelled net, and the fee/tax
+split comes from the rule set the proof was built under and is checked to sum
+back to the proof's own figure.
+
+**AI trail** produced the pass's most useful finding. Printing what the
+hypothesis loop actually did showed it proposing the identical anchor three
+times — see D22. The loop had no feedback channel for a uniqueness refutation,
+so D8's 0.521 was measured on a loop that tried one hypothesis while appearing
+to try three. Fixed, re-measured, and the fix changed nothing: three rounds
+resolve exactly what one round resolves, because 53% of candidate pools span a
+single capture date and the proposer's whole lens is "the densest same-day
+batch".
+
+**Sync health** and **saved views** are smaller. Sync computes which verdicts
+are *unrevised* — decided before an event arrived that names them — rather than
+asserting a connection is up. The filter box became a small query language,
+because a filter you can type is a filter you can save and hand to someone else.
+
+Screens: 17. Tests: 69. Contrast failures: 0. Horizontal overflow: 0 from 430px
+to 1512px.
