@@ -1,13 +1,12 @@
-/* One data layer for all three compositions.
+/* The data layer for the Case Desk.
  *
- * Rule 1 of the experiment is that A, B and C read identical data. The cheapest
- * way to be wrong about that is to let each composition fetch for itself and
- * drift — one passing `type=portfolio`, another forgetting it, and a comparison
- * that is silently measuring two different runs.
- *
- * So the fetching lives here once. A composition receives a plain object and
- * decides only how it looks. If a composition needs a field this does not
- * return, that is a signal the experiment has stopped being about presentation.
+ * Written to serve three competing compositions so that "identical data" was
+ * structural rather than a promise: each received a plain object and decided
+ * only how it looked, so the comparison could not silently be measuring two
+ * different runs. B and C were deleted after the review; the separation stays,
+ * because a renderer that fetches for itself is a renderer that will one day
+ * pass `type=portfolio` for a settlement and render an empty lens rather than
+ * an error. That happened twice while building this.
  */
 'use strict';
 
