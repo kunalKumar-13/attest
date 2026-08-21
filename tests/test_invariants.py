@@ -1050,17 +1050,24 @@ def test_adapter001_the_same_recon_row_twice_does_not_inflate_a_settlement() -> 
     two = a.normalise([_recon_row(), _recon_row()], [])
     assert two.settlements[0].net_paise == one.settlements[0].net_paise
     assert len(two.orders) == len(one.orders) == 1
-    assert any("duplicate" in w for w in two.warnings)
+    assert two.duplicates == 1
+    assert any("same source identity" in w for w in two.warnings)
 
 
 def test_adapter001_distinct_rows_are_not_deduplicated() -> None:
     """Failing closed on duplicates must not swallow genuine second payments."""
     from attest.adapters.razorpay import RazorpayAdapter
     a = RazorpayAdapter(key_id=None, key_secret=None)
-    snap = a.normalise([_recon_row(),
-                        _recon_row(entity_id="pay_2", order_id="ord_2")], [])
+    snap = a.normalise([_recon_row(entity_id="pay_1", payment_id="pay_1"),
+                        _recon_row(entity_id="pay_2", payment_id="pay_2",
+                                   order_id="ord_2")], [])
     assert len(snap.orders) == 2
     assert snap.settlements[0].net_paise == 2000
+    # And a row that names itself twice, differently, is refused rather than
+    # resolved by preferring one field — merging distinct records loses money.
+    conflict = a.normalise([_recon_row(entity_id="pay_2")], [])
+    assert not conflict.orders
+    assert "names itself both" in conflict.rejected[0].reason
 
 
 def test_adapter002_a_non_integer_amount_is_dropped_not_truncated() -> None:
@@ -1070,7 +1077,8 @@ def test_adapter002_a_non_integer_amount_is_dropped_not_truncated() -> None:
     a = RazorpayAdapter(key_id=None, key_secret=None)
     snap = a.normalise([_recon_row(amount=10.5)], [])
     assert not snap.orders
-    assert any("whole paise" in w for w in snap.warnings)
+    assert snap.rejected[0].index == 0
+    assert "non-integral" in snap.rejected[0].reason
     # a float that IS a whole number is fine; the objection is to losing paise
     ok = a.normalise([_recon_row(amount=1024.0)], [])
     assert len(ok.orders) == 1 and ok.orders[0].gross_paise == 1024
@@ -1083,7 +1091,10 @@ def test_adapter003_a_malformed_row_is_counted_not_fatal() -> None:
     a = RazorpayAdapter(key_id=None, key_secret=None)
     snap = a.normalise(["nonsense", None, _recon_row()], [])
     assert len(snap.orders) == 1
-    assert any("not objects" in w for w in snap.warnings)
+    # ADAPTER-003 was upgraded from a counter to explicit records: a count of
+    # skipped rows cannot be acted on, an index and a reason can.
+    assert [r.index for r in snap.rejected] == [0, 1]
+    assert "not an object" in snap.rejected[0].reason
 
 
 def test_the_adapter_refuses_to_fetch_without_credentials() -> None:

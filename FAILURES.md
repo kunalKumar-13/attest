@@ -1179,6 +1179,50 @@ it is not linear: per-settlement cost rises with portfolio size because pools
 grow with density. A throughput figure quoted without its portfolio size means
 nothing, which is the same lesson as D11 in a different clothing.
 
+## D23 — 2026-08-22
+
+**Six defects in the reader. Every one of them changes a verdict, and not one
+of them is visible from inside the engine.**
+
+ATTEST checks its own proofs with an independent kernel that shares no code with
+the prover. Nothing checks that the numbers the prover was handed are the
+numbers Razorpay sent. The adapter is the only part of the system with no proof
+obligation attached to it, so it is the natural place for a silent error to
+live — and running attacks against it rather than reading it found six.
+
+```
+1000 read twice                 → settlement net 2000, CONTRADICTED
+int(10.5)                       → 10, money altered, nobody told
+non-dict row                    → AttributeError, the whole page lost
+str(None) == "None"             → every unidentified row shares one identity
+if self.secret and not verify() → no secret means nothing is verified
+json.loads(bad_body)            → raises past the boundary that exists to stop it
+```
+
+The fourth is the one worth keeping. Deduplication was supposed to fall back
+through identity fields, written as a conditional expression wrapped in `str()`.
+`str(None)` is `"None"` — a perfectly truthy string — so every row lacking a
+`payment_id` was assigned the same identity and collapsed into one record. The
+fix for double-counting had quietly become a cause of under-counting, which is
+strictly worse: an inflated settlement contradicts and gets looked at, a
+deflated one balances and does not.
+
+That suggested the sharper question, which the tests now carry: what happens
+when a row names itself **twice, differently**? Preferring one field merges two
+records the source labelled as distinct. So the reader refuses: an identity the
+source has not agreed with itself about is not an identity.
+
+The same asymmetry governs rejections. A row whose amount cannot be read loses
+its order but keeps its credit in the settlement total, so the target stays as
+large as the source claimed and the gap surfaces. Dropping the credit too would
+shrink the target until the surviving orders explained it exactly — a read
+failure promoted to a PROVEN verdict. Fail closed means failing toward the
+verdict that gets a human's attention, not toward the one that is tidy.
+
+**Fifty tests, six gates unmoved at +0.0000.** The gates not moving is the
+result: these are reader bugs, so a verdict that changed would have meant the
+fix reached somewhere it had no business reaching.
+
 ## D22 — 2026-08-21
 
 **The AI loop had been arguing with itself. It proposed the same hypothesis

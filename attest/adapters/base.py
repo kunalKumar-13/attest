@@ -32,6 +32,25 @@ from typing import Protocol
 from attest.model import BankCredit, Order, Settlement
 
 
+@dataclass(frozen=True)
+class Rejection:
+    """One source record the adapter would not read, and why. ADAPTER-003.
+
+    Kept rather than counted. A malformed row is a fact about the source, and
+    an ingestion that reports "3 rows skipped" cannot be acted on — the reader
+    needs the index to find it and the identity to ask the source about it.
+    """
+
+    index: int
+    reason: str
+    identity: str = ""
+    record_type: str = ""
+
+    def to_json(self) -> dict[str, object]:
+        return {"index": self.index, "reason": self.reason,
+                "identity": self.identity, "record_type": self.record_type}
+
+
 @dataclass
 class Snapshot:
     """Records plus the account of where they came from."""
@@ -52,6 +71,14 @@ class Snapshot:
     warnings: list[str] = field(default_factory=list)
     """Things a reader must know before trusting a number derived from this —
     partial pages, rate limits, missing entity types."""
+
+    rejected: list[Rejection] = field(default_factory=list)
+    """Source records that could not be read exactly. Explicit, indexed and
+    identified — never silently dropped, and never rounded into acceptance."""
+
+    duplicates: int = 0
+    """Source records discarded because a record with the same source identity
+    was already read in this pull. ADAPTER-001."""
 
     #: Records the source carries that the engine can use as an ANCHOR rather
     #: than having to solve for. See `linked_fraction`.

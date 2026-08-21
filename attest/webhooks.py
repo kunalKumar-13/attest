@@ -44,6 +44,12 @@ class EventStatus(str, Enum):
     one case where silently ignoring the second delivery would lose data."""
     BAD_SIGNATURE = "bad_signature"
     UNSUPPORTED = "unsupported"
+    UNVERIFIABLE = "unverifiable"
+    """No signing secret is configured, so authenticity cannot be established.
+
+    Fails CLOSED. A financial webhook boundary that processes an unverified
+    event because someone forgot an environment variable is a boundary in name
+    only, and the failure is silent — which is the worst combination."""
 
 
 #: Event types this engine knows how to act on. Anything else is stored and
@@ -200,8 +206,32 @@ class Ingest:
     def handle(self, provider: str, body: bytes, signature: str,
                order_to_settlement: dict[str, str],
                known_settlements: set[str]) -> Event:
-        if self.secret and not verify(body, signature, self.secret):
-            now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+
+        # Fail closed on an absent secret. This used to read `if self.secret
+        # and not verify(...)`, so a deployment that never set the secret
+        # verified nothing, processed everything, and said so nowhere.
+        if not self.secret:
+            ev = Event(provider, "-", "-", {}, now,
+                       hashlib.sha256(body).hexdigest(),
+                       EventStatus.UNVERIFIABLE,
+                       detail=("no signing secret is configured, so this "
+                               "event's authenticity cannot be established; "
+                               "ingestion is refused rather than performed "
+                               "unverified"))
+            self.log.events.append(ev)
+            return ev
+
+        if not signature:
+            ev = Event(provider, "-", "-", {}, now,
+                       hashlib.sha256(body).hexdigest(),
+                       EventStatus.BAD_SIGNATURE,
+                       detail="no signature was supplied; an unsigned body is "
+                              "not evidence of anything")
+            self.log.events.append(ev)
+            return ev
+
+        if not verify(body, signature, self.secret):
             ev = Event(provider, "-", "-", {}, now,
                        hashlib.sha256(body).hexdigest(),
                        EventStatus.BAD_SIGNATURE,
@@ -211,7 +241,21 @@ class Ingest:
             self.log.events.append(ev)
             return ev
 
-        payload = json.loads(body)
+        try:
+            payload = json.loads(body)
+            if not isinstance(payload, dict):
+                raise ValueError("body is not an object")
+        except (ValueError, UnicodeDecodeError) as e:
+            # A malformed body used to raise out of the ingest and was caught
+            # only by the HTTP layer. Rejected here, on the record, so the log
+            # shows that something arrived and was refused.
+            ev = Event(provider, "-", "-", {}, now,
+                       hashlib.sha256(body).hexdigest(),
+                       EventStatus.BAD_SIGNATURE,
+                       detail=f"signature verified but the body is not usable "
+                              f"JSON: {e}")
+            self.log.events.append(ev)
+            return ev
         kind = str(payload.get("event") or "unknown")
         event_id = str(payload.get("id") or hashlib.sha256(body).hexdigest()[:24])
 

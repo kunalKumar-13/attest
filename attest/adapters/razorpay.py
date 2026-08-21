@@ -38,8 +38,55 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-from attest.adapters.base import NotConnected, Snapshot
+from attest.adapters.base import NotConnected, Rejection, Snapshot
+from attest.adapters.money import AmountError, Unit, parse_amount
 from attest.model import BankCredit, Method, Order, Settlement
+
+#: Razorpay's recon API quotes every amount in INTEGER PAISE. Declared rather
+#: than inferred: `10.50` means ten and a half paise under this contract, not
+#: ten rupees fifty, and a reader that guesses will eventually guess wrong by a
+#: factor of a hundred.
+AMOUNT_UNIT = Unit.PAISE
+
+#: Strongest stable identity per record type, most specific first. Falls back
+#: to the generic entity id, and to NOTHING at all — deliberately. `str(None)`
+#: is the truthy string "None", so a fallback chain written carelessly gives
+#: every unidentified row the SAME identity and deduplicates unrelated
+#: payments into one. Identity is read, never coerced.
+_ID_FIELDS = {
+    "payment": ("payment_id", "entity_id"),
+    "refund": ("refund_id", "entity_id"),
+    "adjustment": ("entity_id",),
+    "dispute": ("entity_id",),
+}
+
+
+class IdentityConflict(ValueError):
+    """A row names itself twice, differently."""
+
+
+def _identity(row: dict[str, object], kind: str) -> str:
+    """The strongest stable identity the SOURCE provides, or nothing.
+
+    On a Razorpay recon row the entity id of a payment IS its payment id, so
+    the two fields disagreeing means the row is internally inconsistent. The
+    reader must not resolve that by preferring one — picking `payment_id` would
+    merge two records the source labelled as different entities, which loses
+    money the same way double-counting invents it. Raised, not guessed.
+    """
+    found: list[str] = []
+    for field in _ID_FIELDS.get(kind, ("entity_id",)):
+        v = row.get(field)
+        if isinstance(v, str) and v.strip():
+            found.append(v.strip())
+        elif isinstance(v, int) and not isinstance(v, bool):
+            found.append(str(v))
+    if len(set(found)) > 1:
+        raise IdentityConflict(
+            f"row names itself both {' and '.join(sorted(set(found)))}; the "
+            f"source has not said which record this is")
+    return found[0] if found else ""
+
 
 BASE = "https://api.razorpay.com/v1"
 RECON = "/settlements/recon/combined"
@@ -160,44 +207,63 @@ class RazorpayAdapter:
         settled_on: dict[str, int] = {}
         linked = 0
         unknown_methods: set[str] = set()
-        malformed = 0
-        non_integer: set[str] = set()
+        rejected: list[Rejection] = []
 
-        # ADAPTER-001. Recon rows are aggregated into a settlement total, so the
-        # same row arriving twice DOUBLES that settlement. Pagination with an
+        # ADAPTER-001. Recon rows aggregate into a settlement total, so the same
+        # row read twice DOUBLES that settlement. Razorpay pagination with an
         # overlapping `skip` window and a retried pull both produce exactly
-        # that, and the result is a settlement net that no bank credit matches —
-        # a CONTRADICTED verdict caused by the reader rather than the books.
-        # Identity is `entity_id` where the API supplies one, and a hash of the
-        # row where it does not.
-        seen: set[str] = set()
-        deduped: list[dict[str, object]] = []
-        for it in items:
-            if not isinstance(it, dict):
-                # ADAPTER-003. A non-dict row used to raise AttributeError out
-                # of normalisation. A malformed row is the source's problem and
-                # is counted, not fatal.
-                malformed += 1
-                continue
-            import hashlib as _h
-            import json as _j
-            key = str(it.get("entity_id") or "")
-            if not key:
-                key = _h.sha256(
-                    _j.dumps(it, sort_keys=True, default=str).encode()).hexdigest()
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(it)
-        duplicates = len(items) - len(deduped) - malformed
+        # that, and the result is a settlement net no bank credit matches — a
+        # CONTRADICTED verdict caused by the reader rather than the books.
+        #
+        # Identity is the strongest STABLE one the source provides, chosen by
+        # record type, never an amount and never a fabricated key:
+        #
+        #     payment     payment_id, else entity_id
+        #     refund      refund_id,  else entity_id
+        #     adjustment  entity_id
+        #     anything    entity_id
+        #
+        # A row carrying no identity at all is kept: two genuinely distinct rows
+        # can be identical in every field, and discarding one to be tidy would
+        # lose money. Deduplication needs the source to assert sameness.
+        seen: set[tuple[str, str]] = set()
+        deduped: list[tuple[int, dict[str, object]]] = []
+        duplicates = 0
 
-        for it in deduped:
+        for i, it in enumerate(items):
+            if not isinstance(it, dict):
+                # ADAPTER-003. This raised AttributeError, losing the page.
+                rejected.append(Rejection(
+                    i, f"row is {type(it).__name__}, not an object"))
+                continue
+            kind = str(it.get("type") or "")
+            try:
+                ident = _identity(it, kind)
+            except IdentityConflict as e:
+                rejected.append(Rejection(i, str(e), "", kind))
+                continue
+            if ident:
+                key = (kind, ident)
+                if key in seen:
+                    duplicates += 1
+                    continue
+                seen.add(key)
+            deduped.append((i, it))
+
+        for i, it in deduped:
             sid = str(it.get("settlement_id") or "")
             kind = str(it.get("type") or "")
-            credit = int(it.get("credit") or 0)
-            debit = int(it.get("debit") or 0)
-            fee = int(it.get("fee") or 0)
-            tax = int(it.get("tax") or 0)
+
+            try:
+                credit = parse_amount(it.get("credit") or 0, AMOUNT_UNIT)
+                debit = parse_amount(it.get("debit") or 0, AMOUNT_UNIT)
+                fee = parse_amount(it.get("fee") or 0, AMOUNT_UNIT)
+                tax = parse_amount(it.get("tax") or 0, AMOUNT_UNIT)
+            except AmountError as e:
+                rejected.append(Rejection(
+                    i, f"settlement column: {e}",
+                    str(it.get("entity_id") or ""), kind))
+                continue
 
             if sid:
                 agg = by_settlement.setdefault(sid, {"credit": 0, "debit": 0})
@@ -221,16 +287,20 @@ class RazorpayAdapter:
                 unknown_methods.add(raw_method or "(absent)")
                 continue
 
-            # ADAPTER-002. Every amount is integer paise. A float here was
-            # silently truncated — 10.5 became 10 — which is a money value
-            # changed by the reader without anyone being told.
+            # ADAPTER-002. Read exactly or not at all. `int(10.5)` gave 10 —
+            # money altered by the reader with nobody told. attest/adapters/
+            # money.py declares the unit rather than inferring it, because
+            # 10.50 is ambiguous without one and a reader that guesses will
+            # eventually guess wrong by a factor of a hundred.
             raw_amount = it.get("amount")
             if raw_amount is None:
                 raw_amount = credit + fee + tax
-            if isinstance(raw_amount, float) and raw_amount != int(raw_amount):
-                non_integer.add(str(raw_amount))
+            try:
+                gross = parse_amount(raw_amount, AMOUNT_UNIT)
+            except AmountError as e:
+                rejected.append(Rejection(
+                    i, f"amount: {e}", str(it.get("entity_id") or ""), kind))
                 continue
-            gross = int(raw_amount)
             oid = str(it.get("order_id") or it.get("entity_id") or "")
             pid = str(it.get("payment_id") or it.get("entity_id") or "") or None
             created = int(it.get("created_at") or 0)
@@ -255,18 +325,15 @@ class RazorpayAdapter:
 
         if duplicates:
             warnings.append(
-                f"{duplicates} duplicate recon row(s) discarded before "
-                f"aggregation. Counting one twice inflates a settlement total "
-                f"and produces a CONTRADICTED verdict caused by the reader.")
-        if malformed:
+                f"{duplicates} recon row(s) discarded: a record with the same "
+                f"source identity was already read in this pull. Counting one "
+                f"twice inflates a settlement total and produces a "
+                f"CONTRADICTED verdict caused by the reader.")
+        if rejected:
             warnings.append(
-                f"{malformed} row(s) were not objects and were skipped.")
-        if non_integer:
-            warnings.append(
-                f"amounts that were not whole paise, dropped rather than "
-                f"rounded: {', '.join(sorted(non_integer))}. Every amount in "
-                f"ATTEST is integer paise; truncating one silently changes "
-                f"money without saying so.")
+                f"{len(rejected)} source record(s) could not be read exactly "
+                f"and were rejected rather than rounded. Each is listed with "
+                f"its row index and reason in `snapshot.rejected`.")
         if unknown_methods:
             warnings.append(
                 f"unrecognised payment methods dropped: {', '.join(sorted(unknown_methods))}. "
@@ -281,4 +348,5 @@ class RazorpayAdapter:
         return Snapshot(
             orders=orders, settlements=settlements, credits=credits,
             source="razorpay", live=live, fetched_at=datetime.now(timezone.utc),
-            coverage=coverage, warnings=warnings, linked_orders=linked)
+            coverage=coverage, warnings=warnings, linked_orders=linked,
+            rejected=rejected, duplicates=duplicates)
