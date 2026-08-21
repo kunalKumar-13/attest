@@ -19,6 +19,8 @@ search space — which is exactly what D3 and D8 measured, and exactly what
 
 from __future__ import annotations
 
+import pytest
+
 import sys
 from pathlib import Path
 
@@ -701,3 +703,221 @@ def test_the_portfolio_spine_marks_a_stage_that_holds_value() -> None:
         if x.get("held"):
             assert x["state"] == "stopped", \
                 f"{x['key']} holds {x['held']} settlements but reports {x['state']}"
+
+
+# ----------------------------------------------------------- claim integrity
+
+def test_every_registered_claim_reads_from_its_artifact() -> None:
+    """§8.1. A claim marked MEASURED whose artifact is missing is a claim
+    nothing checks, which is how a precision figure survived six days past the
+    measurement that refuted it."""
+    from attest.eval.claims import REGISTER, value
+    for c in REGISTER:
+        if c.status != "MEASURED":
+            continue
+        v = value(c)
+        assert v is not None and v != {}, \
+            f"{c.id} is MEASURED but {c.artifact}{list(c.path)} is absent"
+
+
+def test_no_percentage_in_the_readme_is_unaccounted_for() -> None:
+    """The check that makes the register load-bearing rather than decorative."""
+    from attest.eval.claims import audit
+    a = audit()
+    bad = [f for f in a.findings if f.kind != "note"]
+    assert not bad, "\n".join(f"{f.where}: {f.detail}" for f in bad)
+
+
+def test_the_readme_blocks_match_the_artifacts() -> None:
+    """Regenerating must be a no-op. If it is not, the prose has drifted."""
+    import pathlib
+
+    from attest.eval.claims import MARK_BASELINES, MARK_RESULTS, ROOT, \
+        render_baselines, render_results
+    s = (ROOT / "README.md").read_text()
+    for (start, end), body, name in ((MARK_RESULTS, render_results(), "results"),
+                                     (MARK_BASELINES, render_baselines(), "baselines")):
+        assert start in s, f"the {name} block is not generated"
+        i = s.index(start) + len(start)
+        j = s.index(end, i)
+        assert s[i:j] == f"\n{body}\n", \
+            f"the {name} block has drifted from its artifact"
+
+
+def test_the_canonical_panel_is_the_held_out_seeds() -> None:
+    """§8.2. Three of the five seeds fit the risk model. Evaluating on all five
+    would report the policy's memory as its accuracy — D14."""
+    from attest.eval.benchmark import CALIBRATION_SEEDS, EVALUATION_SEEDS
+    assert not set(CALIBRATION_SEEDS) & set(EVALUATION_SEEDS)
+    assert len(EVALUATION_SEEDS) >= 2
+
+
+def test_the_baseline_panel_uses_the_evaluation_seeds() -> None:
+    """§31 of the Trust brief: same dataset, same scoring, or the comparison
+    means nothing."""
+    from attest.eval.baseline_panel import SEEDS
+    from attest.eval.benchmark import EVALUATION_SEEDS
+    assert tuple(SEEDS) == tuple(EVALUATION_SEEDS)
+
+
+def test_no_deciding_path_computes_money_in_floating_point() -> None:
+    """§8.9. A ratio that gets printed is not a decision; an amount that moves
+    is. This walks only the functions that decide."""
+    import ast
+    import pathlib
+
+    deciders = {
+        "attest/verdict.py": {"check"},
+        "attest/subsetsum.py": {"solve", "_reachable"},
+        "attest/ledger.py": {"post"},
+        "attest/model.py": {"fee_paise", "tax_paise", "net_paise",
+                            "tolerance_paise", "_round_half_up"},
+    }
+    bad: list[str] = []
+    for path, names in deciders.items():
+        tree = ast.parse(pathlib.Path(path).read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef) or node.name not in names:
+                continue
+            for n in ast.walk(node):
+                if isinstance(n, ast.Constant) and isinstance(n.value, float):
+                    bad.append(f"{path}:{n.lineno} float literal in {node.name}")
+                if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div):
+                    bad.append(f"{path}:{n.lineno} true division in {node.name}: "
+                               f"{ast.unparse(n)[:50]}")
+    assert not bad, "\n".join(bad)
+
+
+def test_expected_loss_rounds_toward_checking_not_toward_posting() -> None:
+    """The one float that touches money. Truncating down understates the loss
+    and makes auto-posting more likely; it must round up."""
+    import math
+
+    from attest import api
+    from attest.policy import Costs, decide
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 20260821)
+    st = {x.settlement_id: x for x in r.settlements}
+    costs = Costs()
+    checked = 0
+    for f in r.findings:
+        if f.verdict is not Verdict.PROVEN:
+            continue
+        s = st[f.settlement_id]
+        j = decide(f, s, r.risk, costs)
+        exact = j.p_error * costs.wrong_post(s.net_paise)
+        assert j.expected_loss_paise == math.ceil(exact), \
+            f"{f.settlement_id}: {j.expected_loss_paise} != ceil({exact})"
+        checked += 1
+    assert checked > 10
+
+
+# ------------------------------------------------------- the AI boundary (§8.13)
+
+def test_no_model_output_can_reach_a_posting_without_the_deterministic_chain() -> None:
+    """§8.13, attempted as an attack rather than asserted as a property.
+
+    Hand the ledger a finding whose PROVEN verdict came from a model rather than
+    from the solver, and require it to refuse. The refusal must come from the
+    structure — postable, kernel-checked, policy-cleared — and not from anything
+    inspecting where the finding came from, because a real attacker would not
+    label it."""
+    from attest import api
+    from attest.ledger import Refusal, post
+    from attest.policy import Costs, Decision, Judgement
+    from attest.verdict import Finding, Proof, Verdict
+
+    r = api.execute(120, 7)
+    s = r.settlements[0]
+    orders = {o.order_id: o for o in r.orders}
+    oid = next(iter(orders))
+
+    # A forged proof: correct shape, plausible numbers, never near the solver.
+    forged = Finding(s.settlement_id, Verdict.PROVEN,
+                     (Proof(s.settlement_id, (oid,), 1, 0, 0, 0, 1, 0, 1),))
+    permissive = Judgement(Decision.AUTO_POST, 0, 0.0, ("model says so",))
+
+    # The security property is that nothing posts. It holds — but note WHICH
+    # layer stops it. With CORE-001 open, `postable` lets the forged finding
+    # through and `Unbalanced` catches it in the entry arithmetic instead, so
+    # what saves us here is defence in depth rather than the gate that exists
+    # for this. Both outcomes are accepted; a JournalEntry is not.
+    from attest.ledger import JournalEntry, Unbalanced
+    try:
+        out = post(forged, s, permissive, orders)
+    except Unbalanced:
+        return
+    assert not isinstance(out, JournalEntry), "a forged proof reached the ledger"
+    assert isinstance(out, Refusal)
+
+
+def test_a_model_verdict_cannot_pass_the_agent_pipeline() -> None:
+    """The same attempt through the permission pipeline rather than the ledger."""
+    from attest.agents import Capability, Pipeline, Stage
+    from attest.verdict import Finding, Proof, Verdict
+
+    forged = Finding("s1", Verdict.PROVEN,
+                     (Proof("s1", ("o1",), 1, 0, 0, 0, 1, 0, 1),))
+    a = Pipeline().request("investigation", "post the entry", "s1",
+                           Capability.POST_ENTRY, evidence="a model said so",
+                           finding=forged)
+    assert a.stopped_at is Stage.CAPABILITY
+    assert not any(s.stage is Stage.ACTION and s.passed for s in a.steps)
+
+
+def test_the_hypothesis_loop_cannot_return_a_proof_the_solver_did_not_make() -> None:
+    """falsify() may only SELECT among proofs the solver produced over the full
+    pool. A hypothesis naming orders outside them must be refuted, whatever it
+    claims."""
+    from attest.hypothesis import Hypothesis, falsify
+    from attest import api
+    from attest.verdict import Verdict
+
+    r = api.execute(120, 7)
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next(x for x in r.findings if x.verdict is Verdict.AMBIGUOUS)
+    orders = {o.order_id: o for o in r.pools[f.settlement_id]}
+
+    ghost = Hypothesis(order_ids=("ord_does_not_exist",), lens="attack",
+                       reasoning="a model asserted this", admits_missing=())
+    proof, refutation = falsify(ghost, st[f.settlement_id], orders, f.proofs)
+    assert proof is None
+    assert refutation is not None and refutation.constraint == "existence"
+
+
+@pytest.mark.xfail(reason="CORE-001: Finding.postable returns True when no "
+                          "search space is recorded. Reported in "
+                          "reports/CORE-001-postable-fails-open.md; "
+                          "attest/verdict.py is protected core and the guard "
+                          "says report rather than patch.",
+                   strict=True)
+def test_a_proof_without_search_space_provenance_cannot_post() -> None:
+    """§8.11. A proof whose candidate universe is unrecorded is incomplete, and
+    the gate must fail CLOSED on it.
+
+    Marked xfail(strict) rather than deleted: the test is correct and the code
+    is not, so it must start passing the moment the core is fixed and must fail
+    the build if someone marks it fixed without fixing it."""
+    from attest.verdict import Finding, Proof, Verdict
+
+    naked = Finding("s1", Verdict.PROVEN,
+                    (Proof("s1", ("o1",), 1, 0, 0, 0, 1, 0, 1),))
+    assert naked.space is None
+    assert not naked.postable, "a proof with no recorded search space is postable"
+
+
+def test_the_engine_still_attaches_a_search_space_to_every_proof() -> None:
+    """The other half: failing closed is only safe if the engine actually
+    records what it is being asked for."""
+    from attest import api
+    from attest.searchspace import SearchSpace
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 20260821)
+    proven = [f for f in r.findings if f.verdict is Verdict.PROVEN]
+    assert proven
+    for f in proven:
+        assert isinstance(f.space, SearchSpace), \
+            f"{f.settlement_id} is proven with no search-space record"
+        assert f.space.reductions, "a space with no recorded reductions"

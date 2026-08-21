@@ -220,7 +220,15 @@ def decide(f: Finding, s: Settlement, risk: RiskModel,
         why.append(coin.note)
 
     exposure = costs.wrong_post(s.net_paise)
-    loss = int(p * exposure)
+    # Ceiling, not truncation. This is the one place a float touches money —
+    # a probability multiplied by an exposure — and the direction of the
+    # rounding is a safety decision rather than an aesthetic one. Truncating
+    # DOWN understates the expected loss, which makes `loss < review_cost` more
+    # often true and auto-posting more likely; rounding up errs toward checking.
+    # Measured on the current panel it flips no decision, which is exactly when
+    # it is cheap to get right.
+    loss = -((-p * exposure) // 1)
+    loss = int(loss)
     why.append(f"a wrong posting of {_rs(s.net_paise)} costs {_rs(exposure)}, "
                f"so expected loss is {_rs(loss)}")
     why.append(f"a human review costs {_rs(costs.review_paise)}")

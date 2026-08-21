@@ -29,7 +29,7 @@
       "disputed_paise": 406837753,
       "exact_set_recovery": 0.148,
       "exact_sets": 37,
-      "expected_loss_paise": 88448,
+      "expected_loss_paise": 88455,
       "false_proof_rate": 0.008,
       "false_proofs": 2,
       "financial_error_rate": 0.0,
@@ -64,7 +64,7 @@
       "disputed_paise": 350472022,
       "exact_set_recovery": 0.172,
       "exact_sets": 43,
-      "expected_loss_paise": 52747,
+      "expected_loss_paise": 52751,
       "false_proof_rate": 0.008,
       "false_proofs": 2,
       "financial_error_rate": 0.0,
@@ -100,7 +100,7 @@
     "disputed_paise": 757309775,
     "exact_set_recovery": 0.16,
     "exact_sets": 80,
-    "expected_loss_paise": 141195,
+    "expected_loss_paise": 141206,
     "false_proof_rate": 0.008,
     "false_proofs": 4,
     "financial_error_rate": 0.0,
@@ -136,6 +136,6 @@
       "wrong": 0
     }
   },
-  "seconds": 2.198,
+  "seconds": 2.196,
   "settlements_per_seed": 250
 }
