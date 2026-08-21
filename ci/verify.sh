@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Everything CI defends, runnable locally with the same command CI uses.
 #
-# Nine stages, each able to fail on its own, so a red build names what broke
+# Ten stages, each able to fail on its own, so a red build names what broke
 # rather than saying "tests failed". Several stages are pytest selections that
 # `pytest tests/` would also run — that is deliberate: the selection is what
 # turns "a test failed" into "the AI action boundary is open".
@@ -21,9 +21,10 @@ cd "$(dirname "$0")/.."
 PY=${PY:-./.venv/bin/python}
 CONTRACTS=90
 fail=0; n=0
+STAGES=10
 
 stage() {
-  n=$((n+1)); printf '\n\033[1m[%d/9] %s\033[0m\n' "$n" "$1"; shift
+  n=$((n+1)); printf '\n\033[1m[%d/%d] %s\033[0m\n' "$n" "$STAGES" "$1"; shift
   if "$@"; then printf '  \033[32mPASS\033[0m\n'
   else printf '  \033[31mFAIL\033[0m\n'; fail=1; fi
 }
@@ -61,18 +62,21 @@ for f in need:
 print(f'{len(need)} artifacts parse')
 \" && $PY -m pytest tests/test_invariants.py -q -k 'claim or readme or panel'"
 
+stage "ADVERSARIAL PASS — 34 attacks from SOURCE to LEDGER" \
+  $PY -m attest.eval.adversarial
+
 stage "SAFETY GATES — money wrongly auto-posted may not rise at all" \
   $PY -m attest.eval.gate 250
 
 # --- browser contracts, with the skip trap closed --------------------------
-printf '\n\033[1m[9/9] BROWSER CONTRACTS — %d, against a real page\033[0m\n' "$CONTRACTS"
+printf '\n\033[1m[10/10] BROWSER CONTRACTS — %d, against a real page\033[0m\n' "$CONTRACTS"
 $PY -m attest.web > /tmp/attest-ci-web.log 2>&1 &
 web=$!
 for _ in $(seq 1 30); do
   curl -sf -o /dev/null http://localhost:8420/api/observatory && break || sleep 1
 done
 out=$($PY -m pytest tests/test_shell_contract.py -q 2>&1 | tail -3)
-kill $web 2>/dev/null
+kill $web 2>/dev/null; wait $web 2>/dev/null
 echo "$out" | sed 's/^/  /'
 if echo "$out" | grep -qE "^${CONTRACTS} passed"; then
   printf '  \033[32mPASS\033[0m\n'
@@ -84,7 +88,7 @@ else
 fi
 
 printf '\n%s\n' "=============================================================="
-[ $fail -eq 0 ] && printf '  \033[32mAll nine stages held.\033[0m\n' \
+[ $fail -eq 0 ] && printf '  \033[32mAll ten stages held.\033[0m\n' \
                || printf '  \033[31mAt least one stage failed.\033[0m\n'
 printf '%s\n' "=============================================================="
 exit $fail

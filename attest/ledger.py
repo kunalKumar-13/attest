@@ -43,6 +43,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from attest.model import Order, Settlement
+from attest.searchspace import why_not_postable
 from attest.rules import DEFAULT, RuleSet
 from attest.policy import Decision, Judgement
 from attest.verdict import Finding, Verdict
@@ -161,8 +162,7 @@ def post(finding: Finding, settlement: Settlement, judgement: Judgement,
                        f"customers, and there is no partially correct entry")
     if not getattr(finding, "postable", False):
         return Refusal(settlement.settlement_id, settlement.net_paise,
-                       "the search space is compromised; uniqueness inside a "
-                       "space that excluded the truth is not uniqueness")
+                       why_not_postable(finding))
     if judgement.decision is not Decision.AUTO_POST:
         return Refusal(settlement.settlement_id, settlement.net_paise,
                        (judgement.reasons or ("policy withheld it",))[-1])

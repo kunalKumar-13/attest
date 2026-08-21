@@ -21,7 +21,7 @@ Everything it runs is in `ci/verify.sh`, which you can run yourself:
 A workflow that drifts from the local command is a workflow nobody trusts a red
 build from, so there is one script and CI calls it.
 
-## What the nine stages defend
+## What the ten stages defend
 
 | Stage | Defends | Fails when |
 |---|---|---|
@@ -32,10 +32,11 @@ build from, so there is one script and CI calls it.
 | 5 · AI action boundary | "AI proposes, ATTEST proves, policy decides" | a model output can reach a posting, or an agent can hold a write capability |
 | 6 · claim register | that every number in README traces to an artifact | regenerating the README blocks changes them, i.e. the prose has drifted |
 | 7 · benchmark artifacts | the measurements themselves | an artifact is missing or unparseable, or a claim cites one it cannot read |
-| 8 · safety gates | the six regression gates | false proofs rise, or money wrongly auto-posted rises at all |
-| 9 · browser contracts | the Case Desk | any of the 90 contracts breaks — **or fewer than 90 run** |
+| 8 · adversarial pass | the whole chain, SOURCE to LEDGER | any of 34 attacks succeeds, **or a control breaks**, **or the harness errors** |
+| 9 · safety gates | the six regression gates | false proofs rise, or money wrongly auto-posted rises at all |
+| 10 · browser contracts | the Case Desk | any of the 90 contracts breaks — **or fewer than 90 run** |
 
-Stage 9's second condition is the one worth explaining. The contracts skip
+Stage 10's second condition is the one worth explaining. The contracts skip
 themselves when `attest.web` is not listening, and pytest reports a skip as
 success — so a CI job that forgot to start the server would print `90 skipped`
 and go green while testing nothing. The stage starts the server and then asserts

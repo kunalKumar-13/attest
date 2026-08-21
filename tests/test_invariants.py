@@ -1157,3 +1157,77 @@ def test_the_failure_map_covers_every_recorded_failure() -> None:
                             (root / "docs" / "FAILURE-REGRESSION-MAP.md").read_text()))
     missing = sorted(logged - mapped, key=lambda d: int(d[1:]))
     assert not missing, f"failures with no entry in the map: {missing}"
+
+
+def test_every_unpostable_reason_is_named_not_guessed() -> None:
+    """A refusal must name the condition that actually failed.
+
+    `Finding.postable` is one boolean guarding six conditions, and both the
+    ledger and the agent pipeline used to report every one of them as "the
+    search space is compromised". A refusal naming the wrong cause is worse
+    than a vague one: it sends whoever reads it to inspect a search space that
+    is fine while the real defect — a proof citing an order from no candidate
+    universe — goes unexamined. Found by the adversarial pass, not by reading.
+
+    This also guards the divergence risk. `why_not_postable` lives outside
+    `verdict.py` and mirrors its conditions by hand, so if a condition is added
+    to `postable` without a sentence here, the fall-through fires and this test
+    says so.
+    """
+    import datetime as dt
+
+    from attest.searchspace import Reduction, SearchSpace, why_not_postable
+    from attest.verdict import Finding, Proof, Verdict
+
+    sp = SearchSpace(universe=5,
+                     reductions=(Reduction("amount ceiling", 2, True, "x"),),
+                     members=frozenset({"o1", "o2", "o3"}))
+
+    def finding(**kw):
+        base = dict(settlement_id="s1", verdict=Verdict.PROVEN,
+                    proofs=[Proof("s1", ("o1", "o2"), 1000, 0, 0, 0, 1000, 0, 2)],
+                    space=sp, layer="exact")
+        base.update(kw)
+        return Finding(**base)
+
+    cases = [
+        ("no search space",
+         finding(space=None), "no search space was recorded"),
+        ("no candidate universe",
+         finding(space=SearchSpace(universe=0, reductions=(), members=frozenset())),
+         "records no candidate universe"),
+        ("no solver provenance",
+         finding(layer=""), "names no solver"),
+        ("no members recorded",
+         finding(space=SearchSpace(universe=5, reductions=sp.reductions,
+                                   members=frozenset())), "records no members"),
+        ("foreign order cited",
+         finding(proofs=[Proof("s1", ("o1", "GHOST"), 1000, 0, 0, 0, 1000, 0, 2)]),
+         "not in the candidate universe"),
+        ("compromised integrity",
+         finding(space=SearchSpace(universe=5, reductions=sp.reductions,
+                                   members=sp.members, known_loss=1)),
+         "compromised"),
+    ]
+    for label, f, expected in cases:
+        assert not f.postable, f"{label}: expected this finding to be unpostable"
+        got = why_not_postable(f)
+        assert expected in got, (
+            f"{label}: the refusal should say {expected!r}, said {got!r}")
+        assert "no condition explains why" not in got, (
+            f"{label}: fell through — postable() has a condition that "
+            f"why_not_postable() has not been taught to state")
+
+    # and the two callers use it rather than hardcoding a reason of their own
+    from attest.model import Settlement
+    st = Settlement(settlement_id="s1", settled_on=dt.date(2026, 5, 8),
+                    net_paise=1000, utr="U1")
+    from attest.ledger import Refusal, post
+    from attest.policy import Decision, Judgement
+    j = Judgement(decision=Decision.AUTO_POST, expected_loss_paise=0,
+                  p_error=0.0, reasons=())
+    out = post(finding(proofs=[Proof("s1", ("GHOST",), 1000, 0, 0, 0, 1000, 0, 1)]),
+               st, j, {})
+    assert isinstance(out, Refusal)
+    assert "not in the candidate universe" in out.reason, \
+        f"the ledger hardcoded a reason instead of naming the real one: {out.reason!r}"

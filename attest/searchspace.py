@@ -179,3 +179,47 @@ def consumption(removed: int) -> Reduction:
         "already claimed", removed, False,
         "orders consumed by settlements proven earlier in this run; sound only "
         "if those proofs are, which is exactly what D4 showed can fail")
+
+
+def why_not_postable(finding: object) -> str:
+    """Which of `postable`'s conditions this finding fails, in its own words.
+
+    `Finding.postable` is a single boolean guarding six distinct conditions, and
+    this refusal used to report every one of them as "the search space is
+    compromised". A refusal that names the wrong cause is worse than a vague
+    one: it sends whoever reads it to inspect a search space that is fine, while
+    the actual defect — a proof citing an order that belongs to no candidate
+    universe — goes unexamined. Found by the adversarial pass.
+
+    This does not decide anything. `postable` decides; this explains. The order
+    below mirrors `Finding.postable` exactly, and
+    `test_every_unpostable_reason_is_named_not_guessed` fails if a condition is
+    added there without a sentence here.
+    """
+    sp = getattr(finding, "space", None)
+    if not isinstance(sp, SearchSpace):
+        return ("no search space was recorded, so there is nothing to say which "
+                "candidates were considered — a proof that omits the evidence it "
+                "would be judged on cannot be posted on the strength of it")
+    if sp.universe <= 0 or not sp.reductions:
+        return ("the search space records no candidate universe, so the "
+                "uniqueness it claims is uniqueness among nothing")
+    if not finding.layer:
+        return ("the proof names no solver, so there is no way to re-derive it "
+                "or to say which layer's assumptions it inherited")
+    if not finding.proofs or not sp.members:
+        return ("the search space records no members, so membership of the "
+                "cited orders cannot be established — only their count, and "
+                "counting is not belonging")
+    foreign = sorted(set(finding.proofs[0].order_ids) - sp.members)
+    if foreign:
+        return (f"the proof cites {len(foreign)} order(s) that are not in the "
+                f"candidate universe it was proved against: "
+                f"{', '.join(foreign[:4])}. An explanation made of orders the "
+                f"search never considered is not an explanation of this credit")
+    if sp.integrity is Integrity.COMPROMISED:
+        return ("the search space is compromised; uniqueness inside a space "
+                "that excluded the truth is not uniqueness")
+    return ("the finding is not postable and no condition explains why, which "
+            "means postable() gained a condition this refusal has not been "
+            "taught to state")

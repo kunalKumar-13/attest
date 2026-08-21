@@ -215,6 +215,7 @@ class Pipeline:
             return a
         a.steps.append(Step(Stage.EVIDENCE, True, str(evidence)))
 
+        from attest.searchspace import why_not_postable
         from attest.verdict import Verdict
         v = getattr(finding, "verdict", None)
         if v is None:
@@ -230,8 +231,7 @@ class Pipeline:
         if not getattr(finding, "postable", False):
             a.steps.append(Step(
                 Stage.VERIFICATION, False,
-                "proven, but the search space is compromised — the arithmetic "
-                "answers a question that excluded the truth"))
+                f"proven, but {why_not_postable(finding)}"))
             return a
         a.steps.append(Step(Stage.VERIFICATION, True,
                             "unique explanation, kernel-checked, space intact"))
