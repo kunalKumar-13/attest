@@ -46,10 +46,6 @@ const plural = (n, one, many) =>
 
 /* ------------------------------------------------------------------ atoms */
 
-const Amount = (paise, opts = {}) =>
-  `<span class="c-amt${opts.lg ? ' lg' : ''}${opts.dim ? ' dim' : ''}"
-     >${esc(rupees(paise, opts))}</span>`;
-
 const Status = (s, opts = {}) => s
   ? `<span class="c-status s-${esc(s)}${opts.sm ? ' sm' : ''}">${esc(s)}</span>`
   : '';
@@ -75,20 +71,24 @@ const Section = ({ title, aside, body, question }) => `<section class=c-section>
     ${aside ? `<span class=a>${aside}</span>` : ''}</div>` : ''}
   ${body}</section>`;
 
-const Panel = (body, opts = {}) =>
-  `<div class="c-panel${opts.flush ? ' flush' : ''}">${body}</div>`;
-
 /* One row shape. The autopsy found sixteen implementations of this. */
-const Row = ({ id, amount, status, detail, aside, subject, tone }) =>
-  `<${subject ? 'button' : 'div'} class="c-row${subject ? ' link' : ''}"
-     ${subject ? `data-subject="${esc(subject.type)}:${esc(subject.id)}"` : ''}>
+/* `subject` navigates; `context` inspects. Two affordances because they are two
+   different acts — one changes what the workspace is about, the other opens
+   something inside it. */
+const Row = ({ id, amount, status, detail, aside, subject, context, tone }) => {
+  const nav = subject || context;
+  const attr = context ? `data-context="${esc(context.type)}:${esc(context.id)}"`
+             : subject ? `data-subject="${esc(subject.type)}:${esc(subject.id)}"` : '';
+  return `<${nav ? 'button' : 'div'} class="c-row${nav ? ' link' : ''}" ${attr}
+     ${context ? 'aria-selected=false' : ''}>
     ${tone ? `<i class="c-dot s-${esc(tone)}"></i>` : ''}
     ${id !== undefined ? `<span class=c-row-id>${esc(id)}</span>` : ''}
     ${amount !== undefined ? `<span class=c-row-amt>${esc(rupees(amount))}</span>` : ''}
     ${status ? Status(status, { sm: true }) : ''}
     ${detail !== undefined ? `<span class=c-row-d>${detail}</span>` : ''}
     ${aside !== undefined ? `<span class=c-row-a>${aside}</span>` : ''}
-  </${subject ? 'button' : 'div'}>`;
+  </${nav ? 'button' : 'div'}>`;
+};
 
 const DataTable = ({ cols, rows, foot }) => `<table class=c-table>
   <thead><tr>${cols.map(c =>
@@ -248,9 +248,12 @@ class LensStrip {
   }
 }
 
+/* Exported because a lens uses it. Amount and Panel were declared in Phase 1
+   and called by nothing, so they are gone — a component with no caller is a
+   guess about the future, and it will be the wrong guess. */
 window.C = {
   esc, rupees, plural,
-  Amount, Status, Metric, MetricRow, Disclosure, Section, Panel, Row,
+  Status, Metric, MetricRow, Disclosure, Section, Row,
   DataTable, EmptyState, LoadingState, ErrorState, StateSpine,
   SubjectHeader, LensStrip,
 };

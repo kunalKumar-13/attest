@@ -18,7 +18,7 @@
 
 (() => {
   const { StateSpine, Section, Row, MetricRow, Disclosure, EmptyState,
-          rupees, plural, esc } = window.C;
+          DataTable, rupees, plural, esc } = window.C;
 
   const KIND = {
     systemic: ['Systemic', 'proven'],
@@ -45,7 +45,7 @@
       aside: `<span class=c-muted>${plural(acts.total_steps, 'piece')} of work</span>`,
       body: acts.actions.map(a => {
         const [label, tone] = KIND[a.kind] || ['', 'insufficient'];
-        return `<button class="c-act ${esc(a.kind)}" data-subject="action:${esc(a.reason)}">
+        return `<button class="c-act ${esc(a.kind)}" data-context="action:${esc(a.reason)}">
           <span class=c-act-h>
             <b>${esc(a.what.split(';')[0].replace(/^./, c => c.toUpperCase()))}</b>
             <i class="c-status s-${tone.toUpperCase()} sm">${esc(label)}</i></span>
@@ -73,7 +73,7 @@
         ${g.items.map(it => Row({
           tone: it.verdict, id: it.id.replace('setl_', ''),
           amount: it.amount_paise, detail: esc(it.line),
-          subject: { type: 'settlement', id: it.id },
+          context: { type: 'settlement', id: it.id },
         })).join('')}
         ${g.count > g.items.length
           ? `<div class=c-more>+ ${g.count - g.items.length} more</div>` : ''}
@@ -81,6 +81,40 @@
     });
 
     return spineBlock + actionBlock + queue;
+  }
+
+  /* Which orders make up one surviving explanation, and which of them are the
+     ones only it uses. That difference is the entire reason four explanations
+     survive, and it was previously stated as a number with nothing behind it. */
+  async function explanationDetail(sid, i, S) {
+    const api = window.shellApi;
+    const d = await api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`);
+    const q = d.proofs && d.proofs[i];
+    const letter = String.fromCharCode(65 + i);
+    const head = `<div class=c-ctx-h>
+      <span class=k>explanation</span><b>${letter}</b>
+      <span class=c-ctx-x>
+        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
+      </span></div>`;
+    if (!q) return head + EmptyState('No such explanation');
+    const st = d.exception && d.exception.settled;
+    const shared = new Set(st ? st.order_ids : []);
+    const uniq = q.orders.filter(o => !shared.has(o.id));
+    return head
+      + Section({ title: 'What only this one uses',
+          aside: `<span class=c-muted>${plural(uniq.length, 'order')}</span>`,
+          body: uniq.length ? DataTable({
+            cols: [{ label: 'Order' }, { label: 'Method' }, { label: 'Net', num: true }],
+            rows: uniq.map(o => [
+              `<span class=c-mono>${esc(o.id.replace('ord_', ''))}</span>`,
+              `<span class=c-muted>${esc(o.method)}</span>`,
+              esc(rupees(o.net))]),
+          }) : EmptyState('Nothing — this explanation uses only shared orders.') })
+      + Section({ title: 'Shared with every explanation',
+          aside: `<span class=c-muted>${plural(shared.size, 'order')}</span>`,
+          body: `<p class=c-lead style="font-size:var(--t-label)">${
+            esc(rupees(st ? st.net_paise : 0))} is settled whichever explanation
+            is right. Only the orders above are in question.</p>` });
   }
 
   async function settlement(subject, S) {
@@ -124,12 +158,12 @@
       body: `<div class=c-cands>${d.proofs.map((q, i) => {
         const uniq = q.orders.filter(o => !shared.has(o.id)).length;
         const both = q.orders.length - uniq;
-        return `<div class=c-cand>
+        return `<button class=c-cand data-context="explanation:${i}">
           <span class=l>${String.fromCharCode(65 + i)}</span>
           <span class=bar><i class=s style="width:${both / widest * 100}%"></i
             ><i class=u style="width:${uniq / widest * 100}%"></i></span>
           <span class=n>${both} shared${uniq ? ` + ${uniq}` : ''}</span>
-          <span class=v>${esc(rupees(q.net))}</span></div>`;
+          <span class=v>${esc(rupees(q.net))}</span></button>`;
       }).join('')}</div>` + Disclosure({
         summary: 'Why the engine does not pick one',
         body: `<p>Every one of these satisfies the amount constraint exactly.
@@ -172,13 +206,107 @@
       + why + decide;
   }
 
+  /* One settlement's state, in the detail pane. Deliberately the same four
+     answers as the full view — where it stopped, what we know, why, the
+     decision — at a density that fits a column. A detail pane that shows
+     something DIFFERENT from the full view teaches the user that opening a
+     thing and looking at a thing are two products. */
+  async function stateDetail(sid, S) {
+    const api = window.shellApi;
+    const [spine, d] = await Promise.all([
+      api(`/api/spine?run=${S.run}&type=settlement&id=${encodeURIComponent(sid)}`
+          + `&review=${S.review}&exposure=${S.exposure}`),
+      api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`),
+    ]);
+    const head = `<div class=c-ctx-h>
+      <span class=k>settlement</span><b>${esc(sid)}</b>
+      ${d.verdict ? `<i class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</i>` : ''}
+      <span class=c-ctx-x>
+        <button class="c-ctx-b go" data-subject="settlement:${esc(sid)}"
+          title="Make this settlement the subject">Open ↗</button>
+        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
+      </span></div>`;
+    if (d.error) return head + EmptyState('Not found');
+
+    const ex = d.exception, st = ex && ex.settled, p = d.proofs[0];
+    const j = d.judgement || {};
+    const known = st && st.order_ids.length ? MetricRow([
+      { label: 'agreed', value: `${st.order_ids.length} orders`,
+        note: rupees(st.net_paise) },
+      { label: 'in dispute', value: rupees(st.disputed_paise), tone: 'ambiguous',
+        note: `${st.differing_orders} orders` },
+    ]) : p ? MetricRow([
+      { label: 'orders', value: String(p.orders.length) },
+      { label: 'accounted for', value: rupees(p.net), tone: 'proven' },
+    ]) : '';
+
+    return head
+      + Section({ title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
+                  body: StateSpine(spine, { detail: false }) })
+      + (known ? Section({ title: 'What we know', body: known }) : '')
+      + Section({
+          title: 'The decision',
+          body: `<div class=c-decide>
+            <div class="c-decide-v ${j.decision === 'AUTO_POST' ? 'yes' : 'no'}">
+              <i></i>${j.decision === 'AUTO_POST' ? 'Post a balanced entry'
+                                                   : 'No automatic action'}</div>
+            <dl class=c-decide-f>
+              <div><dt>because</dt>
+                <dd>${esc((j.reasons || ['—']).slice(-1)[0])}</dd></div>
+              ${ex ? `<div><dt>next</dt><dd>${esc(ex.next_step)}</dd></div>` : ''}
+            </dl></div>`,
+        });
+  }
+
+  /* An action's detail is the settlements it unlocks — the thing the ranking
+     asserts and the row cannot show. */
+  async function actionDetail(reason, S) {
+    const api = window.shellApi;
+    const d = await api(`/api/actions?run=${S.run}`);
+    const a = (d.actions || []).find(x => x.reason === reason);
+    if (!a) return EmptyState('Unknown action');
+    const [label] = KIND[a.kind] || [''];
+    return `<div class=c-ctx-h>
+        <span class=k>${esc(label)}</span>
+        <b>${esc(rupees(a.value_paise, { whole: true }))}</b>
+        <span class=c-ctx-x>
+          <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
+        </span></div>`
+      + Section({ title: 'What to do', body: `<p class=c-lead>${
+          esc(a.what.replace(/^./, c => c.toUpperCase()))}</p>` })
+      + Section({
+          title: 'Why it is one action',
+          body: `<p class=c-lead style="font-size:var(--t-label)">${esc(a.rationale)}</p>`,
+        })
+      + Section({
+          title: `Unlocks ${plural(a.settlements, 'settlement')}`,
+          aside: `<span class=c-muted>${plural(a.steps, 'step')}</span>`,
+          body: a.examples.map(x => Row({
+            id: x.replace('setl_', ''),
+            context: { type: 'settlement', id: x },
+          })).join('')
+            + (a.settlements > a.examples.length
+              ? `<div class=c-more>+ ${a.settlements - a.examples.length} more</div>` : ''),
+        });
+  }
+
   window.defineLens('control', {
     label: 'Control',
     question: 'What is happening?',
+    layout: subject => subject.type === 'portfolio' ? 'master-detail' : 'focus',
+    emptyContext: 'Select an action or a settlement to inspect it.',
+    holds: (ctx, subject) => subject.type === 'portfolio'
+      ? (ctx.type === 'settlement' || ctx.type === 'action')
+      : ctx.type === 'explanation',
+    master(subject, S) { return portfolio(S); },
     render(subject, S) {
-      if (subject.type === 'portfolio') return portfolio(S);
       if (subject.type === 'settlement') return settlement(subject, S);
       return EmptyState('Control has nothing to say about this subject yet.');
+    },
+    context(ctx, subject, S) {
+      if (ctx.type === 'action') return actionDetail(ctx.id, S);
+      if (ctx.type === 'explanation') return explanationDetail(subject.id, +ctx.id, S);
+      return stateDetail(ctx.id, S);
     },
   });
 })();

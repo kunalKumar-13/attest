@@ -77,7 +77,10 @@
         cols: [{ label: 'Account' }, { label: 'Debit', num: true },
                { label: 'Credit', num: true }, { label: 'Memo' }],
         rows: e.lines.map(l => [
-          esc(l.account),
+          l.credit_paise
+            ? `<button class=c-inline data-context="orders:${esc(subject.id)}"
+                 >${esc(l.account)} ↗</button>`
+            : esc(l.account),
           l.debit_paise ? esc(rupees(l.debit_paise)) : '',
           l.credit_paise ? esc(rupees(l.credit_paise)) : '',
           `<span class=c-muted>${esc(l.memo)}</span>`,
@@ -117,7 +120,10 @@
           amount: e.total_paise,
           detail: `<span class=c-muted>${plural(e.orders, 'order')} · ${esc(e.value_date)}</span>`,
           aside: 'balanced ✓',
-          subject: { type: 'settlement', id: e.settlement_id },
+          // CONTEXT, not subject: clicking a line in the day's accounting means
+          // "show me that entry", not "make this settlement the whole
+          // workspace". Promoting is a separate, deliberate act in the detail.
+          context: { type: 'settlement', id: e.settlement_id },
         })).join('')
       : EmptyState(`Nothing clears the policy at ${rupees(d.review_paise)} a review.`,
                    'The boundary is the inequality, not a setting.');
@@ -156,13 +162,94 @@
         });
   }
 
+  /* The entry for one settlement, rendered into the detail pane. Identical
+     content whether it is the right-hand column of the desk or a drawer over a
+     settlement — the pane does not know which, and should not. */
+  async function entryDetail(sid, S) {
+    const api = window.shellApi;
+    const [d, det] = await Promise.all([
+      api(`/api/journal?run=${S.run}&review=${S.review}&exposure=${S.exposure}`),
+      api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`),
+    ]);
+    const e = (d.entries || []).find(x => x.settlement_id === sid);
+    const head = `<div class=c-ctx-h>
+      <span class=k>entry</span><b>${esc(sid)}</b>
+      <span class=c-ctx-x>
+        <button class="c-ctx-b go" data-subject="settlement:${esc(sid)}"
+          title="Make this settlement the subject">Open ↗</button>
+        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
+      </span></div>`;
+
+    if (!e) {
+      const why = (det.judgement && det.judgement.reasons || []).slice(-1)[0]
+        || 'no unique kernel-checked explanation';
+      return head + Section({
+        title: 'No entry is written',
+        body: `<p class=c-lead>${esc(why)}</p>`,
+      }) + (det.exception ? Section({
+        title: 'What would change that',
+        body: `<p class=c-lead>${esc(det.exception.next_step)}</p>`,
+      }) : '');
+    }
+
+    return head + Section({
+      title: 'The money trail',
+      aside: `<span class=c-muted>${plural(e.orders, 'order')}</span>`,
+      body: MoneyTrail(e.lines, e.total_paise),
+    }) + Section({
+      title: 'The entry',
+      aside: `<span class=c-muted>${esc(e.value_date)}</span>`,
+      body: DataTable({
+        cols: [{ label: 'Account' }, { label: 'Debit', num: true },
+               { label: 'Credit', num: true }],
+        rows: e.lines.map(l => [esc(l.account),
+          l.debit_paise ? esc(rupees(l.debit_paise)) : '',
+          l.credit_paise ? esc(rupees(l.credit_paise)) : '']),
+        foot: ['Balance', esc(rupees(e.total_paise)), esc(rupees(e.total_paise))],
+      }),
+    });
+  }
+
+  /* Inside a settlement's own journal, the thing worth inspecting is which
+     orders were discharged — the one fact the entry states and does not show. */
+  async function ordersDetail(sid, S) {
+    const api = window.shellApi;
+    const det = await api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`);
+    const p = det.proofs && det.proofs[0];
+    const head = `<div class=c-ctx-h><span class=k>discharged</span>
+      <b>${p ? plural(p.orders.length, 'order') : 'orders'}</b>
+      <span class=c-ctx-x>
+        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
+      </span></div>`;
+    if (!p) return head + EmptyState('No explanation, so no orders were discharged.');
+    return head + DataTable({
+      cols: [{ label: 'Order' }, { label: 'Method' },
+             { label: 'Gross', num: true }, { label: 'Net', num: true }],
+      rows: p.orders.map(o => [
+        `<span class=c-mono>${esc(o.id.replace('ord_', ''))}</span>`,
+        `<span class=c-muted>${esc(o.method)}</span>`,
+        esc(rupees(o.gross)), esc(rupees(o.net))]),
+      foot: ['Total', '', esc(rupees(p.gross)), esc(rupees(p.net))],
+    });
+  }
+
   window.defineLens('journal', {
     label: 'Journal',
     question: 'Where did the money go?',
+    layout: subject => subject.type === 'portfolio' ? 'master-detail' : 'focus',
+    emptyContext: 'Select an entry to see the money trail behind it.',
+    holds: (ctx, subject) => subject.type === 'portfolio'
+      ? ctx.type === 'settlement'
+      : ctx.type === 'orders',
+    master(subject, S) { return portfolio(S); },
     render(subject, S) {
-      if (subject.type === 'portfolio') return portfolio(S);
       if (subject.type === 'settlement') return settlement(subject, S);
       return EmptyState('Journal has nothing to say about this subject.');
+    },
+    context(ctx, subject, S) {
+      return ctx.type === 'orders'
+        ? ordersDetail(subject.id, S)
+        : entryDetail(ctx.id, S);
     },
   });
 })();

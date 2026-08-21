@@ -104,8 +104,47 @@ color:var(--dim3);cursor:pointer;transition:color var(--fast)}
 background:var(--sur3);border-radius:var(--r-2);
 transition:transform var(--med),width var(--med)}
 
-#workspace{overflow-y:auto;min-height:0;
-padding:var(--s-5) var(--s-5) var(--s-7);max-width:1180px;width:100%}
+/* ------------------------------------------------------------ workspace
+ * #workspace no longer scrolls — .w-main does. A drawer positioned inside a
+ * scrolling container scrolls away with the content it is meant to be
+ * inspecting, which is the difference between a drawer and a section. */
+#workspace{position:relative;overflow:hidden;min-height:0;display:grid;
+grid-template-columns:1fr}
+#workspace.mode-master-detail{grid-template-columns:minmax(340px,0.92fr)
+minmax(0,1.08fr)}
+.w-main{overflow-y:auto;padding:var(--s-5) var(--s-5) var(--s-7);min-width:0}
+.mode-focus .w-main{max-width:1180px;width:100%}
+/* The detail pane is the RAISED surface, because it is the thing you opened.
+   It was on --sunk, which is undefined here and fell back to one hex value
+   away from the page background — a divider line pretending to be a plane. */
+.w-ctx{overflow-y:auto;min-width:0;border-left:1px solid var(--line);
+background:var(--sur);padding:var(--s-5) var(--s-5) var(--s-7)}
+
+/* In focus mode the pane is a drawer over the workspace rather than a column
+   beside it: the subject stays visible underneath, which is what makes it read
+   as opening something rather than going somewhere. */
+.w-ctx.drawer{position:absolute;top:0;right:0;bottom:0;z-index:5;
+width:min(480px,46vw);background:var(--sur);box-shadow:-10px 0 30px rgba(16,20,24,.10);
+border-left:1px solid var(--line2)}
+@keyframes ctx-in{from{opacity:0;transform:translateX(12px)}}
+.x-in-ctx{animation:ctx-in var(--med)}
+@media (prefers-reduced-motion: reduce){.x-in-ctx{animation:none}}
+
+.c-ctx-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:var(--s-5);
+padding-bottom:var(--s-4);border-bottom:1px solid var(--line)}
+.c-ctx-h b{font-size:var(--t-lead);font-weight:600}
+.c-ctx-h .k{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.c-ctx-x{margin-left:auto;display:flex;gap:var(--s-2)}
+.c-ctx-b{background:transparent;border:1px solid var(--line);
+border-radius:var(--r-2);padding:4px 10px;font-size:var(--t-label);
+color:var(--dim2);cursor:pointer}
+.c-ctx-b:hover{color:var(--ink);border-color:var(--line2)}
+.c-ctx-b.go{border-color:var(--acc);color:var(--acc)}
+
+/* a selected row stays selected while its detail is open */
+.c-row.sel{background:var(--sur);border-left-color:var(--acc)}
+.c-act.sel{border-color:var(--acc)}
 #foot{height:24px;display:flex;align-items:center;gap:var(--s-4);
 padding:0 var(--s-5);border-top:1px solid var(--line);background:var(--sur);
 font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
@@ -119,15 +158,12 @@ font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
 @keyframes turn-in{from{opacity:0;transform:translateY(6px) scale(.996)}}
 @keyframes slide-out{to{opacity:0;transform:translateX(-10px)}}
 @keyframes slide-in{from{opacity:0;transform:translateX(14px)}}
-@keyframes jump-in{from{opacity:0;transform:translateY(8px)}}
 .x-out-turn{animation:turn-out var(--fast) forwards}
 .x-in-turn{animation:turn-in var(--med)}
 .x-out-slide{animation:slide-out var(--fast) forwards}
 .x-in-slide{animation:slide-in var(--med)}
-.x-out-jump{animation:turn-out var(--fast) forwards}
-.x-in-jump{animation:jump-in var(--med)}
 @media (prefers-reduced-motion: reduce){
-  .x-out-turn,.x-in-turn,.x-out-slide,.x-in-slide,.x-out-jump,.x-in-jump,
+  .x-out-turn,.x-in-turn,.x-out-slide,.x-in-slide,
   .c-lens-ink{animation:none!important;transition:none!important}
 }
 
@@ -292,7 +328,16 @@ font-variant-numeric:tabular-nums;font-size:var(--t-body);color:var(--ink)}
 
 /* -------------------------------------------------------------- candidates */
 .c-cands{display:flex;flex-direction:column;gap:5px}
-.c-cand{display:flex;align-items:center;gap:var(--s-3);font-size:var(--t-label)}
+.c-cand{display:flex;align-items:center;gap:var(--s-3);font-size:var(--t-label);
+width:100%;border:0;border-left:2px solid transparent;background:transparent;
+padding:5px var(--s-3);text-align:left;font-family:inherit;color:inherit;
+cursor:pointer;transition:background var(--fast),border-left-color var(--fast)}
+.c-cand:hover{background:var(--sur)}
+.c-cand.sel{background:var(--sur);border-left-color:var(--acc)}
+.c-mono{font-family:var(--m);font-size:var(--t-label)}
+.c-inline{background:transparent;border:0;padding:0;font:inherit;color:var(--acc);
+cursor:pointer;text-align:left}
+.c-inline:hover{text-decoration:underline}
 .c-cand .l{font-family:var(--m);color:var(--dim3);width:14px}
 .c-cand .bar{flex:1;max-width:400px;height:7px;background:var(--sur3);
 border-radius:var(--r-full);overflow:hidden;display:flex}
@@ -328,7 +373,18 @@ border-radius:var(--r-0)}
   .c-spine{grid-template-columns:1fr 1fr}
   .c-stage-arrow{display:none}
 }
+@media (max-width: 1020px){
+  /* Below this a two-column desk is two cramped columns. The detail becomes a
+     drawer over the master, which is the same relationship in less space. */
+  #workspace.mode-master-detail{grid-template-columns:1fr}
+  #workspace.mode-master-detail .w-ctx{position:absolute;top:0;right:0;bottom:0;
+    z-index:5;width:min(460px,88vw);background:var(--sur);
+    box-shadow:-10px 0 30px rgba(16,20,24,.10);border-left:1px solid var(--line2)}
+  #workspace.mode-master-detail:not(.has-ctx) .w-ctx{display:none}
+}
 @media (max-width: 620px){
+  .w-main{padding:var(--s-4) var(--s-4) var(--s-6)}
+  .w-ctx,.w-ctx.drawer{width:100%!important;border-left:0}
   /* The flow needs four columns to read as a flow, and four columns do not fit
      a phone. Stack the label and figures above a full-width bar: the narrowing
      is still the message, it just runs down the page instead of across it. */

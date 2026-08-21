@@ -56,18 +56,21 @@ def page():
 
 
 def _state(pg):
-    return pg.evaluate("[SHELL.subject.type + ':' + SHELL.subject.id, SHELL.lens]")
+    """subject, lens, context — the three axes the shell owns."""
+    return pg.evaluate(
+        "[SHELL.subject.type + ':' + SHELL.subject.id, SHELL.lens,"
+        " SHELL.context ? SHELL.context.type + ':' + SHELL.context.id : null]")
 
 
 def test_changing_lens_leaves_the_subject_and_the_header_untouched(page):
     page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1500)
-    before_subject, _ = _state(page)
+    before_subject = _state(page)[0]
     before_header = page.inner_text(".c-subject")
 
     page.click("[data-lens=journal]")
     page.wait_for_timeout(1500)
-    after_subject, after_lens = _state(page)
+    after_subject, after_lens, _ = _state(page)
 
     assert after_subject == before_subject
     assert after_lens == "journal"
@@ -75,16 +78,25 @@ def test_changing_lens_leaves_the_subject_and_the_header_untouched(page):
 
 
 def test_changing_subject_leaves_the_lens_and_the_strip_untouched(page):
+    """Phase 2 changed how a subject change is REQUESTED, not the contract.
+
+    Clicking a row in a master list now sets CONTEXT — that is what master and
+    detail means, and Phase 1 was wrong to make it navigation. Promoting the
+    inspected thing to the subject is a separate, deliberate act, and it is that
+    act which must preserve the lens."""
     page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
     page.wait_for_timeout(1600)
     before_strip = page.inner_text(".c-lenses")
 
     page.click(".c-row.link")
+    page.wait_for_timeout(1300)
+    page.click(".c-ctx-b.go")
     page.wait_for_timeout(1600)
-    subject, lens = _state(page)
+    subject, lens, context = _state(page)
 
     assert subject.startswith("settlement:")
     assert lens == "journal", "the user already said what they wanted to know"
+    assert context is None, "context does not survive a subject change"
     assert page.inner_text(".c-lenses") == before_strip
 
 
@@ -96,7 +108,7 @@ def test_the_url_addresses_both_axes_and_a_reload_restores_them(page):
     page.reload(wait_until="networkidle")
     page.wait_for_function("() => SHELL.record", timeout=90000)
     page.wait_for_timeout(900)
-    assert _state(page) == ["settlement:setl_000089", "control"]
+    assert _state(page) == ["settlement:setl_000089", "control", None]
 
 
 def test_a_result_is_discarded_when_the_subject_moved_during_the_request(page):
@@ -115,7 +127,7 @@ def test_a_result_is_discarded_when_the_subject_moved_during_the_request(page):
     page.wait_for_timeout(3500)
     page.unroute("**/api/journal*")
 
-    subject, lens = _state(page)
+    subject, lens, _ = _state(page)
     assert (subject, lens) == ("settlement:setl_000089", "control")
     # inner_text returns what is rendered, and the section headings are
     # uppercased by CSS — compare case-insensitively or the test asserts about
@@ -133,7 +145,7 @@ def test_an_unsupported_lens_falls_back_visibly_and_never_silently(page):
     page.evaluate("navigate({subject:{type:'source',id:'active'}})")
     page.wait_for_timeout(1600)
 
-    subject, lens = _state(page)
+    subject, lens, _ = _state(page)
     assert subject.startswith("source:")
     assert lens != "journal", "source does not support journal"
     assert page.query_selector(".c-notice"), "the fallback was not announced"
@@ -142,3 +154,105 @@ def test_an_unsupported_lens_falls_back_visibly_and_never_silently(page):
 
 def test_the_shell_raised_no_script_errors(page):
     assert page.errors == []           # type: ignore[attr-defined]
+
+
+# --------------------------------------------------------------- Phase 2: context
+
+def test_inspecting_a_row_does_not_move_the_subject_or_rebuild_the_master(page):
+    """§5's interaction model. Opening something is not going somewhere: the
+    master list must not re-render, or the thing you clicked moves under you."""
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.wait_for_timeout(1600)
+    before = page.inner_text("#w-main")
+
+    page.click(".c-row.link")
+    page.wait_for_timeout(1300)
+    subject, lens, context = _state(page)
+
+    assert subject == "portfolio:portfolio"
+    assert lens == "journal"
+    assert context and context.startswith("settlement:")
+    assert page.inner_text("#w-main") == before, "the master re-rendered"
+    assert len(page.inner_text("#w-ctx")) > 80, "the detail is empty"
+
+
+def test_the_selected_row_stays_selected_while_its_detail_is_open(page):
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.wait_for_timeout(1600)
+    page.click(".c-row.link")
+    page.wait_for_timeout(1200)
+    assert page.eval_on_selector_all(".c-row.sel", "x => x.length") == 1
+    assert page.eval_on_selector_all(
+        ".c-row[aria-selected=true]", "x => x.length") == 1
+
+
+def test_closing_returns_to_exactly_where_you_were(page):
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.wait_for_timeout(1600)
+    before = page.inner_text("#w-main")
+    page.click(".c-row.link")
+    page.wait_for_timeout(1200)
+    page.click("[data-close-ctx]")
+    page.wait_for_timeout(900)
+
+    subject, lens, context = _state(page)
+    assert (subject, lens, context) == ("portfolio:portfolio", "journal", None)
+    assert page.inner_text("#w-main") == before
+    assert page.eval_on_selector_all(".c-row.sel", "x => x.length") == 0
+
+
+def test_escape_and_back_close_the_drawer_without_leaving_the_page(page):
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.wait_for_timeout(1600)
+
+    page.click(".c-row.link")
+    page.wait_for_timeout(1200)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(800)
+    assert _state(page)[2] is None, "Escape did not close"
+
+    page.click(".c-row.link")
+    page.wait_for_timeout(1200)
+    page.go_back()
+    page.wait_for_timeout(1100)
+    subject, lens, context = _state(page)
+    assert context is None, "Back did not close the drawer"
+    assert (subject, lens) == ("portfolio:portfolio", "journal"), \
+        "Back left the page instead of closing what was opened"
+
+
+def test_the_url_addresses_context_too(page):
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.wait_for_timeout(1600)
+    page.click(".c-row.link")
+    page.wait_for_timeout(1200)
+    assert "?in=settlement" in page.evaluate("location.hash")
+
+    page.reload(wait_until="networkidle")
+    page.wait_for_function("() => SHELL.record", timeout=90000)
+    page.wait_for_timeout(1400)
+    assert _state(page)[2] is not None, "context did not survive a reload"
+
+
+def test_a_context_the_next_lens_cannot_hold_is_dropped_visibly(page):
+    """§7 again, for the third axis. An order inspected inside Journal is not a
+    thing Control can open, and dropping it silently would be the same lie."""
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'},lens:'journal'})")
+    page.wait_for_timeout(1700)
+    page.click(".c-inline")
+    page.wait_for_timeout(1300)
+    assert _state(page)[2] is not None
+
+    page.click("[data-lens=control]")
+    page.wait_for_timeout(1700)
+    assert _state(page)[2] is None
+    assert page.query_selector(".c-notice"), "the drop was not announced"
+
+
+def test_a_drawer_leaves_the_subject_visible_underneath(page):
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000089'},lens:'control'})")
+    page.wait_for_timeout(1700)
+    page.click(".c-cand")
+    page.wait_for_timeout(1300)
+    assert page.eval_on_selector_all(".w-ctx.drawer", "x => x.length") == 1
+    assert len(page.inner_text("#w-main")) > 200, "the workspace was replaced"
