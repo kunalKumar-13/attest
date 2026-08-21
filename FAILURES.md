@@ -828,3 +828,51 @@ The lesson is the same one for the third time: a number measured on one
 distribution says nothing about another. D7 was seeds, D11 was density, this was
 calibration. Each time the instinct was to get more data; twice out of three the
 data had to be more *representative*, not more plentiful.
+
+---
+
+## D15 — 2026-08-21
+
+**The investigation workspace, and a bug in it worth writing down.**
+
+§32 asks for a focused workspace where the AI investigates. The loop it would use
+is measured at precision 0.521 and is not permitted to resolve anything (D8), so
+this runs it and **throws the verdict away**, keeping only the record of what was
+proposed and why it was refused:
+
+```
+model    propose   [capture-batch]  3 orders — captured together on 2026-05-06,
+                                    the densest batch in the window
+solver   refute    [capture-batch]  uniqueness: 4 of 4 valid explanations contain
+                                    this anchor; it does not distinguish them
+model    propose   [capture-batch]  …
+solver   refute    [capture-batch]  …
+engine   abstain                    no anchor resolved the ambiguity; the verdict
+                                    stands
+```
+
+§16 is right that this is the stronger product. A model whose wrong answers are
+visible and labelled is more useful than one whose right answers cannot be told
+apart from its wrong ones.
+
+**The bug.** The trail is fetched asynchronously and appended to the case file on
+return. If the selection moves while the request is in flight — a filter, a
+keystroke, a click — the trail lands on a *different settlement's* case file.
+Caught it in testing: a trail computed for a PROVEN settlement rendered under an
+AMBIGUOUS one, reading `ENGINE verdict is PROVEN` beneath a case that was
+plainly not.
+
+That is not a cosmetic race. **It is a fabricated audit record** — an
+investigation attributed to a settlement it was never run against — and in a
+product whose entire claim is that every statement is checkable, an artefact that
+attaches real evidence to the wrong subject is worse than showing nothing at all.
+
+Guarded: the trail is discarded unless the selection still matches the id it was
+computed for, and it refuses to append twice. Showing nothing is the correct
+failure mode here.
+
+Worth noting that the same class of bug already exists in the codebase and was
+already handled — `open_()` drops a settlement detail whose id no longer matches
+after its fetch returns. The pattern was there; I did not apply it when adding a
+second async path. A convention that lives only in one function is not a
+convention.

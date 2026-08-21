@@ -44,6 +44,7 @@ class Run:
     pools: dict[str, list[Order]] = field(default_factory=dict)
     risk: Any = None
     exceptions: dict[str, Any] = field(default_factory=dict)
+    credits: list[Any] = field(default_factory=list)
     audit: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -107,7 +108,8 @@ def execute(n: int, seed: int) -> Run:
     # middle more than once, and positional construction silently rebinds every
     # argument after the insertion point rather than failing.
     r = Run(run_id=f"run_{len(_RUNS) + 1:04d}", seed=seed,
-            settlements=ds.settlements, orders=ds.orders, truth=ds.truth,
+            settlements=ds.settlements, orders=ds.orders, credits=ds.credits,
+            truth=ds.truth,
             findings=findings, report=rep, audit=log, pools=pools,
             risk=risk, exceptions=exceptions)
     _RUNS[r.run_id] = r
@@ -216,6 +218,56 @@ def policy_view(r: Run, review_paise: int, exposure_paise: int) -> dict[str, Any
 def _wilson(w: int, t: int) -> float:
     from attest.policy import _wilson_upper
     return _wilson_upper(w, t) if t else 1.0
+
+
+def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
+    """Run the hypothesis loop in INVESTIGATE-ONLY mode and return the trail.
+
+    §15 and §54: the loop is measured at precision 0.521 and is not permitted to
+    resolve anything. It is permitted to *investigate* — propose explanations,
+    have them tested, and show what happened. So this endpoint runs it and
+    discards the verdict it would have produced, keeping only the record of
+    proposals and refutations.
+
+    That is not a consolation prize. A model whose wrong answers are visible and
+    labelled is more useful than one whose right answers cannot be distinguished
+    from its wrong ones, and §16 is right that showing the failure is the
+    stronger product. The trail below is the engine refusing to be talked into
+    something, on the record.
+    """
+    from attest.hypothesis import batch_proposer, investigate
+
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    st = {x.settlement_id: x for x in r.settlements}
+    if f is None or sid not in st:
+        return None
+    credit = next((c for c in r.credits if c.txn_id.split("_")[1] == sid.split("_")[1]),
+                  None) if hasattr(r, "credits") else None
+    if credit is None:
+        from attest.model import BankCredit
+        credit = BankCredit(f"bank_{sid.split('_')[1]}", st[sid].settled_on,
+                            st[sid].net_paise,
+                            f"NEFT-{st[sid].utr}-RAZORPAY SOFTWARE PVT LTD-SETTLEMENT")
+
+    proposed, trail = investigate(f, st[sid], credit, r.pools.get(sid, []),
+                                  batch_proposer)
+
+    # The verdict is deliberately thrown away. Whatever the loop concluded, the
+    # engine's answer is the one it already had.
+    return {
+        "settlement_id": sid,
+        "verdict": f.verdict.value,
+        "would_have_concluded": proposed.verdict.value,
+        "changed_nothing": True,
+        "events": trail.events,
+        "note": (
+            "AI resolution is disabled. Measured at precision 0.521 over five "
+            "seeds — a coin flip — because the settlement report carries no "
+            "order-level reference, so every anchor is a guess and selecting "
+            "among candidate explanations with a guess lands where guesses land. "
+            "A language model would change which guess gets made, not that it is "
+            "one. It does not meet the auto-post policy, so it does not run."),
+    }
 
 
 def ask(r: Run, question: str) -> dict[str, Any]:

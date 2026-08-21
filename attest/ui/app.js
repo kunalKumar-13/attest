@@ -184,6 +184,47 @@ async function open_() {
   if (!d) { d = await api(`/api/settlement?run=${S.run.run_id}&id=${r.id}`); S.cache.set(r.id, d); }
   if (S.view[S.i]?.id !== r.id) return;
   el('right').innerHTML = caseFile(d);
+  const b = el('inv');
+  if (b) b.onclick = () => runInvestigation(d.id);
+}
+
+/* --------------------------------------------------------- investigation
+ * §32, and the place the disabled loop belongs. It is measured at precision
+ * 0.521 and may not resolve anything, so this runs it and throws the verdict
+ * away, keeping only the record of what was proposed and why it was refused.
+ *
+ * §16 is right that this is the stronger product. A model whose wrong answers
+ * are visible and labelled is more useful than one whose right answers cannot
+ * be told apart from its wrong ones.
+ */
+async function runInvestigation(sid) {
+  const b = el('inv');
+  if (b) b.innerHTML = '<span class=spin></span>investigating';
+  const t = await api(`/api/investigate?run=${S.run.run_id}&id=${sid}`);
+  // The selection can move while this is in flight — a filter, a j/k, a click.
+  // Attaching a trail computed for one settlement to another's case file would
+  // be a fabricated audit record, which is worse than showing nothing.
+  if (S.view[S.i]?.id !== sid || S.mode !== 'work') return;
+  const host = document.querySelector('.case');
+  if (!host || !t.events || host.querySelector('.inv')) return;
+
+  const rows = t.events.map(e => `<div class=ev-row>
+    <span class="who ${e.actor}">${e.actor}</span>
+    <span>${esc(e.detail)}${e.lens ? `<span class=lens>${esc(e.lens)}</span>` : ''}
+      ${e.unexplained_paise ? `<div class=res>residual ${rs(e.unexplained_paise)} unexplained</div>` : ''}
+    </span></div>`).join('');
+
+  const el_ = document.createElement('div');
+  el_.className = 'inv';
+  el_.innerHTML = `<div class=hd><h4>Investigation trail</h4>
+      <span class=st>AI RESOLUTION DISABLED</span></div>
+    ${rows}
+    <div class=foot>The verdict is unchanged: this ran, and its conclusion was
+      discarded. ${esc(t.note)}</div>`;
+  const gate = host.querySelector('.gate');
+  gate.parentNode.insertBefore(el_, gate.nextSibling);
+  el_.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (b) b.textContent = 'Investigate →';
 }
 
 function caseFile(d) {
@@ -197,6 +238,8 @@ function caseFile(d) {
        <ol class=whys>${(j.reasons || ['no judgement recorded'])
          .map(x => `<li>${esc(x)}</li>`).join('')}</ol>
        ${d.exception ? `<div class=nxt><b>Next step</b> ${esc(d.exception.next_step)}</div>` : ''}
+       <div class=nxt style="border:0;padding-top:9px;margin-top:6px">
+         <button class=btn id=inv>Investigate →</button></div>
        </div>`;
 
   const hero = p ? `<div class=hero>
