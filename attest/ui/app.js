@@ -73,7 +73,8 @@ function renderTop() {
   el('b-wrong').style.background = s.wrong ? 'var(--warn)' : 'var(--ok)';
   el('barmeta').innerHTML = `${s.run_id} · seed ${s.seed} · <b>${s.seconds}s</b> · ` +
     `exact <b>${(s.exact * 100).toFixed(1)}%</b> · precision <b>${s.precision.toFixed(3)}</b> · ` +
-    `blocking ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>`;
+    `blocking ceiling <b>${s.blocking_ceiling.toFixed(3)}</b>` +
+    (s.provenance ? ` · <b>${s.provenance.rules_version}</b>` : '');
 }
 
 /* ------------------------------------------------------------------ ledger */

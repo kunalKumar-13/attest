@@ -876,3 +876,46 @@ already handled — `open_()` drops a settlement detail whose id no longer match
 after its fetch returns. The pattern was there; I did not apply it when adding a
 second async path. A convention that lives only in one function is not a
 convention.
+
+---
+
+## D16 — 2026-08-21
+
+**Separated the rules from the engine and measured what a wrong one costs.**
+
+Everything the engine assumes about how money moves — fee basis points per
+method, tax on the fee, the settlement calendar, the rounding tolerance — was a
+constant inside `model.py`. Constants make a specific failure invisible: the
+engine checks its assumptions against itself and agrees every time.
+
+`attest/rules.py` makes them a **belief**, versioned by content hash. Then
+measured what happens when the belief is wrong, against the same 250 settlements:
+
+```
+rule set                  version               true bundles that balance
+correct schedule          rules_d4cb21a4b0ac      213 / 250    85.2%
+card 2.0% -> 2.5%         rules_51c6c6dff35a       57 / 250    22.8%
+GST 18% -> 0%             rules_72a85b904a89       22 / 250     8.8%
+a Rs 2 flat fee added     rules_70b028e16a00        0 / 250     0.0%
+UPI treated as 2%         rules_8df6070fb4f1       12 / 250     4.8%
+```
+
+A misconfigured fee schedule does not make the engine slightly worse. **It makes
+the truth unreachable.** A flat ₹2 per transaction — the smallest change in the
+list, and the kind a merchant would not think to mention — puts every single true
+bundle outside its tolerance, and the engine correctly reports CONTRADICTED on
+all of them, because that is the right answer to the question it was actually
+asked.
+
+That is worth having as a stated failure mode. "Coverage collapsed" and "your fee
+schedule is wrong" are the same observation, and only one of them is actionable.
+
+**Provenance (§45).** Every run now records `rules / policy / solver / dataset /
+model` versions. The solver version is a hash of the code that actually decides —
+`subsetsum`, `blocking`, `layers`, `pipeline`, `verdict` — so a change shows up
+whether or not anyone remembered to bump a number, which is the only version
+scheme that survives contact with people.
+
+Replayability was previously a claim resting on a seed. The same data reconciled
+under a different fee schedule is a different answer to a different question, and
+until today a run could not say which question it had answered.

@@ -192,6 +192,26 @@
     },
   });
 
+  defineWidget('rules', {
+    title: 'Rules in force', category: 'Technical', w: 6, h: 3,
+    blurb: 'what the engine believes about how money moves',
+    render: ({ summary: s }) => {
+      if (!s || !s.rules) return none('run a reconciliation');
+      return `<div class=bd-tbl>${s.rules.map(r => `
+          <div class=bd-row><span>${esc(r.rule)}</span>
+            <b class=n style="flex:1;text-align:right">${esc(r.value)}</b></div>`).join('')}
+        <div class=bd-note>Every rule is a belief, not a fact. When the engine's
+          fee schedule disagrees with the gateway's, the truth becomes unreachable
+          and settlements come back CONTRADICTED — measured: adding a ₹2 flat fee
+          takes the share of true bundles that balance from 85% to 0%. That is the
+          engine detecting a misconfigured rule, not a solver failing.</div>
+        ${s.provenance ? `<div class=bd-note style="margin-top:8px">
+          <b>${esc(s.provenance.rules_version)}</b> · ${esc(s.provenance.solver_version)}
+          · ${esc(s.provenance.policy_version)}</div>` : ''}
+      </div>`;
+    },
+  });
+
   defineWidget('solver', {
     title: 'Solver', category: 'Technical', w: 6, h: 2,
     blurb: 'throughput and reach',

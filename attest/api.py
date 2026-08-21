@@ -24,6 +24,8 @@ from attest.generate.generator import build
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
 from attest.policy import Costs, RiskModel, calibrate, decide, simulate
+from attest.rules import (DEFAULT as DEFAULT_RULES, Provenance, dataset_version,
+                          policy_version, solver_version)
 from attest.verdict import Finding, Verdict
 
 #: Runs are held in memory and addressed by id so the UI can drill into a
@@ -46,6 +48,7 @@ class Run:
     exceptions: dict[str, Any] = field(default_factory=dict)
     credits: list[Any] = field(default_factory=list)
     audit: list[dict[str, Any]] = field(default_factory=list)
+    provenance: Any = None
 
 
 def _audit(log: list[dict[str, Any]], event: str, detail: str) -> None:
@@ -100,6 +103,14 @@ def execute(n: int, seed: int) -> Run:
         e = classify(f, settle_by_id[f.settlement_id], pools[f.settlement_id], i)
         if e is not None:
             exceptions[f.settlement_id] = e
+    prov = Provenance(
+        rules_version=DEFAULT_RULES.version,
+        policy_version=policy_version(Costs()),
+        solver_version=solver_version(),
+        dataset_version=dataset_version(n, seed),
+    )
+    _audit(log, "provenance", prov.render())
+
     _audit(log, "exceptions",
            f"{len(exceptions):,} settlements carry a work item with a reason "
            f"code and a stated residual")
@@ -111,7 +122,7 @@ def execute(n: int, seed: int) -> Run:
             settlements=ds.settlements, orders=ds.orders, credits=ds.credits,
             truth=ds.truth,
             findings=findings, report=rep, audit=log, pools=pools,
-            risk=risk, exceptions=exceptions)
+            risk=risk, exceptions=exceptions, provenance=prov)
     _RUNS[r.run_id] = r
     return r
 
@@ -158,6 +169,9 @@ def summary(r: Run) -> dict[str, Any]:
                               if e.settled),
         "unexplained_paise": sum(e.unexplained_paise for e in r.exceptions.values()
                                  if not e.settled),
+        "provenance": r.provenance.to_json() if r.provenance else None,
+        "rules": [{"rule": a, "value": b, "why": c}
+                  for a, b, c in DEFAULT_RULES.describe()],
         "by_reason": _by_reason(r),
         "decisions": _decisions(r),
     }
