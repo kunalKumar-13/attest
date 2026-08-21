@@ -615,3 +615,89 @@ def test_every_exception_reason_has_a_classification() -> None:
         assert code in KINDS, f"{code.value} has no action classification"
         assert code in GUIDE, f"{code.value} has no next step"
         assert KINDS[code][1].strip(), f"{code.value} has no rationale"
+
+
+# ------------------------------------------------------- subject × lens shell
+
+def test_every_lens_declares_which_subjects_it_serves() -> None:
+    """A lens missing from the matrix is invisible everywhere; a subject type
+    missing from every lens is a subject you can select and then cannot look
+    at."""
+    from attest.api import LENS_LABELS, LENS_MATRIX
+    assert set(LENS_MATRIX) == set(LENS_LABELS)
+    served = {t for ts in LENS_MATRIX.values() for t in ts}
+    for t in ("portfolio", "settlement", "action", "source"):
+        assert t in served, f"{t} has no lens"
+    for k, (label, question) in LENS_LABELS.items():
+        assert label and question.endswith("?"), f"{k} must state its question"
+
+
+def test_portfolio_and_settlement_share_a_lens_set() -> None:
+    """The commonest transition in the product is clicking a settlement while a
+    lens is open. If the two subject types disagree about which lenses exist,
+    the strip changes shape underneath that click — and the one promise the
+    transition makes is that it does not."""
+    from attest.api import lenses_for
+    p = [x["key"] for x in lenses_for("portfolio")]
+    s = [x["key"] for x in lenses_for("settlement")]
+    assert p == s, f"strip would reshape on subject change: {p} vs {s}"
+
+
+def test_a_subject_record_has_the_same_shape_whatever_it_is() -> None:
+    """One header renders all of them, so they must agree on their fields."""
+    from attest import api
+    r = api.execute(120, 7)
+    ids = {"portfolio": "", "settlement": r.findings[0].settlement_id,
+           "source": ""}
+    for t, i in ids.items():
+        d = api.subject_view(r, t, i)
+        assert "error" not in d, d
+        for key in ("type", "id", "label", "meta", "lenses"):
+            assert key in d, f"{t} record is missing {key}"
+        assert isinstance(d["meta"], list) and d["meta"]
+        assert d["type"] == t
+
+
+def test_the_spine_is_five_stages_for_every_subject() -> None:
+    from attest import api
+    r = api.execute(120, 7)
+    for t, i in [("portfolio", ""), ("settlement", r.findings[0].settlement_id)]:
+        d = api.spine_view(r, t, i)
+        assert [x["key"] for x in d["stages"]] == \
+            ["source", "matching", "verification", "policy", "action"]
+        for x in d["stages"]:
+            assert x["state"] in ("passed", "stopped", "not_reached")
+            assert x["detail"].strip()
+
+
+def test_a_stage_after_the_stopping_point_is_never_marked_passed() -> None:
+    """The spine's whole claim is that it shows where value is standing. A stage
+    downstream of a refusal that reports success is the claim being false."""
+    from attest import api
+    from attest.verdict import Verdict
+    r = api.execute(250, 20260821)
+    order = ["source", "matching", "verification", "policy", "action"]
+    checked = 0
+    for f in r.findings:
+        if f.verdict is Verdict.PROVEN:
+            continue
+        d = api.spine_view(r, "settlement", f.settlement_id)
+        stop = d["stopped_at"]
+        if stop is None:
+            continue
+        checked += 1
+        after = order[order.index(stop) + 1:]
+        for x in d["stages"]:
+            if x["key"] in after:
+                assert x["state"] != "passed", \
+                    f"{f.settlement_id}: {x['key']} passed after {stop} stopped"
+    assert checked > 10, "not enough stopped settlements to make this meaningful"
+
+
+def test_the_portfolio_spine_marks_a_stage_that_holds_value() -> None:
+    from attest import api
+    d = api.spine_view(api.execute(250, 20260821), "portfolio", "")
+    for x in d["stages"]:
+        if x.get("held"):
+            assert x["state"] == "stopped", \
+                f"{x['key']} holds {x['held']} settlements but reports {x['state']}"

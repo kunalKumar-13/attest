@@ -1303,3 +1303,256 @@ def sync_view(r: Run | None) -> dict[str, Any]:
             "them. Their verdicts are not wrong — they are unrevised, which is "
             "a different and recoverable thing."),
     }
+
+
+# --------------------------------------------------------------------------
+# Subject × lens shell
+#
+# The workspace has exactly two axes: which thing you are looking at, and how
+# you are looking at it. Both are addressable, and neither changes the other.
+# These two endpoints are the uniform contract that makes that possible — a
+# shell component must be able to render a header and a spine for ANY subject
+# without knowing which kind it is, or the component layer collapses back into
+# one implementation per screen.
+# --------------------------------------------------------------------------
+
+#: Every lens, and which subject types it means something for. A cell that is
+#: not here does not exist — the shell hides it rather than showing a disabled
+#: control, because an affordance you cannot use is worse than one you cannot
+#: see, and inventing empty data to fill the matrix would be worse than either.
+LENS_MATRIX: dict[str, tuple[str, ...]] = {
+    "control":     ("portfolio", "settlement", "action", "source"),
+    "journal":     ("portfolio", "settlement"),
+    "evidence":    ("portfolio", "settlement"),
+    "investigate": ("portfolio", "settlement", "action"),
+    "policy":      ("portfolio", "settlement"),
+    "activity":    ("portfolio", "settlement", "source"),
+    # Provenance is per-subject, not only per-portfolio: "which rule set, solver
+    # and policy version decided THIS settlement" is a real question with a real
+    # answer. Excluding it made the lens strip change shape when the subject
+    # changed, which breaks the one promise that transition makes.
+    "trust":       ("portfolio", "settlement"),
+}
+
+LENS_LABELS: dict[str, tuple[str, str]] = {
+    "control":     ("Control", "What is happening?"),
+    "journal":     ("Journal", "Where did the money go?"),
+    "evidence":    ("Evidence", "Why do we believe this?"),
+    "investigate": ("Investigate", "Why can't we resolve this?"),
+    "policy":      ("Policy", "What are we allowed to do?"),
+    "activity":    ("Activity", "What changed?"),
+    "trust":       ("Trust", "Can I trust this system?"),
+}
+
+
+def lenses_for(subject_type: str) -> list[dict[str, str]]:
+    return [{"key": k, "label": LENS_LABELS[k][0], "question": LENS_LABELS[k][1]}
+            for k, types in LENS_MATRIX.items() if subject_type in types]
+
+
+def subject_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
+    """The canonical record for one subject, whatever kind it is.
+
+    One shape for portfolio, settlement, action and source, because the header
+    that renders them is one component. Fields a given kind does not have are
+    absent rather than blank, so the header can lay out what it was given
+    instead of reserving space for what it wasn't.
+    """
+    if r is None:
+        return {"error": "no run"}
+
+    if stype == "portfolio":
+        m = summary(r)
+        return {
+            "type": "portfolio", "id": "portfolio",
+            "label": "Financial control", "sublabel": "all settlements",
+            "amount_paise": m["processed_paise"],
+            "amount_label": "processed",
+            "meta": [
+                {"k": "settlements", "v": f"{m['settlements']:,}"},
+                {"k": "orders", "v": f"{m['orders']:,}"},
+                {"k": "seed", "v": str(r.seed)},
+            ],
+            "lenses": lenses_for("portfolio"),
+        }
+
+    if stype == "settlement":
+        st = {x.settlement_id: x for x in r.settlements}
+        f = next((x for x in r.findings if x.settlement_id == sid), None)
+        if f is None or sid not in st:
+            return {"error": "unknown settlement"}
+        s = st[sid]
+        return {
+            "type": "settlement", "id": sid,
+            "label": sid, "sublabel": None,
+            "amount_paise": s.net_paise, "amount_label": "bank credit",
+            "status": f.verdict.value,
+            "meta": [
+                {"k": "value date", "v": str(s.settled_on)},
+                {"k": "utr", "v": s.utr},
+                {"k": "explanations", "v": str(len(f.proofs))},
+            ],
+            "lenses": lenses_for("settlement"),
+        }
+
+    if stype == "action":
+        from attest.actions import plan
+        amounts = {x.settlement_id: x.net_paise for x in r.settlements}
+        act = next((a for a in plan(r.exceptions, amounts) if a.reason.value == sid),
+                   None)
+        if act is None:
+            return {"error": "unknown action"}
+        return {
+            "type": "action", "id": sid,
+            "label": act.what.split(";")[0][:1].upper() + act.what.split(";")[0][1:],
+            "sublabel": act.kind.value.replace("_", " "),
+            "amount_paise": act.value_paise, "amount_label": "unlocks",
+            "status": act.kind.value.upper(),
+            "meta": [
+                {"k": "settlements", "v": str(act.settlements)},
+                {"k": "work", "v": f"{act.steps} step{'' if act.steps == 1 else 's'}"},
+                {"k": "per step", "v": _rs(act.leverage_paise)},
+            ],
+            "lenses": lenses_for("action"),
+        }
+
+    if stype == "source":
+        src = integrations(r)
+        a = src.get("active", {})
+        sy = sync_view(r)
+        return {
+            "type": "source", "id": sid or "active",
+            "label": str(a.get("name") or a.get("kind") or "synthetic").title(),
+            "sublabel": "not live" if not a.get("live") else "live",
+            "amount_paise": None,
+            "status": "UNREVISED" if sy["owed"] else "CURRENT",
+            "meta": [
+                {"k": "records", "v": f"{len(r.orders):,} orders"},
+                {"k": "since run", "v": f"{sy['events_since_run']} deliveries"},
+            ],
+            "lenses": lenses_for("source"),
+        }
+
+    return {"error": f"unknown subject type {stype}"}
+
+
+#: The five stages money moves through. Not a progress bar — a statement about
+#: where value is standing and what is holding it there.
+SPINE = (
+    ("source", "Source"),
+    ("matching", "Matching"),
+    ("verification", "Verification"),
+    ("policy", "Policy"),
+    ("action", "Action"),
+)
+
+
+def spine_view(r: Run | None, stype: str, sid: str,
+               review_paise: int = 15_000,
+               exposure_paise: int = 10_000_000) -> dict[str, Any]:
+    """Where the money is standing, for a portfolio or for one settlement.
+
+    The same five stages either way, because it is the same pipeline; only the
+    population differs. For a portfolio each stage carries the value that
+    cleared it and the value that stopped there. For one settlement it carries
+    which stage it reached and why it went no further.
+    """
+    if r is None:
+        return {"error": "no run"}
+
+    from attest.policy import Decision
+    costs = Costs(review_paise=review_paise, max_exposure_paise=exposure_paise)
+    st = {x.settlement_id: x for x in r.settlements}
+
+    def judge(f: Finding):
+        return decide(f, st[f.settlement_id], r.risk or RiskModel(), costs)
+
+    if stype == "settlement":
+        f = next((x for x in r.findings if x.settlement_id == sid), None)
+        if f is None or sid not in st:
+            return {"error": "unknown settlement"}
+        s = st[sid]
+        pool = r.pools.get(sid, [])
+        j = judge(f)
+        proven = f.verdict is Verdict.PROVEN and getattr(f, "postable", False)
+        posts = proven and j.decision is Decision.AUTO_POST
+
+        stages = [
+            {"key": "source", "label": "Source", "state": "passed",
+             "value": _rs(s.net_paise),
+             "detail": f"bank credit on {s.settled_on}, UTR {s.utr}"},
+            {"key": "matching", "label": "Matching",
+             "state": "passed" if pool else "stopped",
+             "value": f"{len(pool)} candidates",
+             "detail": (f"{len(pool)} orders could belong to this credit"
+                        if pool else "no candidate orders in the window")},
+            {"key": "verification", "label": "Verification",
+             "state": "passed" if proven else "stopped",
+             "value": f.verdict.value,
+             "detail": ("unique explanation, kernel-checked, search space intact"
+                        if proven else
+                        f"{len(f.proofs)} explanations satisfy the amount exactly"
+                        if f.verdict is Verdict.AMBIGUOUS else
+                        "no subset of the candidates reaches this credit"
+                        if f.verdict is Verdict.CONTRADICTED else
+                        "proven, but inside a search space that excluded the truth"
+                        if f.verdict is Verdict.PROVEN else
+                        "not enough evidence to determine the state")},
+            {"key": "policy", "label": "Policy",
+             "state": ("passed" if posts else "stopped" if proven else "not_reached"),
+             "value": j.decision.value if proven else "—",
+             "detail": ((j.reasons or ("",))[-1] if proven else
+                        "verification did not pass, so nothing was priced")},
+            {"key": "action", "label": "Action",
+             "state": "passed" if posts else "not_reached",
+             "value": _rs(s.net_paise) if posts else "—",
+             "detail": ("a balanced journal entry would post"
+                        if posts else "no entry is written")},
+        ]
+        stopped = next((x["key"] for x in stages if x["state"] == "stopped"), None)
+        return {"subject": sid, "type": "settlement", "stages": stages,
+                "stopped_at": stopped}
+
+    # -- portfolio ---------------------------------------------------------
+    total = sum(x.net_paise for x in r.settlements)
+    proven = [f for f in r.findings
+              if f.verdict is Verdict.PROVEN and getattr(f, "postable", False)]
+    proven_v = sum(st[f.settlement_id].net_paise for f in proven)
+    posts = [f for f in proven if judge(f).decision is Decision.AUTO_POST]
+    posts_v = sum(st[f.settlement_id].net_paise for f in posts)
+    pooled = sum(1 for sid_ in r.pools if r.pools[sid_])
+
+    stages = [
+        {"key": "source", "label": "Source", "state": "passed",
+         "value": _rs(total), "count": len(r.settlements), "held": 0,
+         "detail": f"{len(r.settlements):,} bank credits, {len(r.orders):,} orders"},
+        {"key": "matching", "label": "Matching", "state": "passed",
+         "value": _rs(total), "count": pooled, "held": len(r.settlements) - pooled,
+         "detail": "every credit has a candidate pool from the settlement calendar"},
+        # A stage is `stopped` when value is standing at it, not when nothing
+        # got through. Ticking every stage that passed ANY money made the
+        # portfolio spine claim five successes while ₹48L was held at two of
+        # them — the opposite of what the heading promises.
+        {"key": "verification", "label": "Verification",
+         "state": "stopped" if len(proven) < len(r.findings) else "passed",
+         "value": _rs(proven_v), "count": len(proven),
+         "held": len(r.findings) - len(proven), "held_value": _rs(total - proven_v),
+         "detail": f"{len(r.findings) - len(proven)} settlements have no unique "
+                   f"kernel-checked explanation"},
+        {"key": "policy", "label": "Policy",
+         "state": "stopped" if len(posts) < len(proven) else "passed",
+         "value": _rs(posts_v), "count": len(posts),
+         "held": len(proven) - len(posts),
+         "held_value": _rs(proven_v - posts_v),
+         "detail": f"{len(proven) - len(posts)} proven settlements cost more to "
+                   f"get wrong than to check at {_rs(review_paise)} a review"},
+        {"key": "action", "label": "Action",
+         "state": "passed" if posts else "not_reached",
+         "value": _rs(posts_v), "count": len(posts), "held": 0,
+         "detail": f"{len(posts)} balanced journal "
+                   f"{'entry' if len(posts) == 1 else 'entries'}"},
+    ]
+    stopped = "verification" if len(proven) < len(r.findings) else "policy"
+    return {"subject": "portfolio", "type": "portfolio", "stages": stages,
+            "stopped_at": stopped,
+            "processed_paise": total, "posted_paise": posts_v}

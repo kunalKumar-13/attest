@@ -1,0 +1,344 @@
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>ATTEST — workspace</title>
+<link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
+<style>
+:root, :root[data-theme=light]{
+  --bg:#f6f7f9; --sur:#ffffff; --sur2:#f7f8fa; --sur3:#eceef1;
+  --line:#e6e9ed; --line2:#d6dbe2;
+  /* --dim3 and the two status colours are set against their TINTED
+     surfaces, not against white — a status chip sits on its own -bg,
+     which is the case that failed. */
+  --ink:#101418; --dim:#414953; --dim2:#585f69; --dim3:#636d7a;
+  --acc:#1669ea; --acc-d:#eef4fe;
+  --st-PROVEN:#0c7d5a;       --st-PROVEN-bg:#eaf7f1;
+  --st-AMBIGUOUS:#946811;    --st-AMBIGUOUS-bg:#fdf5e4;
+  --st-CONTRADICTED:#b4442e; --st-CONTRADICTED-bg:#fdeeeb;
+  --st-INSUFFICIENT:#585f69; --st-INSUFFICIENT-bg:#f7f8fa;
+  --st-SYSTEMIC:#0c7d5a;     --st-SYSTEMIC-bg:#eaf7f1;
+  --st-INVESTIGATE:#1566e5;  --st-INVESTIGATE-bg:#eef4fe;
+  --shadow:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
+  --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
+  --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --t-micro:9px; --t-label:10.5px; --t-small:11.5px; --t-body:13px;
+  --t-lead:15px; --t-h3:19px; --t-h2:24px; --t-num:30px; --t-hero:42px;
+  --s-1:4px; --s-2:6px; --s-3:9px; --s-4:13px; --s-5:19px; --s-6:27px; --s-7:38px;
+  --r-0:3px; --r-1:6px; --r-2:9px; --r-3:12px; --r-4:14px; --r-full:999px;
+  --fast:.12s cubic-bezier(.2,0,0,1); --med:.22s cubic-bezier(.2,0,0,1);
+}
+:root[data-theme=dark]{
+  --bg:#0b0f14; --sur:#0f151c; --sur2:#131b24; --sur3:#18222c;
+  --line:#151d26; --line2:#22303d;
+  --ink:#dfe7ee; --dim:#a6b2be; --dim2:#8796a4; --dim3:#6c8298;
+  --acc:#5185af; --acc-d:#0c1720;
+  --st-PROVEN:#7ee3c1;       --st-PROVEN-bg:#0d2019;
+  --st-AMBIGUOUS:#e2b34e;    --st-AMBIGUOUS-bg:#1c1708;
+  --st-CONTRADICTED:#e0715a; --st-CONTRADICTED-bg:#241310;
+  --st-INSUFFICIENT:#8796a4; --st-INSUFFICIENT-bg:#131b24;
+  --st-SYSTEMIC:#7ee3c1;     --st-SYSTEMIC-bg:#0d2019;
+  --st-INVESTIGATE:#5185af;  --st-INVESTIGATE-bg:#0c1720;
+  --shadow:none;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:13.5px/1.5 var(--s);
+-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit}
+
+/* --------------------------------------------------------------- app shell */
+#app{display:grid;grid-template-rows:auto auto auto 1fr auto;height:100vh;
+min-height:0}
+
+#bar{display:flex;align-items:center;gap:var(--s-4);padding:0 var(--s-5);
+height:46px;border-bottom:1px solid var(--line);background:var(--sur)}
+#bar .wm{font-family:var(--m);font-weight:700;letter-spacing:.2em;
+font-size:var(--t-small)}
+#bar .sp{flex:1}
+.btn{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-2);
+padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
+.btn:hover{color:var(--ink);border-color:var(--line2)}
+.btn.go{background:var(--acc);border-color:var(--acc);color:#fff}
+#hint{font-size:var(--t-micro);color:var(--dim3);font-family:var(--m)}
+
+/* subject header — patched, never re-rendered */
+/* Wraps deliberately: the meta line belongs under the identity, not squeezed
+   beside it. Without wrap a 100%-width meta row crushed the label to an
+   ellipsis, which is the one thing a subject header may never do. */
+.c-subject{display:flex;flex-wrap:wrap;align-items:baseline;
+column-gap:var(--s-4);row-gap:2px;padding:var(--s-4) var(--s-5) var(--s-4);
+background:var(--sur)}
+.c-subject-id{display:flex;align-items:baseline;gap:var(--s-3);
+flex-wrap:wrap;min-width:0;flex:1 1 auto}
+.c-subject-id .lbl{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
+line-height:1.2}
+.c-subject-id .sub{font-size:var(--t-label);color:var(--dim3)}
+.c-subject-amt{margin-left:auto;text-align:right;line-height:1.1;flex:none}
+.c-subject-amt .v{display:block;font-family:var(--m);
+font-variant-numeric:tabular-nums;font-size:var(--t-h3);letter-spacing:-.02em}
+.c-subject-amt .k{display:block;font-size:var(--t-micro);color:var(--dim3);
+letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+.c-subject-meta{display:flex;gap:var(--s-4);flex-wrap:wrap;
+flex:1 0 100%;order:9;padding:2px 0 0}
+.c-subject-meta span{font-size:var(--t-micro);color:var(--dim3);
+font-family:var(--m)}
+.c-subject-meta i{font-style:normal;letter-spacing:.12em;text-transform:uppercase;
+margin-right:6px;opacity:.75}
+
+/* lens strip — an instrument, not browser tabs */
+.c-lenses{position:relative;display:flex;gap:var(--s-1);padding:0 var(--s-5);
+background:var(--sur);border-bottom:1px solid var(--line)}
+.c-lenses button{background:transparent;border:0;padding:11px var(--s-4) 12px;
+font-size:var(--t-label);letter-spacing:.03em;color:var(--dim3);cursor:pointer;
+transition:color var(--fast)}
+.c-lenses button:hover{color:var(--ink)}
+.c-lenses button.on{color:var(--ink);font-weight:600}
+.c-lens-ink{position:absolute;bottom:-1px;left:0;height:2px;background:var(--acc);
+border-radius:2px 2px 0 0;transition:transform var(--med),width var(--med)}
+
+#workspace{overflow-y:auto;min-height:0;
+padding:var(--s-5) var(--s-5) var(--s-7);max-width:1180px;width:100%}
+#foot{height:24px;display:flex;align-items:center;gap:var(--s-4);
+padding:0 var(--s-5);border-top:1px solid var(--line);background:var(--sur);
+font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
+
+/* ------------------------------------------------------------ transitions
+ * Two moves, two treatments, each preserving the axis that did not change.
+ * TURN  lens changed — the header holds still, the workspace turns over.
+ * SLIDE subject changed — the strip holds still, the workspace slides.
+ * A refresh animates not at all, or the product flickers at itself. */
+@keyframes turn-out{to{opacity:0;transform:translateY(-4px) scale(.996)}}
+@keyframes turn-in{from{opacity:0;transform:translateY(6px) scale(.996)}}
+@keyframes slide-out{to{opacity:0;transform:translateX(-10px)}}
+@keyframes slide-in{from{opacity:0;transform:translateX(14px)}}
+@keyframes jump-in{from{opacity:0;transform:translateY(8px)}}
+.x-out-turn{animation:turn-out var(--fast) forwards}
+.x-in-turn{animation:turn-in var(--med)}
+.x-out-slide{animation:slide-out var(--fast) forwards}
+.x-in-slide{animation:slide-in var(--med)}
+.x-out-jump{animation:turn-out var(--fast) forwards}
+.x-in-jump{animation:jump-in var(--med)}
+@media (prefers-reduced-motion: reduce){
+  .x-out-turn,.x-in-turn,.x-out-slide,.x-in-slide,.x-out-jump,.x-in-jump,
+  .c-lens-ink{animation:none!important;transition:none!important}
+}
+
+/* ------------------------------------------------------------- components */
+.c-section{margin-bottom:var(--s-6)}
+.c-section-h{display:flex;align-items:baseline;gap:var(--s-3);
+margin-bottom:var(--s-4)}
+.c-section-h h3{font-size:var(--t-micro);letter-spacing:.14em;
+text-transform:uppercase;color:var(--dim3);font-weight:600}
+.c-section-h .a{margin-left:auto}
+.c-muted{color:var(--dim3);font-size:var(--t-label)}
+.c-lead{font-size:var(--t-lead);line-height:1.5;color:var(--dim)}
+
+.c-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:var(--s-4) var(--s-5)}
+.c-metric{display:flex;flex-direction:column;gap:3px}
+.c-metric .k{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.c-metric .v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-h2);letter-spacing:-.02em;line-height:1.1}
+.c-metric .n{font-size:var(--t-label);color:var(--dim3);line-height:1.45}
+
+.c-status{font-size:var(--t-micro);letter-spacing:.1em;font-weight:600;
+padding:2px 7px;border-radius:var(--r-full);white-space:nowrap;
+color:var(--st-INSUFFICIENT);background:var(--st-INSUFFICIENT-bg)}
+.c-status.sm{font-size:8.5px;padding:1px 6px}
+.s-PROVEN{color:var(--st-PROVEN);background:var(--st-PROVEN-bg)}
+.s-AMBIGUOUS{color:var(--st-AMBIGUOUS);background:var(--st-AMBIGUOUS-bg)}
+.s-CONTRADICTED{color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
+.s-SYSTEMIC{color:var(--st-SYSTEMIC);background:var(--st-SYSTEMIC-bg)}
+.s-INVESTIGATE{color:var(--st-INVESTIGATE);background:var(--st-INVESTIGATE-bg)}
+
+.c-row{display:flex;align-items:center;gap:var(--s-4);width:100%;
+padding:8px var(--s-4);background:var(--sur);border:1px solid var(--line);
+border-radius:var(--r-2);margin-bottom:3px;text-align:left;
+font:inherit;color:var(--ink)}
+.c-row.link{cursor:pointer;transition:border-color var(--fast),transform var(--fast)}
+.c-row.link:hover{border-color:var(--acc);transform:translateX(2px)}
+.c-dot{width:6px;height:6px;border-radius:var(--r-full);flex:none;
+background:currentColor}
+.c-row-id{font-family:var(--m);font-size:var(--t-label);color:var(--dim3);
+min-width:70px}
+.c-row-amt{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);min-width:118px;text-align:right}
+.c-row-d{flex:1;font-size:var(--t-label);color:var(--dim2)}
+.c-row-a{font-size:var(--t-micro);color:var(--dim3);white-space:nowrap}
+
+.c-group{margin-bottom:var(--s-4)}
+.c-group-h{display:flex;align-items:baseline;gap:var(--s-3);padding:0 0 6px}
+.c-group-h b{font-size:var(--t-body)}
+.c-group-h span{font-family:var(--m);font-size:var(--t-label);color:var(--dim3)}
+.c-group-h em{margin-left:auto;font-style:normal;font-family:var(--m);
+font-variant-numeric:tabular-nums;font-size:var(--t-body)}
+.c-more{font-size:var(--t-label);color:var(--dim3);padding:4px 0 0}
+
+.c-table{width:100%;border-collapse:collapse;font-size:var(--t-label)}
+.c-table th{text-align:left;font-size:var(--t-micro);letter-spacing:.1em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;
+padding:0 var(--s-3) 6px 0;border-bottom:1px solid var(--line)}
+.c-table td{padding:7px var(--s-3) 7px 0;border-bottom:1px solid var(--line)}
+.c-table .num{text-align:right;font-family:var(--m);
+font-variant-numeric:tabular-nums;white-space:nowrap}
+.c-table .foot td{border-bottom:0;border-top:2px solid var(--line2);
+font-weight:600;padding-top:8px}
+
+.c-disc{margin-top:var(--s-3);border-top:1px solid var(--line);padding-top:8px}
+.c-disc summary{font-size:var(--t-label);color:var(--dim3);cursor:pointer;
+list-style:none;display:flex;align-items:center;gap:6px}
+.c-disc summary::-webkit-details-marker{display:none}
+.c-disc summary::before{content:"›";display:inline-block;color:var(--dim3);
+transition:transform var(--fast)}
+.c-disc[open] summary::before{transform:rotate(90deg)}
+.c-disc summary:hover{color:var(--acc)}
+.c-disc-b{padding:9px 0 2px 14px;color:var(--dim2);font-size:var(--t-label);
+line-height:1.65;max-width:84ch}
+.c-disc-b p+p{margin-top:7px}
+.c-disc-b code{font-family:var(--m);font-size:var(--t-small)}
+.c-reasons{margin-left:16px}
+.c-reasons li{margin-bottom:4px}
+
+.c-empty{padding:var(--s-6) 0;color:var(--dim3);font-size:var(--t-label);
+display:flex;flex-direction:column;gap:5px}
+.c-empty.err{color:var(--st-CONTRADICTED)}
+.c-spin{width:11px;height:11px;border:1.5px solid var(--line2);
+border-top-color:var(--acc);border-radius:var(--r-full);
+display:inline-block;animation:sp .7s linear infinite;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.c-notice{background:var(--st-AMBIGUOUS-bg);color:var(--st-AMBIGUOUS);
+border-radius:var(--r-2);padding:8px var(--s-4);font-size:var(--t-label);
+margin-bottom:var(--s-4)}
+
+/* ---------------------------------------------------------------- spine */
+.c-spine{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--s-2)}
+.c-stage{position:relative;padding:var(--s-4);background:var(--sur);
+border:1px solid var(--line);border-radius:var(--r-3);border-top:2px solid var(--line2)}
+.c-stage.passed{border-top-color:var(--st-PROVEN)}
+.c-stage.stopped{border-top-color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
+.c-stage.not_reached{opacity:.5}
+.c-stage-top{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.c-stage-n{font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+color:var(--dim3);font-weight:600}
+.c-stage-mark{margin-left:auto;font-style:normal;font-size:var(--t-label)}
+.c-stage.passed .c-stage-mark{color:var(--st-PROVEN)}
+.c-stage.stopped .c-stage-mark{color:var(--st-CONTRADICTED)}
+.c-stage.not_reached .c-stage-mark{color:var(--dim3)}
+.c-stage-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);letter-spacing:-.01em;margin-bottom:4px}
+.c-stage-held{font-size:var(--t-micro);color:var(--st-CONTRADICTED);
+font-family:var(--m);margin-bottom:4px}
+.c-stage-d{font-size:var(--t-micro);color:var(--dim3);line-height:1.5}
+.c-stage-arrow{position:absolute;right:calc(var(--s-2) * -1 - 1px);top:22px;
+width:var(--s-2);height:1px;background:var(--line2)}
+
+/* ---------------------------------------------------------------- action */
+.c-act{display:block;width:100%;text-align:left;background:var(--sur);
+border:1px solid var(--line);border-left:2px solid var(--line2);
+border-radius:var(--r-3);padding:var(--s-4);margin-bottom:5px;cursor:pointer;
+transition:border-color var(--fast),transform var(--fast)}
+.c-act:hover{border-color:var(--acc);transform:translateX(2px)}
+.c-act.systemic{border-left-color:var(--st-PROVEN)}
+.c-act.rerun{border-left-color:var(--st-INVESTIGATE)}
+.c-act.per_item{border-left-color:var(--st-AMBIGUOUS)}
+.c-act-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:7px}
+.c-act-h b{font-size:var(--t-body);font-weight:600}
+.c-act-h i{margin-left:auto;font-style:normal}
+.c-act-m{display:flex;align-items:baseline;gap:var(--s-4);
+font-size:var(--t-label);color:var(--dim3)}
+.c-act-m em{font-style:normal;font-family:var(--m);
+font-variant-numeric:tabular-nums;font-size:var(--t-body);color:var(--ink)}
+
+/* -------------------------------------------------------------- candidates */
+.c-cands{display:flex;flex-direction:column;gap:5px}
+.c-cand{display:flex;align-items:center;gap:var(--s-3);font-size:var(--t-label)}
+.c-cand .l{font-family:var(--m);color:var(--dim3);width:14px}
+.c-cand .bar{flex:1;max-width:400px;height:7px;background:var(--sur3);
+border-radius:var(--r-full);overflow:hidden;display:flex}
+.c-cand .bar i{display:block;height:100%}
+.c-cand .bar .s{background:var(--dim3);opacity:.4}
+.c-cand .bar .u{background:var(--st-AMBIGUOUS)}
+.c-cand .n{font-family:var(--m);color:var(--dim2);min-width:100px;text-align:right}
+.c-cand .v{font-family:var(--m);font-variant-numeric:tabular-nums;min-width:104px;
+text-align:right}
+.c-will-d{font-size:var(--t-lead);color:var(--dim)}
+
+/* ----------------------------------------------------------- money trail */
+.c-trail{display:flex;flex-direction:column;gap:7px;padding:var(--s-4) 0}
+.c-trail-seg{display:flex;align-items:center;gap:var(--s-4)}
+.c-trail-seg .l{font-size:var(--t-label);color:var(--dim2);min-width:170px}
+.c-trail-seg .b{flex:1;height:14px;background:var(--sur3);border-radius:var(--r-0);
+overflow:hidden}
+.c-trail-seg .b i{display:block;height:100%;border-radius:var(--r-0);
+transition:width var(--med)}
+.c-trail-seg .b i.s-PROVEN{background:var(--st-PROVEN)}
+.c-trail-seg .b i.s-AMBIGUOUS{background:var(--st-AMBIGUOUS)}
+.c-trail-seg .v{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);min-width:126px;text-align:right}
+.c-trail-rule{height:1px;background:var(--line2);margin:4px 0 4px 182px}
+.c-trail-bal{font-size:var(--t-label);color:var(--st-PROVEN);
+text-align:right;padding-top:2px}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;
+border-radius:var(--r-0)}
+
+@media (max-width: 900px){
+  .c-spine{grid-template-columns:1fr 1fr}
+  .c-stage-arrow{display:none}
+}
+@media (max-width: 620px){
+  .c-spine{grid-template-columns:1fr}
+  #workspace{padding:var(--s-4) var(--s-4) var(--s-6)}
+  .c-subject{padding:var(--s-4)}
+  .c-lenses{padding:0 var(--s-4);overflow-x:auto;scrollbar-width:none}
+  .c-lenses::-webkit-scrollbar{display:none}
+  .c-row{flex-wrap:wrap;gap:var(--s-3) var(--s-4)}
+  .c-row-d{flex:1 1 100%}
+  .c-row-amt{min-width:0}
+  .c-cand .n{min-width:0}
+  .c-cand .v{min-width:0}
+  .c-metrics{grid-template-columns:1fr}
+  .c-stage-v,.c-subject-amt .v{word-break:break-all}
+  .c-subject{flex-wrap:wrap}
+  .c-subject-amt{margin-left:0}
+  .c-trail-seg .l{min-width:0;flex:1}
+  .c-trail-seg .b{display:none}
+  .c-trail-rule{margin-left:0}
+  .c-table th:nth-child(4),.c-table td:nth-child(4){display:none}
+}
+</style>
+<div id=app>
+  <div id=bar>
+    <span class=wm>ATTEST</span>
+    <span id=hint></span>
+    <span class=sp></span>
+    <button class=btn id=theme aria-label="Toggle theme">◐</button>
+    <select class=btn id=size aria-label="Portfolio size">
+      <option>120</option><option selected>250</option><option>500</option></select>
+    <button class="btn go" id=run>Run</button>
+  </div>
+  <div id=subject></div>
+  <div id=lenses></div>
+  <main id=workspace tabindex=-1></main>
+  <div id=foot><span id=footmeta></span></div>
+</div>
+<div id=live class=sr role=status aria-live=polite></div>
+<script src=guard.js></script>
+<script src=components.js></script>
+<script src=shell.js></script>
+<script src=lens-control.js></script>
+<script src=lens-journal.js></script>
+<script>
+'use strict';
+const root = document.documentElement;
+root.dataset.theme = localStorage.getItem('attest.theme')
+  || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+document.getElementById('theme').onclick = () => {
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('attest.theme', root.dataset.theme);
+};
+document.getElementById('run').onclick = () => bootShell();
+document.getElementById('hint').textContent = 'subject × lens';
+bootShell();
+</script>

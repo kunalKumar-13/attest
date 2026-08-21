@@ -1,0 +1,180 @@
+/* CONTROL — "What is happening?"
+ *
+ * Absorbs what used to be five screens: Overview, Attention, Act, Exceptions
+ * and Settlements. They were never five things; they were one queue under five
+ * sort keys, and the product charged a navigation act to change key.
+ *
+ * The shape follows from the question rather than from habit. "What is
+ * happening" is answered by where the money stopped, so the spine is first.
+ * "What can I do" is answered by leverage, so action groups are second. The
+ * individual settlements are last, because a list of 250 records is the least
+ * useful true thing on the screen.
+ *
+ * No title, no opening paragraph. The subject header already said what this is
+ * and the lens strip already said what question is being asked; repeating both
+ * in prose is the anti-pattern the autopsy named.
+ */
+'use strict';
+
+(() => {
+  const { StateSpine, Section, Row, MetricRow, Disclosure, EmptyState,
+          rupees, plural, esc } = window.C;
+
+  const KIND = {
+    systemic: ['Systemic', 'proven'],
+    rerun: ['Free re-run', 'investigate'],
+    per_item: ['Per item', 'ambiguous'],
+  };
+
+  async function portfolio(S) {
+    const api = window.shellApi;
+    const [spine, acts, att] = await Promise.all([
+      api(`/api/spine?run=${S.run}&type=portfolio&review=${S.review}&exposure=${S.exposure}`),
+      api(`/api/actions?run=${S.run}`),
+      api(`/api/attention?run=${S.run}`),
+    ]);
+
+    const spineBlock = Section({
+      title: 'Where the money stopped',
+      aside: `<span class=c-muted>${esc(spine.stages[0].value)} in</span>`,
+      body: StateSpine(spine),
+    });
+
+    const actionBlock = Section({
+      title: 'What unlocks the most',
+      aside: `<span class=c-muted>${plural(acts.total_steps, 'piece')} of work</span>`,
+      body: acts.actions.map(a => {
+        const [label, tone] = KIND[a.kind] || ['', 'insufficient'];
+        return `<button class="c-act ${esc(a.kind)}" data-subject="action:${esc(a.reason)}">
+          <span class=c-act-h>
+            <b>${esc(a.what.split(';')[0].replace(/^./, c => c.toUpperCase()))}</b>
+            <i class="c-status s-${tone.toUpperCase()} sm">${esc(label)}</i></span>
+          <span class=c-act-m>
+            <em>${esc(rupees(a.value_paise, { whole: true }))}</em>
+            <span>${plural(a.settlements, 'settlement')}</span>
+            <span>${plural(a.steps, 'step')}</span></span>
+        </button>`;
+      }).join('') + Disclosure({
+        summary: 'Why rank by leverage rather than by amount',
+        body: `<p>197 ambiguous settlements is one action, not 197 — they are
+          ambiguous for the same missing field. A queue that sorts by amount puts
+          a week of individual work above a one-line change worth eighty times
+          more.</p>`,
+      }),
+    });
+
+    const queue = Section({
+      title: 'Needs a person',
+      aside: `<span class=c-muted>${esc(rupees(att.total_paise, { whole: true }))} at stake</span>`,
+      body: att.groups.map(g => `<div class=c-group>
+        <div class=c-group-h><b>${esc(g.label)}</b>
+          <span>${g.count}</span>
+          <em>${esc(rupees(g.amount_paise, { whole: true }))}</em></div>
+        ${g.items.map(it => Row({
+          tone: it.verdict, id: it.id.replace('setl_', ''),
+          amount: it.amount_paise, detail: esc(it.line),
+          subject: { type: 'settlement', id: it.id },
+        })).join('')}
+        ${g.count > g.items.length
+          ? `<div class=c-more>+ ${g.count - g.items.length} more</div>` : ''}
+      </div>`).join(''),
+    });
+
+    return spineBlock + actionBlock + queue;
+  }
+
+  async function settlement(subject, S) {
+    const api = window.shellApi;
+    const [spine, d] = await Promise.all([
+      api(`/api/spine?run=${S.run}&type=settlement&id=${encodeURIComponent(subject.id)}`
+          + `&review=${S.review}&exposure=${S.exposure}`),
+      api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(subject.id)}`),
+    ]);
+    if (d.error) return EmptyState('Not found', d.error);
+
+    const ex = d.exception, st = ex && ex.settled, p = d.proofs[0];
+    const j = d.judgement || {};
+
+    // Level 1: what we know, as figures. The sentences that used to carry these
+    // are in the disclosure below.
+    const known = st && st.order_ids.length ? MetricRow([
+      { label: 'agreed by every explanation', value: `${st.order_ids.length} orders`,
+        note: 'settled whichever is right' },
+      { label: 'accounted for', value: rupees(st.net_paise), tone: 'proven' },
+      { label: 'turns on which is right', value: rupees(st.disputed_paise),
+        tone: 'ambiguous', note: `across ${st.differing_orders} orders` },
+    ]) : p ? MetricRow([
+      { label: 'orders', value: String(p.orders.length), note: 'explain this exactly' },
+      { label: 'accounted for', value: rupees(p.net), tone: 'proven' },
+      { label: 'residual', value: `${p.residual}p`,
+        note: `bound ±${p.tolerance}p` },
+    ]) : MetricRow([
+      { label: 'candidates', value: String(d.space ? d.space.candidates : 0),
+        note: 'none reach this credit' },
+      { label: 'unexplained', value: rupees(ex && ex.partial ? ex.partial.unexplained_paise : 0),
+        tone: 'contradicted' },
+    ]);
+
+    // The competing explanations, shown by where they DIFFER — the only thing
+    // that distinguishes them.
+    const shared = new Set(st ? st.order_ids : []);
+    const widest = Math.max(...d.proofs.map(q => q.orders.length), 1);
+    const why = d.proofs.length > 1 ? Section({
+      title: 'Why it is unresolved',
+      body: `<div class=c-cands>${d.proofs.map((q, i) => {
+        const uniq = q.orders.filter(o => !shared.has(o.id)).length;
+        const both = q.orders.length - uniq;
+        return `<div class=c-cand>
+          <span class=l>${String.fromCharCode(65 + i)}</span>
+          <span class=bar><i class=s style="width:${both / widest * 100}%"></i
+            ><i class=u style="width:${uniq / widest * 100}%"></i></span>
+          <span class=n>${both} shared${uniq ? ` + ${uniq}` : ''}</span>
+          <span class=v>${esc(rupees(q.net))}</span></div>`;
+      }).join('')}</div>` + Disclosure({
+        summary: 'Why the engine does not pick one',
+        body: `<p>Every one of these satisfies the amount constraint exactly.
+          Arithmetic cannot distinguish them, so the engine does not. Choosing
+          would discharge receivables against a customer who may not owe them.</p>`,
+      }),
+    }) : '';
+
+    const resolve = Section({
+      title: 'What would resolve it',
+      body: `<p class=c-lead>${esc(ex ? ex.next_step : 'Nothing outstanding.')}</p>`
+        + (d.space ? Disclosure({
+            summary: 'Search-space integrity',
+            body: `<p>${esc(d.space.claim)}</p>`,
+          }) : ''),
+    });
+
+    const will = Section({
+      title: 'What ATTEST will do',
+      body: `<div class=c-will>
+        <div class=c-will-d>${j.decision === 'AUTO_POST'
+          ? 'Post a balanced journal entry' : 'No automatic action'}</div>
+        ${Disclosure({
+          summary: 'How that was decided',
+          body: `<ol class=c-reasons>${(j.reasons || [])
+            .map(x => `<li>${esc(x)}</li>`).join('')}</ol>`,
+        })}
+      </div>`,
+    });
+
+    return Section({
+        title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
+        body: StateSpine(spine),
+      })
+      + Section({ title: 'What we know', body: known })
+      + why + resolve + will;
+  }
+
+  window.defineLens('control', {
+    label: 'Control',
+    question: 'What is happening?',
+    render(subject, S) {
+      if (subject.type === 'portfolio') return portfolio(S);
+      if (subject.type === 'settlement') return settlement(subject, S);
+      return EmptyState('Control has nothing to say about this subject yet.');
+    },
+  });
+})();

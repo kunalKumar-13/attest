@@ -83,6 +83,18 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.attention(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/subject":
+            self._json(api.subject_view(api.get(q.get("run", [""])[0]),
+                                        q.get("type", ["portfolio"])[0],
+                                        q.get("id", [""])[0]))
+
+        elif u.path == "/api/spine":
+            self._json(api.spine_view(api.get(q.get("run", [""])[0]),
+                                      q.get("type", ["portfolio"])[0],
+                                      q.get("id", [""])[0],
+                                      int(q.get("review", ["15000"])[0]),
+                                      int(q.get("exposure", ["10000000"])[0])))
+
         elif u.path == "/api/sync":
             self._json(api.sync_view(api.get(q.get("run", [""])[0])))
 
