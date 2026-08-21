@@ -35,6 +35,7 @@ function rs(paise, whole) {
   return (neg ? '−' : '') + '₹' + (whole ? r : r + '.' + String(p).padStart(2, '0'));
 }
 const api = p => fetch(p).then(r => r.json());
+const cap = t => t ? t[0].toUpperCase() + t.slice(1) : t;
 const plural = (n, one, many) =>
   `${n.toLocaleString()} ${n === 1 ? one : (many || one + 's')}`;
 window.ATTEST_rs = rs;
@@ -75,8 +76,10 @@ function renderTop() {
  */
 const MODES = {
   control: {
-    views: [['attention', 'Attention', true], ['overview', 'Overview', true]],
-    draw: { attention: () => drawControl(), overview: () => drawBoard() },
+    views: [['attention', 'Attention', true], ['actions', 'Act', true],
+            ['overview', 'Overview', true]],
+    draw: { attention: () => drawControl(), actions: () => drawActions(),
+            overview: () => drawBoard() },
   },
   investigate: {
     views: [['cases', 'Settlements', false], ['exceptions', 'Exceptions', true],
@@ -1438,4 +1441,74 @@ async function drawJournal() {
   </div>`;
 
   el('j-pol').onclick = () => go('automate', 'policy');
+}
+
+/* ------------------------------------------------------------ action centre
+ * §31. Attention answers "what is stuck". This answers "what should I do
+ * first", and those order differently: 197 ambiguous settlements is one action,
+ * not 197, because every one of them is ambiguous for the same missing field.
+ * Ranking by settlement value buries a one-line change worth eighty times more
+ * than a week of individual work.
+ */
+async function drawActions() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>ranking the work…</div>';
+  const d = await api(`/api/actions?run=${S.run.run_id}`);
+  if (S.screen !== 'actions') return;
+
+  const KIND = {
+    systemic: ['Systemic', 'var(--st-proven)'],
+    rerun: ['Free re-run', 'var(--st-investigate)'],
+    per_item: ['Per item', 'var(--st-ambiguous)'],
+  };
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>What to do</h1>
+      <span class=sub>${plural(d.actions.length, 'action')} ·
+        ${plural(d.total_steps, 'piece')} of work ·
+        ${rs(d.total_value_paise, true)} at stake</span></div>
+    <p class=lede>Ranked by what each piece of work unlocks, not by how many
+      settlements are waiting. Those order differently, and the difference
+      matters: a queue that mixes "ask the gateway for one more column" with
+      "find this ₹6,316 adjustment" and sorts both by amount puts a week of
+      individual work above a one-line change worth eighty times more.</p>
+
+    <div class=fs>
+      <div class=metric><span class=k>one change unlocks</span>
+        <span class=v style="color:var(--st-proven)">${rs(d.systemic_value_paise, true)}</span>
+        <span class=s>systemic — at the source, once</span></div>
+      <div class=metric><span class=k>free to try</span>
+        <span class=v style="color:var(--st-investigate)">${rs(d.rerun_value_paise, true)}</span>
+        <span class=s>no new data; the engine already holds it</span></div>
+      <div class=metric><span class=k>hand-worked</span>
+        <span class=v>${rs(d.per_item_value_paise, true)}</span>
+        <span class=s>${plural(d.per_item_steps, 'record')} to find, one at a time</span></div>
+    </div>
+
+    ${d.actions.map((a, i) => {
+      const [label, colour] = KIND[a.kind] || ['', 'var(--dim3)'];
+      return `<article class="act ${a.kind}">
+        <div class=act-h>
+          <span class=act-n>${i + 1}</span>
+          <b>${esc(cap(a.what.split(';')[0]))}</b>
+          <span class=act-k style="color:${colour}">${label}</span>
+        </div>
+        <div class=act-m>
+          <div><span class=k>unlocks</span><b>${rs(a.value_paise, true)}</b></div>
+          <div><span class=k>across</span><b>${plural(a.settlements, 'settlement')}</b></div>
+          <div><span class=k>work</span><b>${plural(a.steps, 'step')}</b></div>
+          <div><span class=k>per step</span><b>${rs(a.leverage_paise, true)}</b></div>
+        </div>
+        <p class=act-r>${esc(a.rationale)}</p>
+        <p class=act-w><span class=k>because</span> ${esc(a.why)}</p>
+        <div class=exs>${a.examples.map(x =>
+          `<button class=exl data-sid="${esc(x)}">${esc(x.replace('setl_', ''))}</button>`).join('')}
+        </div>
+      </article>`;
+    }).join('')}
+  </div>`;
+
+  el('right').querySelectorAll('.exl').forEach(b => b.onclick = () => {
+    const i = S.view.findIndex(x => x.id === b.dataset.sid);
+    if (i >= 0) { S.i = i; go('investigate', 'cases'); }
+  });
 }

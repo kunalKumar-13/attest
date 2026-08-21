@@ -1107,3 +1107,37 @@ def journal_view(r: Run, review_paise: int = 15_000,
         "review_paise": review_paise,
         "exposure_paise": exposure_paise,
     }
+
+
+def actions_view(r: Run) -> dict[str, Any]:
+    """The work, ranked by what each piece of it unlocks. §31.
+
+    Exceptions answers "what is stuck". This answers "what should I do first",
+    and those have different orderings: 197 ambiguous settlements is one action,
+    not 197, because they are all ambiguous for the same missing field.
+    """
+    from attest.actions import Kind, plan
+
+    amounts = {s.settlement_id: s.net_paise for s in r.settlements}
+    acts = plan(r.exceptions, amounts)
+
+    systemic = [a for a in acts if a.kind is Kind.SYSTEMIC]
+    rerun = [a for a in acts if a.kind is Kind.RERUN]
+    per_item = [a for a in acts if a.kind is Kind.PER_ITEM]
+
+    return {
+        "actions": [a.to_json() for a in acts],
+        "total_value_paise": sum(a.value_paise for a in acts),
+        "total_steps": sum(a.steps for a in acts),
+        "systemic_value_paise": sum(a.value_paise for a in systemic),
+        "rerun_value_paise": sum(a.value_paise for a in rerun),
+        "per_item_steps": sum(a.steps for a in per_item),
+        "per_item_value_paise": sum(a.value_paise for a in per_item),
+        "kinds": {
+            "systemic": "One change at the source resolves the whole group.",
+            "rerun": "No new data. The engine already holds everything and was "
+                     "deliberately conservative.",
+            "per_item": "Someone has to find a specific record. Real work, and "
+                        "it does not amortise.",
+        },
+    }

@@ -574,3 +574,44 @@ def test_a_foreign_rule_set_is_refused_rather_than_absorbed() -> None:
         with pytest.raises(Unbalanced):
             post(f, s, jm, orders, rules=foreign)
     assert tried, "no postable finding to test against"
+
+
+# -------------------------------------------------------------------- actions
+
+def test_a_systemic_action_is_one_step_however_many_settlements() -> None:
+    """The whole point of the ranking. 197 settlements ambiguous for the same
+    missing field is one piece of work, and calling it 197 puts a one-line
+    change below a week of individual investigations."""
+    from attest import api
+    from attest.actions import Kind, plan
+    r = api.execute(250, 20260821)
+    amounts = {s.settlement_id: s.net_paise for s in r.settlements}
+    acts = plan(r.exceptions, amounts)
+    assert acts
+    for a in acts:
+        if a.kind is Kind.PER_ITEM:
+            assert a.steps == a.settlements
+        else:
+            assert a.steps == 1
+
+
+def test_actions_rank_by_leverage_not_by_volume() -> None:
+    from attest import api
+    from attest.actions import plan
+    r = api.execute(250, 20260821)
+    amounts = {s.settlement_id: s.net_paise for s in r.settlements}
+    acts = plan(r.exceptions, amounts)
+    lev = [a.leverage_paise for a in acts]
+    assert lev == sorted(lev, reverse=True)
+
+
+def test_every_exception_reason_has_a_classification() -> None:
+    """A reason with no entry silently defaults to per-item, which understates
+    leverage for anything systemic. The taxonomy is frozen, so this can be
+    exhaustive."""
+    from attest.actions import KINDS
+    from attest.exceptions import GUIDE, ReasonCode
+    for code in ReasonCode:
+        assert code in KINDS, f"{code.value} has no action classification"
+        assert code in GUIDE, f"{code.value} has no next step"
+        assert KINDS[code][1].strip(), f"{code.value} has no rationale"

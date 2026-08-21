@@ -682,6 +682,32 @@ background:var(--sur2);border:1px solid transparent;border-radius:var(--r-1);
 padding:3px 8px;cursor:pointer;transition:border-color var(--fast),color var(--fast)}
 .exl:hover{border-color:var(--acc);color:var(--ink)}
 
+/* ---------------- action centre ---------------- */
+.act{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-3);
+padding:var(--s-4) var(--s-5);margin-bottom:8px;border-left:2px solid var(--line)}
+.act.systemic{border-left-color:var(--st-proven)}
+.act.rerun{border-left-color:var(--st-investigate)}
+.act.per_item{border-left-color:var(--st-ambiguous)}
+.act-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:11px}
+.act-h b{font-size:var(--t-lead);font-weight:600;line-height:1.35}
+.act-n{font-family:var(--m);color:var(--dim3);font-size:var(--t-label);
+min-width:16px}
+.act-k{margin-left:auto;font-size:var(--t-micro);letter-spacing:.09em;
+text-transform:uppercase;white-space:nowrap}
+.act-m{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+gap:var(--s-4);padding:11px 0;border-top:1px solid var(--line);
+border-bottom:1px solid var(--line);margin-bottom:11px}
+.act-m .k{display:block;font-size:var(--t-micro);letter-spacing:.14em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:3px}
+.act-m b{font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-body);font-weight:500}
+.act-r{color:var(--dim2);font-size:var(--t-label);line-height:1.65;
+max-width:88ch;margin-bottom:7px}
+.act-w{color:var(--dim3);font-size:var(--t-label);line-height:1.6;max-width:88ch}
+.act-w .k{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;
+margin-right:6px}
+.act .exs{margin-top:11px}
+
 /* ---------------- journal ---------------- */
 .je{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-3);
 padding:var(--s-4) var(--s-5) var(--s-4);margin-bottom:8px}
