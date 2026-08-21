@@ -1113,3 +1113,47 @@ def test_the_adapter_never_reports_a_fixture_as_live() -> None:
     snap = RazorpayAdapter(key_id=None, key_secret=None).normalise(
         [_recon_row()], [])
     assert snap.live is False
+
+
+def test_every_test_named_in_the_failure_map_exists() -> None:
+    """docs/FAILURE-REGRESSION-MAP.md may not name a test that does not exist.
+
+    A map is only worth reading if its right-hand column is true. Left to prose,
+    a renamed or deleted test rots the document silently and the entry keeps
+    claiming coverage that is gone — which is exactly the drift D13 recorded,
+    applied to tests instead of to numbers. So the map is parsed and checked.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    doc = (root / "docs" / "FAILURE-REGRESSION-MAP.md").read_text()
+    named = set(re.findall(r"`(test_[a-z0-9_]+)`", doc))
+    assert named, "the map names no tests at all"
+
+    defined: set[str] = set()
+    for f in sorted((root / "tests").glob("test_*.py")):
+        defined |= set(re.findall(r"^def (test_[a-z0-9_]+)", f.read_text(), re.M))
+
+    missing = sorted(named - defined - {"test_every_test_named_in_the_failure_map_exists"})
+    assert not missing, (
+        f"the failure map names {len(missing)} test(s) that do not exist: "
+        f"{missing}. Either the test was renamed and the map was not, or the "
+        f"map claims a regression that was never written.")
+
+
+def test_the_failure_map_covers_every_recorded_failure() -> None:
+    """Every D-number in FAILURES.md must appear in the map.
+
+    A failure recorded in the log and absent from the map is one whose
+    regression status nobody has had to state.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    logged = set(re.findall(r"^## (D\d+)", (root / "FAILURES.md").read_text(), re.M))
+    mapped = set(re.findall(r"\b(D\d+)\b",
+                            (root / "docs" / "FAILURE-REGRESSION-MAP.md").read_text()))
+    missing = sorted(logged - mapped, key=lambda d: int(d[1:]))
+    assert not missing, f"failures with no entry in the map: {missing}"
