@@ -134,9 +134,13 @@ class Finding:
         if not self.layer:
             return False
 
-        # 4. Does the proof belong to that universe? A proof citing more orders
-        #    than the space ever contained cannot have come out of it.
-        if not self.proofs or len(self.proofs[0].order_ids) > sp.candidates:
+        # 4. Does the proof belong to that universe? CORE-002: this compared
+        #    CARDINALITY, which a forged proof satisfies by citing two invented
+        #    orders against five candidates. Membership is the actual question,
+        #    and an unrecorded membership set is no record of a search.
+        if not self.proofs or not sp.members:
+            return False
+        if not set(self.proofs[0].order_ids) <= sp.members:
             return False
 
         return sp.integrity is not Integrity.COMPROMISED

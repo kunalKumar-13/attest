@@ -80,6 +80,15 @@ class SearchSpace:
     """Candidates a reduction is known to have wrongly removed. Non-zero only
     when the engine can detect it — see `note_known_loss`."""
 
+    members: frozenset[str] = frozenset()
+    """WHICH candidates survived, not merely how many.
+
+    CORE-002. Recording only a count let a forged proof cite orders that were
+    never in the pool and satisfy the postability gate on cardinality alone —
+    two ids against five candidates passes `len(order_ids) <= candidates` while
+    belonging to no search that happened. A count is a fact about a search; a
+    membership set is the search."""
+
     @property
     def candidates(self) -> int:
         return max(self.universe - sum(r.removed for r in self.reductions), 0)

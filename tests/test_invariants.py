@@ -893,9 +893,10 @@ def test_the_hypothesis_loop_cannot_return_a_proof_the_solver_did_not_make() -> 
 # postable *because* it omitted the evidence it would have been judged on.
 
 
-def _space(universe: int = 100, removed: int = 40, deterministic: bool = True):
+def _space(universe: int = 100, removed: int = 40, deterministic: bool = True,
+           members=("o1", "o2", "o3", "o4", "o5")):
     from attest.searchspace import Reduction, SearchSpace
-    sp = SearchSpace(universe=universe)
+    sp = SearchSpace(universe=universe, members=frozenset(members))
     sp.reductions.append(Reduction("test reduction", removed, deterministic,
                                    "constructed for a test"))
     return sp
@@ -945,13 +946,62 @@ def test_core001_a_proof_with_no_solver_provenance_cannot_post() -> None:
 
 def test_core001_a_proof_larger_than_its_candidate_universe_cannot_post() -> None:
     """Test E. Certificate integrity: alter the selected records so the proof
-    cites more orders than the space ever contained, and it can no longer have
-    come out of that space."""
-    sp = _space(universe=100, removed=95)          # 5 candidates
+    cites orders the space never held."""
+    sp = _space(universe=100, removed=95)          # members o1..o5
     too_many = tuple(f"o{i}" for i in range(9))
     assert sp.candidates == 5
     assert not _proven(space=sp, orders=too_many).postable
     assert _proven(space=sp, orders=("o1", "o2")).postable
+
+
+# ------------------------------------------------------------------ CORE-002
+#
+# Condition 4 originally compared CARDINALITY. Two invented ids against five
+# candidates satisfies `len(order_ids) <= candidates` while belonging to no
+# search that ever happened, so the gate could be passed by counting rather
+# than by membership.
+
+
+def test_core002_cited_orders_must_belong_to_the_candidate_universe() -> None:
+    """The membership attack. Every structural condition satisfied — a real
+    SearchSpace, a universe, recorded reductions, a named solver, and a proof
+    small enough — but the cited orders were never candidates."""
+    sp = _space(members=("A", "B", "C", "D", "E"))
+    assert sp.candidates >= 2
+    forged = _proven(space=sp, orders=("X", "Y"))
+    assert len(forged.proofs[0].order_ids) <= sp.candidates, \
+        "the attack must satisfy the cardinality check to be meaningful"
+    assert not forged.postable
+
+
+def test_core002_a_single_foreign_order_is_enough_to_refuse() -> None:
+    """Membership is not a majority vote."""
+    sp = _space(members=("A", "B", "C"))
+    assert _proven(space=sp, orders=("A", "B")).postable
+    assert not _proven(space=sp, orders=("A", "X")).postable
+
+
+def test_core002_a_space_recording_no_members_cannot_post() -> None:
+    """A count without a membership set is not a record of a search."""
+    sp = _space(members=())
+    assert not _proven(space=sp, orders=("o1",)).postable
+
+
+def test_core002_every_engine_proof_sits_inside_its_recorded_members() -> None:
+    """Failing closed on membership is only safe if blocking records it. It is
+    populated at the one construction site, from the pool itself."""
+    from attest import api
+    from attest.searchspace import SearchSpace
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 20260821)
+    proven = [f for f in r.findings if f.verdict is Verdict.PROVEN]
+    assert proven
+    for f in proven:
+        assert isinstance(f.space, SearchSpace)
+        assert f.space.members, f"{f.settlement_id}: space records no members"
+        assert set(f.proofs[0].order_ids) <= f.space.members, \
+            f"{f.settlement_id}: proof cites orders outside its own pool"
 
 
 def test_core001_a_compromised_space_still_cannot_post() -> None:

@@ -99,7 +99,13 @@ class PoolIndex:
         unspent = [o for o in in_window if o.order_id not in self._spent]
         pool = [o for o in unspent if 0 < o.net <= s.net_paise]
 
-        space = SearchSpace(universe=universe)
+        space = SearchSpace(
+            universe=universe,
+            # CORE-002. The pool IS the candidate universe, so record it rather
+            # than its size. Membership is what a proof has to be checkable
+            # against; a count cannot distinguish a real order from an invented
+            # one.
+            members=frozenset(o.order_id for o in pool))
         space.reductions.append(date_window(
             universe - len(in_window), rung, LAG_LADDER[: rung + 1]))
         space.reductions.append(consumption(len(in_window) - len(unspent)))
