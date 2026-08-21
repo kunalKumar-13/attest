@@ -919,3 +919,63 @@ scheme that survives contact with people.
 Replayability was previously a claim resting on a seed. The same data reconciled
 under a different fee schedule is a different answer to a different question, and
 until today a run could not say which question it had answered.
+
+---
+
+## D17 — 2026-08-21
+
+**Read the Razorpay API docs and found that D8's conclusion is true of our data
+and false of theirs.**
+
+D8 concluded the AI anchoring loop was a coin flip because the settlement report
+carried no order-level reference, so every anchor was a guess. That holds for the
+synthetic generator. It does not hold for Razorpay.
+
+`GET /v1/settlements/recon/combined?year=YYYY&month=MM` returns, per settled
+transaction:
+
+```
+entity_id  type  debit  credit  amount  currency  fee  tax  on_hold  settled
+created_at  settled_at  settlement_id  description  notes  payment_id
+settlement_utr  order_id  order_receipt  method  card_network  card_issuer
+card_type  dispute_id
+```
+
+**`order_id`, `payment_id` and `settlement_id` on the same row.** The evidence
+D8 said was missing is exactly what this endpoint carries.
+
+That changes the honest framing of the whole project, and pretending otherwise
+would be the easier and worse story. Against a connected account, reconciliation
+is largely a **join**. The subset-sum machinery is the fallback for where the
+join fails: recon unavailable for a period, a bank credit matching no single
+settlement, adjustments with no linked entity, or a merchant reconciling against
+a bank statement rather than the gateway.
+
+Those are the hard cases and they are the ones the engine exists for. The value
+was never that subset-sum is always required — it is that when the join fails,
+the alternative today is a person in a spreadsheet.
+
+`Snapshot.linked_fraction` makes this a measured property of a source rather than
+an assumption. Razorpay recon: 100% linked on the fixture. Synthetic generator:
+0%, by construction, which is why the engine abstains on 82% of it.
+
+**Two bugs caught while building it, both of the same kind.**
+
+`normalise()` set `live=True` unconditionally, so running it over a recorded
+fixture produced a snapshot claiming to be a live gateway pull. That is precisely
+the lie §39 forbids, written by accident, in the function most likely to be used
+without an account. `live` now defaults False and only `fetch` sets it — the
+default has to be the safe one, because the unsafe one will otherwise be reached
+by omission.
+
+A transaction with an unrecognised `method` is dropped (a guessed method is a
+guessed fee, and D16 measured what a wrong fee costs) — but its credit stayed in
+the settlement total, so the settlement no longer matched its orders. Kept that
+behaviour deliberately and documented it: the money *did* settle, and removing it
+to make the books balance would hide a real gap. Those settlements report
+CONTRADICTED with the exact unexplained amount, which is the honest outcome.
+
+**No credentials, no data.** `fetch` raises `NotConnected` rather than returning
+anything, and there is no demo mode inside the adapter. The synthetic source is a
+separate class that reports `live=False` on every snapshot with no configuration
+that changes it.
