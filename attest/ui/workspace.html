@@ -110,7 +110,7 @@ transition:transform var(--med),width var(--med)}
  * inspecting, which is the difference between a drawer and a section. */
 #workspace{position:relative;overflow:hidden;min-height:0;display:grid;
 grid-template-columns:1fr}
-#workspace.mode-master-detail{grid-template-columns:minmax(340px,0.92fr)
+#workspace.mode-master-detail.has-pane{grid-template-columns:minmax(340px,0.92fr)
 minmax(0,1.08fr)}
 .w-main{overflow-y:auto;padding:var(--s-5) var(--s-5) var(--s-7);min-width:0}
 .mode-focus .w-main{max-width:1180px;width:100%}
@@ -126,10 +126,26 @@ background:var(--sur);padding:var(--s-5) var(--s-5) var(--s-7)}
 .w-ctx.drawer{position:absolute;top:0;right:0;bottom:0;z-index:5;
 width:min(480px,46vw);background:var(--sur);box-shadow:-10px 0 30px rgba(16,20,24,.10);
 border-left:1px solid var(--line2)}
-@keyframes ctx-in{from{opacity:0;transform:translateX(12px)}}
+/* The drawer grows out of the row that opened it: --oy is the vertical centre
+   of that row, set by the shell at click time. A pane that always expands from
+   the same edge is a route transition with a different name. */
+.w-ctx{transform-origin:right var(--oy,50%)}
+@keyframes ctx-in{from{opacity:0;transform:translateX(10px) scaleY(.965)}}
+@keyframes ctx-out{to{opacity:0;transform:translateX(8px) scaleY(.975)}}
 .x-in-ctx{animation:ctx-in var(--med)}
-@media (prefers-reduced-motion: reduce){.x-in-ctx{animation:none}}
+.x-out-ctx{animation:ctx-out .11s cubic-bezier(.2,0,0,1) forwards}
+@media (prefers-reduced-motion: reduce){
+  .x-in-ctx,.x-out-ctx{animation:none}}
 
+/* §6: the chain, stated. The UI must never suggest the context REPLACED the
+   subject, and the only reliable way to say that is to show what it hangs off. */
+.c-crumb{display:flex;align-items:center;gap:6px;font-size:var(--t-micro);
+color:var(--dim3);margin-bottom:9px;flex-wrap:wrap}
+.c-crumb i{font-style:normal;opacity:.6}
+.c-crumb-s{font-family:var(--m)}
+.c-crumb-l{letter-spacing:.1em;text-transform:uppercase}
+.c-crumb-c{color:var(--ink);letter-spacing:.1em;text-transform:uppercase;
+font-weight:600}
 .c-ctx-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:var(--s-5);
 padding-bottom:var(--s-4);border-bottom:1px solid var(--line)}
 .c-ctx-h b{font-size:var(--t-lead);font-weight:600}
@@ -376,11 +392,13 @@ border-radius:var(--r-0)}
 @media (max-width: 1020px){
   /* Below this a two-column desk is two cramped columns. The detail becomes a
      drawer over the master, which is the same relationship in less space. */
-  #workspace.mode-master-detail{grid-template-columns:1fr}
+  /* Below this the detail becomes an overlay, and an overlay with nothing in
+     it must not exist at all — it covered the list and ate every click. */
+  #workspace.mode-master-detail.has-pane{grid-template-columns:1fr}
   #workspace.mode-master-detail .w-ctx{position:absolute;top:0;right:0;bottom:0;
     z-index:5;width:min(460px,88vw);background:var(--sur);
     box-shadow:-10px 0 30px rgba(16,20,24,.10);border-left:1px solid var(--line2)}
-  #workspace.mode-master-detail:not(.has-ctx) .w-ctx{display:none}
+  #workspace:not(.has-ctx) .w-ctx{display:none}
 }
 @media (max-width: 620px){
   .w-main{padding:var(--s-4) var(--s-4) var(--s-6)}

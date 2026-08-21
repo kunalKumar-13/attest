@@ -64,6 +64,8 @@ function current(t, { ignoreContext = false } = {}) {
       && (ignoreContext || t.ctx === ctxKey(SHELL.context));
 }
 const ctxKey = c => (c ? `${c.type}:${c.id}` : '');
+const prefersStill = () =>
+  matchMedia('(prefers-reduced-motion: reduce)').matches;
 const parseCtx = s => {
   if (!s) return null;
   const i = s.indexOf(':');
@@ -105,6 +107,7 @@ function fromHash(h) {
 /* ------------------------------------------------------------- navigation */
 
 let HEADER = null, STRIP = null;
+let ORIGIN = null;   // the rect the current context was opened from
 
 async function navigate(next = {}, opts = {}) {
   const subject = next.subject || SHELL.subject;
@@ -169,6 +172,16 @@ async function navigate(next = {}, opts = {}) {
 async function inspect(context, opts = {}) {
   if (ctxKey(context) === ctxKey(SHELL.context) && !opts.force) return;
   if (context && !canHoldContext(SHELL.lens, SHELL.subject, context)) return;
+
+  // Closing collapses back toward whatever it opened from, so the gesture is
+  // reversible rather than merely undone.
+  const pane = el('w-ctx');
+  if (!context && pane && SHELL.context && !prefersStill()) {
+    pane.classList.add('x-out-ctx');
+    await new Promise(r => setTimeout(r, 110));
+    pane.classList.remove('x-out-ctx');
+  }
+  if (!context) ORIGIN = null;
   SHELL.context = context;
 
   const hash = toHash(SHELL);
@@ -248,22 +261,27 @@ async function renderContext() {
   const lens = LENSES[SHELL.lens];
   const mode = layoutFor(lens, SHELL.subject);
 
+  // Two different facts, and conflating them made an EMPTY detail pane overlay
+  // the master at phone widths and swallow every click:
+  //   has-pane  the layout reserves a detail column
+  //   has-ctx   something is actually being inspected
+  const ws = el('workspace');
+  ws.classList.toggle('has-pane', mode === 'master-detail');
+
   if (!SHELL.context) {
     pane.hidden = mode !== 'master-detail';
-    if (mode === 'master-detail') {
-      pane.className = 'w-ctx';
-      pane.innerHTML = window.C.EmptyState(
-        lens.emptyContext || 'Select a row to inspect it.');
-    } else {
-      pane.innerHTML = '';
-    }
-    el('workspace').classList.toggle('has-ctx', mode === 'master-detail');
+    pane.className = 'w-ctx';
+    pane.innerHTML = mode === 'master-detail'
+      ? window.C.EmptyState(lens.emptyContext || 'Select a row to inspect it.')
+      : '';
+    ws.classList.remove('has-ctx');
     return;
   }
 
   pane.hidden = false;
   pane.className = mode === 'master-detail' ? 'w-ctx' : 'w-ctx drawer';
-  el('workspace').classList.add('has-ctx');
+  ws.classList.add('has-ctx');
+  setOrigin(pane);
   pane.innerHTML = window.C.LoadingState('');
 
   const t = token();
@@ -274,11 +292,26 @@ async function renderContext() {
     html = window.C.ErrorState(String((err && err.message) || err));
   }
   if (!current(t)) return;              // subject, lens or context moved
-  pane.innerHTML = html;
+
+  const lensLabel = labelOf(SHELL.lens);
+  pane.innerHTML = (typeof html === 'string' ? html : window.C.ContextChrome({
+      subject: SHELL.subject, lens: lensLabel, kind: html.kind,
+      title: html.title, status: html.status, promote: html.promote,
+    }) + html.body);
   pane.classList.add('x-in-ctx');
   pane.addEventListener('animationend',
     () => pane.classList.remove('x-in-ctx'), { once: true });
   if (lens.mountContext) lens.mountContext(pane, SHELL.context, SHELL);
+}
+
+/* Anchor the drawer's growth to where the click happened. A pane that always
+   expands from the same edge is a route transition with a different name. */
+function setOrigin(pane) {
+  const host = el('workspace').getBoundingClientRect();
+  const r = ORIGIN;
+  if (!r) { pane.style.removeProperty('--oy'); return; }
+  const y = Math.min(Math.max(r.top + r.height / 2 - host.top, 0), host.height);
+  pane.style.setProperty('--oy', `${y.toFixed(0)}px`);
 }
 
 function layoutFor(lens, subject) {
@@ -312,6 +345,10 @@ document.addEventListener('click', e => {
   const c = e.target.closest('[data-context]');
   if (c) {
     e.preventDefault();
+    // Remember where the click came from. §4: the drawer should look like it
+    // opened out of the thing you clicked, not like a panel that lives at the
+    // right edge and slides in whatever you touched.
+    ORIGIN = c.getBoundingClientRect();
     inspect(parseCtx(c.dataset.context));
     return;
   }

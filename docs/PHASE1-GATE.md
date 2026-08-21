@@ -159,3 +159,95 @@ explanations survive, and the decision with its reason.
 §17. Everything is a vertical column. The subject persists, but the *workspace*
 is not spatial — there is no master/detail, no drawer, no split. Build that
 before Evidence, or five more lenses will be five more columns.
+
+---
+
+# Spatial gate — P2
+
+Reviewed against the twenty acceptance criteria. Four things were fixed because
+the review found them; the rest held.
+
+## Failed on first inspection, now fixed
+
+**§4 · The motion had no physical origin.** The drawer animated `translateX`
+from the pane edge — the same movement whatever you clicked, which is a route
+transition with a different name. The shell now records the clicked element's
+rect and sets `--oy`, so the pane grows out of the row that opened it and
+collapses back toward it on close. Verified: three rows at different heights
+produce three different origins.
+
+**§6 · No explicit hierarchy.** Nothing said the context hung off the subject
+rather than replacing it. Every drawer now opens with the chain stated:
+
+    setl_000089 › CONTROL › EXPLANATION
+
+**§18 · The context system was not generic.** Each lens hand-wrote its own
+`.c-ctx-h` with its own close button — three copies waiting to drift, and
+exactly the `DrawerSettlement` / `DrawerExplanation` shape §18 warns against. A
+lens now returns `{ kind, title, status, promote, body }` and the shell renders
+the chrome. Every drawer in the product is the same drawer.
+
+**§19 · An empty detail pane covered the master at phone widths.** `has-ctx`
+was doing two jobs — "this layout reserves a detail column" and "something is
+being inspected" — so at 360px an overlay containing the words *Select a row to
+inspect it* sat on top of the list and swallowed every click. Split into
+`has-pane` and `has-ctx`.
+
+## Held without change
+
+    §5   master still visible with a drawer open        86%
+    §7   scroll position across open and close          420 -> 420 -> 420
+    §9   four row clicks add one history entry; Back closes context first
+    §11  stale context cannot land on another subject   D15 at the third axis
+    §12  rounded surfaces                               3
+
+## §13 · The explanation test
+
+    setl_000089 › CONTROL › EXPLANATION
+    A  AMBIGUOUS
+    EXPLAINS  ₹1,00,037.04        ORDERS  31
+    residual -21p within ±31p     27 shared · 4 only here
+
+    THE ORDERS ONLY THIS EXPLANATION USES              ₹2,277.20
+    000797  card  2026-05-06  ₹1,466.41
+    000669  upi   2026-05-06    ₹395.70
+    001530  upi   2026-05-06    ₹257.26
+    000798  upi   2026-05-06    ₹157.83
+
+    WHY THIS BRANCH SURVIVES
+    It reaches ₹1,00,037.04 against a bank credit of ₹1,00,036.83, inside a
+    tolerance of ±31 paise. So does every other branch…
+
+"4 orders" opens into four orders without leaving the settlement. That was the
+test, and it passes.
+
+Worth noting what the data says on its own: all four are captured 2026-05-06.
+That is D22's finding — 53% of candidate pools span a single capture date —
+surfacing in the interface without anyone writing it there.
+
+## §19 · Responsive
+
+     360px   overlay        main 334  ctx 360
+     768px   overlay        main 768  ctx 460
+    1024px   side by side   main 471  ctx 553
+    1512px   side by side   main 696  ctx 816
+
+Subject × lens × context holds at every width. Page overflow 0 from 360px to
+1500px with drawers open.
+
+## §23 · The final question
+
+> Does opening context feel like opening something inside the financial system,
+> rather than navigating somewhere else?
+
+**Yes.** The subject header does not move, the lens strip does not move, the
+master does not re-render, the row stays selected, the pane grows out of the row
+that was clicked, the breadcrumb states what it hangs off, and closing returns
+the scroll position unchanged. Six of those are held by tests rather than by
+intention.
+
+    93 tests, 18 of them the browser contract    six gates holding
+    WCAG AA 0    overflow 0 from 360px    3 rounded surfaces
+
+The spatial foundation is complete. Evidence may begin, and must be built as
+subject × lens × context from its first line.

@@ -91,30 +91,49 @@
     const d = await api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`);
     const q = d.proofs && d.proofs[i];
     const letter = String.fromCharCode(65 + i);
-    const head = `<div class=c-ctx-h>
-      <span class=k>explanation</span><b>${letter}</b>
-      <span class=c-ctx-x>
-        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
-      </span></div>`;
-    if (!q) return head + EmptyState('No such explanation');
+    const shell = { kind: 'Explanation', title: letter };
+    if (!q) return { ...shell, body: EmptyState('No such explanation') };
+
     const st = d.exception && d.exception.settled;
     const shared = new Set(st ? st.order_ids : []);
     const uniq = q.orders.filter(o => !shared.has(o.id));
-    return head
-      + Section({ title: 'What only this one uses',
-          aside: `<span class=c-muted>${plural(uniq.length, 'order')}</span>`,
+
+    // The chain the gate asks for, stated as figures rather than described:
+    // settlement -> this explanation -> the orders that make it different.
+    return { ...shell, status: 'AMBIGUOUS', body:
+      Section({
+        body: MetricRow([
+          { label: 'explains', value: rupees(q.net), tone: 'proven',
+            note: `residual ${q.residual}p within ±${q.tolerance}p` },
+          { label: 'orders', value: String(q.orders.length),
+            note: `${shared.size} shared · ${uniq.length} only here` },
+        ]),
+      })
+      + Section({
+          title: 'The orders only this explanation uses',
+          aside: `<span class=c-muted>${esc(rupees(
+            uniq.reduce((n, o) => n + o.net, 0)))}</span>`,
           body: uniq.length ? DataTable({
-            cols: [{ label: 'Order' }, { label: 'Method' }, { label: 'Net', num: true }],
+            cols: [{ label: 'Order' }, { label: 'Method' },
+                   { label: 'Captured' }, { label: 'Net', num: true }],
             rows: uniq.map(o => [
               `<span class=c-mono>${esc(o.id.replace('ord_', ''))}</span>`,
               `<span class=c-muted>${esc(o.method)}</span>`,
+              `<span class=c-muted>${esc(o.captured_on)}</span>`,
               esc(rupees(o.net))]),
-          }) : EmptyState('Nothing — this explanation uses only shared orders.') })
-      + Section({ title: 'Shared with every explanation',
-          aside: `<span class=c-muted>${plural(shared.size, 'order')}</span>`,
-          body: `<p class=c-lead style="font-size:var(--t-label)">${
-            esc(rupees(st ? st.net_paise : 0))} is settled whichever explanation
-            is right. Only the orders above are in question.</p>` });
+          }) : EmptyState('None — this one uses only shared orders.'),
+        })
+      + Section({
+          title: 'Why this branch survives',
+          body: `<p class=c-lead style="font-size:var(--t-label)">It reaches
+            ${esc(rupees(q.net))} against a bank credit of
+            ${esc(rupees(d.amount))}, inside a tolerance of ±${q.tolerance}
+            paise. So does every other branch. The
+            ${esc(plural(shared.size, 'order'))} worth
+            ${esc(rupees(st ? st.net_paise : 0))} that all of them contain are
+            settled whichever is right — only the orders above are in
+            question.</p>`,
+        }) };
   }
 
   async function settlement(subject, S) {
@@ -218,15 +237,9 @@
           + `&review=${S.review}&exposure=${S.exposure}`),
       api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`),
     ]);
-    const head = `<div class=c-ctx-h>
-      <span class=k>settlement</span><b>${esc(sid)}</b>
-      ${d.verdict ? `<i class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</i>` : ''}
-      <span class=c-ctx-x>
-        <button class="c-ctx-b go" data-subject="settlement:${esc(sid)}"
-          title="Make this settlement the subject">Open ↗</button>
-        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
-      </span></div>`;
-    if (d.error) return head + EmptyState('Not found');
+    const shell = { kind: 'Settlement', title: sid, status: d.verdict,
+                    promote: { type: 'settlement', id: sid } };
+    if (d.error) return { ...shell, body: EmptyState('Not found') };
 
     const ex = d.exception, st = ex && ex.settled, p = d.proofs[0];
     const j = d.judgement || {};
@@ -240,9 +253,9 @@
       { label: 'accounted for', value: rupees(p.net), tone: 'proven' },
     ]) : '';
 
-    return head
-      + Section({ title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
-                  body: StateSpine(spine, { detail: false }) })
+    return { ...shell, body:
+      Section({ title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
+                body: StateSpine(spine, { detail: false }) })
       + (known ? Section({ title: 'What we know', body: known }) : '')
       + Section({
           title: 'The decision',
@@ -255,7 +268,7 @@
                 <dd>${esc((j.reasons || ['—']).slice(-1)[0])}</dd></div>
               ${ex ? `<div><dt>next</dt><dd>${esc(ex.next_step)}</dd></div>` : ''}
             </dl></div>`,
-        });
+        }) };
   }
 
   /* An action's detail is the settlements it unlocks — the thing the ranking
@@ -264,15 +277,12 @@
     const api = window.shellApi;
     const d = await api(`/api/actions?run=${S.run}`);
     const a = (d.actions || []).find(x => x.reason === reason);
-    if (!a) return EmptyState('Unknown action');
+    if (!a) return { kind: 'Action', title: 'Unknown',
+                     body: EmptyState('Unknown action') };
     const [label] = KIND[a.kind] || [''];
-    return `<div class=c-ctx-h>
-        <span class=k>${esc(label)}</span>
-        <b>${esc(rupees(a.value_paise, { whole: true }))}</b>
-        <span class=c-ctx-x>
-          <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
-        </span></div>`
-      + Section({ title: 'What to do', body: `<p class=c-lead>${
+    return { kind: label, title: rupees(a.value_paise, { whole: true }),
+      promote: { type: 'action', id: a.reason },
+      body: Section({ title: 'What to do', body: `<p class=c-lead>${
           esc(a.what.replace(/^./, c => c.toUpperCase()))}</p>` })
       + Section({
           title: 'Why it is one action',
@@ -287,7 +297,7 @@
           })).join('')
             + (a.settlements > a.examples.length
               ? `<div class=c-more>+ ${a.settlements - a.examples.length} more</div>` : ''),
-        });
+        }) };
   }
 
   window.defineLens('control', {

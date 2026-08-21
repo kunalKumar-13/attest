@@ -150,6 +150,37 @@ function StateSpine(spine, opts = {}) {
   </div>`;
 }
 
+/* --------------------------------------------------------- context chrome
+ *
+ * The shell owns this, not the lenses. §18: the context system stays generic,
+ * so there is no DrawerSettlement and no DrawerExplanation — a lens supplies a
+ * title, a kind and a body, and every drawer in the product is then the same
+ * drawer. Each lens hand-writing its own header was three copies of a close
+ * button waiting to drift.
+ *
+ * The breadcrumb is the point. §6 asks that the UI never suggest the context
+ * REPLACED the subject, and the only reliable way to say that is to show the
+ * chain it hangs off.
+ */
+function ContextChrome({ subject, lens, kind, title, status, promote }) {
+  return `<div class=c-crumb data-crumb>
+      <span class=c-crumb-s>${esc(subject.id === 'portfolio'
+        ? 'Portfolio' : subject.id)}</span>
+      <i>›</i><span class=c-crumb-l>${esc(lens)}</span>
+      <i>›</i><span class=c-crumb-c>${esc(kind)}</span>
+    </div>
+    <div class=c-ctx-h>
+      <b>${esc(title)}</b>
+      ${status ? Status(status, { sm: true }) : ''}
+      <span class=c-ctx-x>
+        ${promote ? `<button class="c-ctx-b go"
+          data-subject="${esc(promote.type)}:${esc(promote.id)}"
+          title="Make this the subject — zoom in">Open ↗</button>` : ''}
+        <button class=c-ctx-b data-close-ctx aria-label="Close" title="Close (Esc)">✕</button>
+      </span>
+    </div>`;
+}
+
 /* -------------------------------------------------- subject header (stateful)
  *
  * ONE header for portfolio, settlement, action and source. It PATCHES rather
@@ -253,7 +284,7 @@ class LensStrip {
    guess about the future, and it will be the wrong guess. */
 window.C = {
   esc, rupees, plural,
-  Status, Metric, MetricRow, Disclosure, Section, Row,
+  Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
   DataTable, EmptyState, LoadingState, ErrorState, StateSpine,
   SubjectHeader, LensStrip,
 };

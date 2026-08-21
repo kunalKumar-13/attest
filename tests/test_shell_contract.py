@@ -256,3 +256,87 @@ def test_a_drawer_leaves_the_subject_visible_underneath(page):
     page.wait_for_timeout(1300)
     assert page.eval_on_selector_all(".w-ctx.drawer", "x => x.length") == 1
     assert len(page.inner_text("#w-main")) > 200, "the workspace was replaced"
+
+
+# ------------------------------------------------- Phase 2 gate: the spatial feel
+
+def test_the_drawer_opens_from_the_object_that_was_clicked(page):
+    """§4. A pane that always expands from the same edge is a route transition
+    with a different name. The origin must follow the click."""
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
+    page.wait_for_timeout(1800)
+    rows = page.query_selector_all(".c-row.link")
+    assert len(rows) >= 3, "not enough rows to tell origins apart"
+
+    origins = []
+    for r in (rows[0], rows[2], rows[-1]):
+        r.click()
+        page.wait_for_timeout(650)
+        origins.append(page.evaluate(
+            "document.getElementById('w-ctx').style.getPropertyValue('--oy')"))
+    assert len(set(origins)) > 1, f"origin never moved: {origins}"
+    assert "px" in page.evaluate(
+        "getComputedStyle(document.getElementById('w-ctx')).transformOrigin")
+
+
+def test_the_context_states_the_chain_it_hangs_off(page):
+    """§6. The UI must never suggest the context replaced the subject."""
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000089'},lens:'control'})")
+    page.wait_for_timeout(1800)
+    page.click(".c-cand")
+    page.wait_for_timeout(1300)
+
+    crumb = page.inner_text(".c-crumb")
+    assert "setl_000089" in crumb
+    assert "CONTROL" in crumb.upper()
+    assert "EXPLANATION" in crumb.upper()
+    # and the subject header is still the settlement, unchanged
+    assert "setl_000089" in page.inner_text(".c-subject")
+
+
+def test_opening_an_explanation_shows_the_orders_behind_it(page):
+    """§13, the most important product test. "4 orders" must open into four
+    orders, without leaving the settlement."""
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000089'},lens:'control'})")
+    page.wait_for_timeout(1800)
+    page.click(".c-cand")
+    page.wait_for_timeout(1400)
+
+    pane = page.inner_text("#w-ctx")
+    rows = page.eval_on_selector_all("#w-ctx .c-table tbody tr", "x => x.length")
+    assert rows >= 1, "the explanation opened onto no orders"
+    assert "only this explanation uses" in pane.lower()
+    subject, lens, context = _state(page)
+    assert subject == "settlement:setl_000089"
+    assert lens == "control"
+    assert context and context.startswith("explanation:")
+
+
+def test_the_context_chrome_is_generic_not_per_kind(page):
+    """§18: no DrawerSettlement, no DrawerExplanation. Every drawer in the
+    product is the same drawer, or the close button will drift."""
+    for hash_, click, kind in [
+        ("#/portfolio/journal", ".c-row.link", "Entry"),
+        ("#/settlement/setl_000089/control", ".c-cand", "Explanation"),
+    ]:
+        page.evaluate(f"location.hash = {hash_!r}")
+        page.wait_for_timeout(1800)
+        page.click(click)
+        page.wait_for_timeout(1300)
+        assert page.query_selector(".c-crumb"), f"{kind} has no breadcrumb"
+        assert page.query_selector("[data-close-ctx]"), f"{kind} has no close"
+        assert kind.upper() in page.inner_text(".c-crumb").upper()
+
+
+def test_the_master_scroll_position_survives_open_and_close(page):
+    """§7: only context disappears."""
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
+    page.wait_for_timeout(1800)
+    page.evaluate("document.getElementById('w-main').scrollTop = 420")
+    page.wait_for_timeout(300)
+    page.click(".c-row.link")
+    page.wait_for_timeout(1100)
+    assert page.evaluate("document.getElementById('w-main').scrollTop") == 420
+    page.click("[data-close-ctx]")
+    page.wait_for_timeout(900)
+    assert page.evaluate("document.getElementById('w-main').scrollTop") == 420

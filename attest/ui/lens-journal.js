@@ -172,27 +172,22 @@
       api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`),
     ]);
     const e = (d.entries || []).find(x => x.settlement_id === sid);
-    const head = `<div class=c-ctx-h>
-      <span class=k>entry</span><b>${esc(sid)}</b>
-      <span class=c-ctx-x>
-        <button class="c-ctx-b go" data-subject="settlement:${esc(sid)}"
-          title="Make this settlement the subject">Open ↗</button>
-        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
-      </span></div>`;
+    const shell = { kind: 'Entry', title: sid,
+                    promote: { type: 'settlement', id: sid } };
 
     if (!e) {
       const why = (det.judgement && det.judgement.reasons || []).slice(-1)[0]
         || 'no unique kernel-checked explanation';
-      return head + Section({
+      return { ...shell, status: det.verdict, body: Section({
         title: 'No entry is written',
         body: `<p class=c-lead>${esc(why)}</p>`,
       }) + (det.exception ? Section({
         title: 'What would change that',
         body: `<p class=c-lead>${esc(det.exception.next_step)}</p>`,
-      }) : '');
+      }) : '') };
     }
 
-    return head + Section({
+    return { ...shell, status: det.verdict, body: Section({
       title: 'The money trail',
       aside: `<span class=c-muted>${plural(e.orders, 'order')}</span>`,
       body: MoneyTrail(e.lines, e.total_paise),
@@ -207,7 +202,7 @@
           l.credit_paise ? esc(rupees(l.credit_paise)) : '']),
         foot: ['Balance', esc(rupees(e.total_paise)), esc(rupees(e.total_paise))],
       }),
-    });
+    }) };
   }
 
   /* Inside a settlement's own journal, the thing worth inspecting is which
@@ -216,13 +211,11 @@
     const api = window.shellApi;
     const det = await api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(sid)}`);
     const p = det.proofs && det.proofs[0];
-    const head = `<div class=c-ctx-h><span class=k>discharged</span>
-      <b>${p ? plural(p.orders.length, 'order') : 'orders'}</b>
-      <span class=c-ctx-x>
-        <button class=c-ctx-b data-close-ctx aria-label="Close">✕</button>
-      </span></div>`;
-    if (!p) return head + EmptyState('No explanation, so no orders were discharged.');
-    return head + DataTable({
+    const shell = { kind: 'Orders',
+                    title: p ? plural(p.orders.length, 'order') : 'orders' };
+    if (!p) return { ...shell,
+      body: EmptyState('No explanation, so no orders were discharged.') };
+    return { ...shell, body: DataTable({
       cols: [{ label: 'Order' }, { label: 'Method' },
              { label: 'Gross', num: true }, { label: 'Net', num: true }],
       rows: p.orders.map(o => [
@@ -230,7 +223,7 @@
         `<span class=c-muted>${esc(o.method)}</span>`,
         esc(rupees(o.gross)), esc(rupees(o.net))]),
       foot: ['Total', '', esc(rupees(p.gross)), esc(rupees(p.net))],
-    });
+    }) };
   }
 
   window.defineLens('journal', {
