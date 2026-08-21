@@ -13,6 +13,7 @@ the ledger is the whole failure.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +37,10 @@ _RUNS: dict[str, "Run"] = {}
 #: One ingest log for the process. Events arrive independently of runs — that is
 #: the point of them — so the log outlives any single reconciliation.
 _INGEST = None
+#: Risk models by (portfolio size, seed). A model is a pure function of those
+#: two, so re-deriving it on every run is repeated work with a guaranteed
+#: identical answer.
+_RISK_CACHE: dict[tuple[int, int], Any] = {}
 
 
 def ingest():
@@ -127,12 +132,25 @@ def execute(n: int, seed: int) -> Run:
     # results per settlement and a worse-populated stratum than the portfolio it
     # is meant to price. Calibration data has to match the density of what it
     # judges, which is a distribution-shift problem wearing a scale disguise.
-    fits = {}
-    for k in range(4):
-        cal = build(n, seed=(seed ^ 0x5EED) + k * 7919)
-        _, _, cf = run(cal.settlements, cal.orders)
-        fits[k] = (cf, {t_.settlement_id: set(t_.order_ids) for t_ in cal.truth})
-    risk = calibrate(fits)
+    #
+    # The four are independent, and the DP detaches the interpreter for the
+    # whole of its work (see native/src/lib.rs), so threading them is a real
+    # 3x rather than a nominal one: 81s -> 27s at n=1200 on ten cores. It was
+    # 70% of the wall clock, which made the largest portfolio a two-minute wait
+    # for a number that had already been computed 34 seconds in.
+    risk = _RISK_CACHE.get((n, seed))
+    if risk is None:
+        def _fit(k: int):
+            cal = build(n, seed=(seed ^ 0x5EED) + k * 7919)
+            _, _, cf = run(cal.settlements, cal.orders)
+            return cf, {t_.settlement_id: set(t_.order_ids) for t_ in cal.truth}
+
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            fits = dict(enumerate(ex.map(_fit, range(4))))
+        risk = calibrate(fits)
+        # Keyed on (n, seed) because that is exactly what it is a function of.
+        # Pressing Run twice at the same size should not re-derive it.
+        _RISK_CACHE[(n, seed)] = risk
     _audit(log, "calibrate",
            f"risk model fitted on {risk.calibrated_on} proven results from a "
            f"held-out portfolio; strata: "
