@@ -83,6 +83,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.attention(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/sync":
+            self._json(api.sync_view(api.get(q.get("run", [""])[0])))
+
         elif u.path == "/api/trail":
             r = api.get(q.get("run", [""])[0])
             self._json(api.trail_view(r, q.get("id", [""])[0]) if r

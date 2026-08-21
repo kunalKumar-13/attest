@@ -16,6 +16,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from attest.certificate import issue
@@ -106,6 +107,9 @@ class Run:
     credits: list[Any] = field(default_factory=list)
     audit: list[dict[str, Any]] = field(default_factory=list)
     provenance: Any = None
+    started_at: str = ""
+    """UTC ISO timestamp. Needed to say whether an event arrived before or
+    after the run decided, which is the whole of whether a verdict is stale."""
 
 
 def _audit(log: list[dict[str, Any]], event: str, detail: str) -> None:
@@ -115,6 +119,7 @@ def _audit(log: list[dict[str, Any]], event: str, detail: str) -> None:
 def execute(n: int, seed: int) -> Run:
     """Run a portfolio end to end and keep it addressable."""
     log: list[dict[str, Any]] = []
+    started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _audit(log, "run.start", f"portfolio n={n}, seed={seed}")
 
     ds = build(n, seed=seed)
@@ -192,7 +197,8 @@ def execute(n: int, seed: int) -> Run:
             settlements=ds.settlements, orders=ds.orders, credits=ds.credits,
             truth=ds.truth,
             findings=findings, report=rep, audit=log, pools=pools,
-            risk=risk, exceptions=exceptions, provenance=prov)
+            risk=risk, exceptions=exceptions, provenance=prov,
+            started_at=started_at)
     _RUNS[r.run_id] = r
     return r
 
@@ -1225,4 +1231,75 @@ def trail_view(r: Run, sid: str = "") -> dict[str, Any]:
             "engine abstained. A model whose wrong answers are visible and "
             "labelled is worth more than one whose right answers cannot be told "
             "apart from its wrong ones."),
+    }
+
+
+def sync_view(r: Run | None) -> dict[str, Any]:
+    """Whether the answer on screen is still valid, and what is owed. §38.
+
+    Not "is the connection up". A reconciliation is a standing claim about a
+    moving set of records, so the operational question is narrower and harder:
+    which of the verdicts currently displayed were decided before evidence
+    arrived that bears on them.
+
+    Every accepted webhook names the settlements it can affect — the ingest
+    layer already scopes that against the book the engine actually holds — so
+    the settlements owed a re-verification are exactly the ones named by events
+    that landed after the run started. That set is computed, not asserted, and
+    it is empty when nothing has arrived, which is the common and correct case.
+    """
+    feed = event_feed(limit=500)
+    events = feed.get("events", [])
+    started = (r.started_at if r else "") or ""
+
+    after: list[dict[str, Any]] = []
+    for e in events:
+        at = str(e.get("received_at") or "")
+        if started and at and at > started:
+            after.append(e)
+
+    owed: dict[str, str] = {}
+    for e in after:
+        if e.get("status") != "accepted":
+            continue
+        for sid in e.get("affected", []):
+            owed[sid] = e.get("kind", "event")
+
+    by_status: dict[str, int] = {}
+    for e in after:
+        by_status[e.get("status", "?")] = by_status.get(e.get("status", "?"), 0) + 1
+
+    st = {x.settlement_id: x for x in r.settlements} if r else {}
+    src = integrations(r)
+    active = src.get("active", {})
+
+    return {
+        "run_id": r.run_id if r else None,
+        "started_at": started,
+        "seed": r.seed if r else None,
+        "settlements": len(r.settlements) if r else 0,
+        "source": active.get("name") or active.get("kind") or "synthetic",
+        "live": bool(active.get("live")),
+        "linked_fraction": active.get("linked_fraction"),
+        "freshness": (
+            "Generated in-process for this run. There is no external source for "
+            "it to be stale relative to, and saying otherwise would be the "
+            "exact lie §39 warns about."
+            if not active.get("live") else
+            "Pulled from a connected account; staleness is measured against the "
+            "last successful fetch."),
+        "events_since_run": len(after),
+        "events_by_status": by_status,
+        "owed": [{"id": sid, "amount_paise": st[sid].net_paise if sid in st else 0,
+                  "because": kind} for sid, kind in sorted(
+                      owed.items(),
+                      key=lambda kv: -(st[kv[0]].net_paise if kv[0] in st else 0))],
+        "owed_paise": sum(st[sid].net_paise for sid in owed if sid in st),
+        "note": (
+            "Nothing has arrived since this run decided, so every verdict on "
+            "screen still rests on the records it was decided from."
+            if not owed else
+            "These settlements were decided before evidence arrived that names "
+            "them. Their verdicts are not wrong — they are unrevised, which is "
+            "a different and recoverable thing."),
     }

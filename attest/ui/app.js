@@ -591,13 +591,47 @@ function setVF(v) {
 el('run').onclick = run;
 async function drawIntegrations() {
   el('right').innerHTML = '<div class=empty><span class=spin></span>reading source state…</div>';
-  const d = await api(`/api/integrations?run=${S.run ? S.run.run_id : ''}`);
+  const run = S.run ? S.run.run_id : '';
+  const [d, sy] = await Promise.all([
+    api(`/api/integrations?run=${run}`),
+    api(`/api/sync?run=${run}`),
+  ]);
+  if (S.screen !== 'sources') return;
   const a = d.active;
   const dot = ok => `<i class=dot2 style="background:${ok ? 'var(--ok)' : 'var(--dim3)'}"></i>`;
   const pill = (t, c) => `<span class=pillx style="color:${c}">${t}</span>`;
 
+  // Sync health belongs here rather than on a tab of its own: "what am I
+  // reading" and "is it still current" are two halves of one question, and
+  // splitting them lets a reader answer the first and forget the second.
+  const sync = `<section class=sync>
+    <div class=sync-h>
+      <span class="st st-${sy.owed.length ? 'AMBIGUOUS' : 'PROVEN'}">
+        ${sy.owed.length ? 'RE-VERIFICATION OWED' : 'UP TO DATE'}</span>
+      <span class=sync-run>${esc(sy.run_id || '—')} ·
+        ${esc((sy.started_at || '').replace('T', ' ').replace('+00:00', ' UTC'))}</span>
+      <span class=sync-ev>${plural(sy.events_since_run, 'delivery', 'deliveries')}
+        since it decided</span>
+    </div>
+    <p class=lede>${esc(sy.freshness)}</p>
+    ${sy.owed.length ? `
+      <div class=fs style="border:0;padding:0;margin:var(--s-4) 0 var(--s-3)">
+        <div class=metric><span class=k>owed</span>
+          <span class=v style="color:var(--st-ambiguous)">${rs(sy.owed_paise, true)}</span>
+          <span class=s>${plural(sy.owed.length, 'settlement')} decided before
+            evidence that names them</span></div>
+      </div>
+      <div class=evs>${sy.owed.map(o => `<div class=ev>
+        <span class="et mono">${esc(o.id)}</span>
+        <span class="ek mono">${rs(o.amount_paise)}</span>
+        <span class=ed>named by ${esc(o.because)}</span>
+        <span class="est duplicate">unrevised</span></div>`).join('')}</div>` : ''}
+    <p class=lede style="margin-top:var(--s-3)">${esc(sy.note)}</p>
+  </section>`;
+
   el('right').innerHTML = `<div class=ing>
     <h2>Sources</h2>
+    ${sync}
     <p class=lead>What ATTEST is reading, and what it is not. A source that is not
       connected says so; the one in use says what it actually is. Nothing here
       reports live unless it was pulled from a connected account.</p>
