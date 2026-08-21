@@ -1159,3 +1159,91 @@ def test_a_stale_trust_fetch_cannot_land_on_another_subject(page):
     page.unroute("**/api/claims*")
     assert _state(page)[0] == "settlement:setl_000020"
     assert "uncomfortable numbers" not in page.inner_text("#workspace").lower()
+
+
+# --------------------------------------------------------------------------
+# Phase 9.4 — interaction guarantees that were defects before they were rules.
+# --------------------------------------------------------------------------
+
+def test_the_state_spine_is_present_on_every_lens(page):
+    """§9.3C. It is the application's "you are here".
+
+    It used to be drawn by whichever lens chose to call StateSpine, so it
+    appeared on two views out of fourteen and vanished entirely on Trust —
+    the one lens where a reader is holding "where did the money stop" while
+    reading about the system's own failures. It is rendered by the shell now,
+    which is what makes "no exceptions" a property rather than a promise.
+    """
+    for subject in ("portfolio", "settlement/setl_000089"):
+        for lens in ("control", "journal", "evidence", "investigate",
+                     "policy", "activity", "trust"):
+            page.evaluate(f"() => location.hash = '#/{subject}/{lens}'")
+            page.wait_for_timeout(500)
+            h = page.evaluate("""() => {
+                const e = document.querySelector('#w-spine .c-flow');
+                return e ? e.getBoundingClientRect().height : 0; }""")
+            assert h > 0, f"no state spine on {subject}/{lens}"
+
+
+def test_the_master_owns_the_full_width_until_something_is_inspected(page):
+    """§9.3N. The absence of a context is itself the correct state.
+
+    The pane was hidden when nothing was selected, but its grid COLUMN stayed:
+    the master rendered at 54% of the workspace and the other 46% was reserved
+    for the sentence "Select a row to inspect it."
+    """
+    page.evaluate("() => location.hash = '#/portfolio/control'")
+    page.wait_for_timeout(900)
+    share = page.evaluate("""() => {
+        const ws = document.getElementById('workspace');
+        const m = document.getElementById('w-main');
+        return m.getBoundingClientRect().width / ws.getBoundingClientRect().width; }""")
+    assert share > 0.95, f"master holds only {share:.0%} with no context open"
+
+    page.click(".c-row.link")
+    page.wait_for_timeout(900)
+    shared = page.evaluate("""() => {
+        const ws = document.getElementById('workspace');
+        const m = document.getElementById('w-main');
+        return m.getBoundingClientRect().width / ws.getBoundingClientRect().width; }""")
+    assert shared < 0.8, "opening a context did not give the pane its column"
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(600)
+
+
+def test_the_palette_reaches_a_settlement_by_keyboard_alone(page):
+    """§9.4.18. The whole journey must be possible without a mouse.
+
+    Reaching a settlement otherwise means tabbing through a queue of 250.
+    """
+    page.evaluate("() => location.hash = '#/portfolio/control'")
+    page.wait_for_timeout(900)
+    page.keyboard.press("Meta+k")
+    page.wait_for_timeout(400)
+    assert page.evaluate("() => PALETTE.isOpen()"), "Cmd+K did not open the palette"
+    assert page.evaluate("() => document.activeElement.classList.contains('c-pal-q')"), \
+        "the palette opened without taking focus"
+
+    page.keyboard.type("setl_0000")
+    page.wait_for_timeout(400)
+    labels = page.evaluate(
+        "() => [...document.querySelectorAll('.c-pal-l')].map(n => n.textContent)")
+    assert labels and all(l.startswith("setl_") for l in labels[:3]), \
+        f"a settlement query returned {labels[:3]}"
+
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(900)
+    assert page.evaluate("() => SHELL.subject.type") == "settlement"
+    assert not page.evaluate("() => PALETTE.isOpen()"), "the palette stayed open"
+
+
+def test_closing_the_palette_never_drops_focus_to_the_document(page):
+    """§9.4.18. Focus landing on <body> is how a keyboard journey ends."""
+    page.evaluate("() => location.hash = '#/portfolio/control'")
+    page.wait_for_timeout(800)
+    page.keyboard.press("Meta+k")
+    page.wait_for_timeout(400)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(400)
+    tag = page.evaluate("() => document.activeElement.tagName")
+    assert tag != "BODY", "focus was returned to the document"

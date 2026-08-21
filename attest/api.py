@@ -2240,6 +2240,36 @@ def trust_claims() -> dict[str, Any]:
             {"what": "Search-space integrity rests on blocking conventions",
              "why": "Most reductions are conventions rather than facts, so a "
                     "proof is unique inside a space the calendar chose."},
+            # The adapter's frozen boundaries, stated here rather than only in
+            # docs/RAZORPAY-INTEGRATION.md. These are BOUNDARIES, not defects —
+            # claims this integration has declined to make. Trust is where a
+            # reader looks to find out what the system will not say, so a
+            # boundary recorded only in a markdown file is a boundary nobody
+            # reads at the moment it matters.
+            {"what": "Live account validation is NOT VERIFIED",
+             "why": "attest/adapters/razorpay.py performs a real authenticated "
+                    "request and has never been called with real credentials. "
+                    "Code that would perform a live operation is not a live "
+                    "integration, and the presence of fetch code is not "
+                    "evidence that anything was validated against it."},
+            {"what": "Bank statement ingestion is synthetic",
+             "why": "BankCredit is constructed from each settlement, so every "
+                    "credit matches by construction. The adapter therefore "
+                    "cannot exercise the one case the engine exists for: a "
+                    "credit that does not correspond to one settlement."},
+            {"what": "The pagination stop condition is unverified",
+             "why": "count/skip until a short page is Razorpay's documented "
+                    "behaviour, read from documentation rather than from "
+                    "responses. The loop has never met a real one."},
+            {"what": "Fee and secret handling have read-only evidence",
+             "why": "Fees are read and re-derived from the rule set, and that "
+                    "no credential reaches a snapshot or a log was established "
+                    "by reading the code. Neither is asserted by a test."},
+            {"what": "Adapter rejections do not outlive the process",
+             "why": "A rejected source row carries its index, reason and "
+                    "identity for one pull and is then gone, so the same "
+                    "defect on Monday and Thursday is not recognisable as one "
+                    "problem. Deferred deliberately — see the ADR."},
         ],
         "ai_permissions": agents_view(None),
     }

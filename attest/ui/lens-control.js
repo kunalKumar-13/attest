@@ -38,6 +38,15 @@
     // here made Control the only view with two of them.
     const spineBlock = '';
 
+    // The palette navigates to settlements, and these are the ones this run
+    // actually flagged. Published from data already fetched rather than by
+    // adding a request — a palette that needs its own endpoint is a feature.
+    window.PALETTE_ROWS = (att.groups || []).flatMap(g =>
+      (g.items || []).map(it => ({
+        id: it.id || it,
+        hint: `${g.label}${it.amount_paise ? ' · ' + rupees(it.amount_paise) : ''}`,
+      }))).filter(r => r.id);
+
     const actionBlock = Section({
       title: 'What unlocks the most',
       aside: `<span class=c-muted>${plural(acts.total_steps, 'piece')} of work</span>`,
