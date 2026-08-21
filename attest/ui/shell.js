@@ -215,6 +215,41 @@ function canHoldContext(lensKey, subject, context) {
  * The third is the whole of Phase 2. If changing context re-rendered the
  * workspace it would be navigation wearing a drawer's clothes.
  */
+/* The spine is structural, not a lens's decoration.
+ *
+ * It used to be rendered by whichever lens felt like calling StateSpine, which
+ * meant it appeared on two views out of fourteen and vanished entirely on
+ * Trust — where "where did the money stop" is exactly the question a reader is
+ * holding while they read about the system's failures. Rendering it here makes
+ * "on every lens, no exceptions" a property of the shell rather than a promise
+ * seven files have to keep.
+ *
+ * Cached per subject so walking the lens strip does not re-request the same
+ * flow seven times; the guard already discards anything stale.
+ */
+/* What the reader last scrolled the master to, BY THEIR OWN ACTION. Reset when
+ * the master is rebuilt, because a new lens is a new document.
+ *
+ * `SETTLING` is what makes this correct rather than circular. Opening a context
+ * reflows the master, the browser adjusts scrollTop, and that adjustment fires
+ * a scroll event exactly like a real one — so a naive tracker records the
+ * reflow as intent and then faithfully restores the wrong number. While the
+ * shell is settling its own layout, scroll events are its own noise. */
+let MASTER_SCROLL = 0;
+let SETTLING = false;
+
+const SPINE = new Map();
+async function spineFor(subject) {
+  const key = `${SHELL.run}/${subject.type}/${subject.id}/${SHELL.review}/${SHELL.exposure}`;
+  if (!SPINE.has(key)) {
+    SPINE.set(key, api(subject.type === 'portfolio'
+      ? `/api/spine?run=${SHELL.run}&type=portfolio&review=${SHELL.review}&exposure=${SHELL.exposure}`
+      : `/api/spine?run=${SHELL.run}&type=settlement&id=${encodeURIComponent(subject.id)}`)
+      .catch(() => null));
+  }
+  return SPINE.get(key);
+}
+
 async function render({ changedSubject = false, changedLens = false } = {}) {
   const lens = LENSES[SHELL.lens];
   if (!lens) { paintError(`No lens ${SHELL.lens}`); return; }
@@ -228,11 +263,14 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   if (move) host.classList.add(`x-out-${move}`);
 
   const t = token();
-  let main;
+  let main, spine;
   try {
-    main = mode === 'master-detail'
-      ? await lens.master(SHELL.subject, SHELL)
-      : await lens.render(SHELL.subject, SHELL);
+    [main, spine] = await Promise.all([
+      mode === 'master-detail'
+        ? lens.master(SHELL.subject, SHELL)
+        : lens.render(SHELL.subject, SHELL),
+      spineFor(SHELL.subject),
+    ]);
   } catch (err) {
     main = window.C.ErrorState(String((err && err.message) || err));
   }
@@ -242,14 +280,22 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   host.classList.remove('x-out-turn', 'x-out-slide');
   host.innerHTML = `
     ${SHELL.notice ? `<div class=c-notice role=status>${window.C.esc(SHELL.notice)}</div>` : ''}
+    <div class=w-spine id=w-spine>${window.C.StateSpine(spine, { rail: true })}</div>
     <div class=w-main id=w-main>${main}</div>
     <aside class=w-ctx id=w-ctx hidden aria-live=polite></aside>`;
+  // The header carries the stage the spine stopped at, so identity and state
+  // are one object rather than two things that happen to agree.
+  if (HEADER && spine) HEADER.stage(spine.stopped_at, spine);
   if (move) {
     host.classList.add(`x-in-${move}`);
     host.addEventListener('animationend',
       () => host.classList.remove(`x-in-${move}`), { once: true });
   }
-  if (lens.mount) lens.mount(el('w-main'), SHELL.subject, SHELL);
+  MASTER_SCROLL = 0;
+  const mainEl = el('w-main');
+  if (mainEl) mainEl.addEventListener('scroll',
+    () => { if (!SETTLING) MASTER_SCROLL = mainEl.scrollTop; }, { passive: true });
+  if (lens.mount) lens.mount(mainEl, SHELL.subject, SHELL);
   markSelection();
   await renderContext();
 }
@@ -258,6 +304,23 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
 async function renderContext() {
   const pane = el('w-ctx');
   if (!pane) return;
+
+  /* Opening a context narrows the master from the full width to its column.
+   * The reflow moves the reader's place, and §7 says only the context appears
+   * and disappears — the master is where they already were.
+   *
+   * The intended position is tracked CONTINUOUSLY rather than captured here.
+   * renderContext can run more than once for a single open, and a second call
+   * that re-reads scrollTop reads the value the first call's reflow already
+   * moved — so the restore faithfully restores the wrong number. What the
+   * reader chose is only knowable from their own scrolling. */
+  const main = el('w-main');
+  const want = MASTER_SCROLL;
+  SETTLING = true;
+  const restore = () => {
+    if (main && main.scrollTop !== want) main.scrollTop = want;
+  };
+  const settled = () => { restore(); SETTLING = false; };
   const lens = LENSES[SHELL.lens];
   const mode = layoutFor(lens, SHELL.subject);
 
@@ -275,6 +338,7 @@ async function renderContext() {
       ? window.C.EmptyState(lens.emptyContext || 'Select a row to inspect it.')
       : '';
     ws.classList.remove('has-ctx');
+    requestAnimationFrame(() => requestAnimationFrame(settled));
     return;
   }
 
@@ -299,9 +363,15 @@ async function renderContext() {
       title: html.title, status: html.status, promote: html.promote,
     }) + html.body);
   pane.classList.add('x-in-ctx');
-  pane.addEventListener('animationend',
-    () => pane.classList.remove('x-in-ctx'), { once: true });
+  pane.addEventListener('animationend', () => {
+    pane.classList.remove('x-in-ctx');
+    settled();          // once the entrance has finished and layout is final
+  }, { once: true });
   if (lens.mountContext) lens.mountContext(pane, SHELL.context, SHELL);
+  requestAnimationFrame(() => requestAnimationFrame(restore));
+  // Belt and braces: if the animation never runs (reduced motion, or a pane
+  // that did not animate) animationend never fires and SETTLING would stick.
+  setTimeout(settled, 400);
 }
 
 /* Anchor the drawer's growth to where the click happened. A pane that always
@@ -387,6 +457,7 @@ async function boot() {
   const summary = await api(`/api/run?n=${el('size') ? el('size').value : 250}`);
   SHELL.run = summary.run_id;
   GUARD.invalidateAll();
+  SPINE.clear();
   const start = fromHash(location.hash)
              || { subject: { type: 'portfolio', id: 'portfolio' }, lens: 'control' };
   await navigate(start, { replace: true });

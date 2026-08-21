@@ -21,11 +21,51 @@
   --shadow:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --t-micro:9px; --t-label:10.5px; --t-small:11.5px; --t-body:13px;
-  --t-lead:15px; --t-h3:19px; --t-h2:24px; --t-num:30px; --t-hero:42px;
-  --s-1:4px; --s-2:6px; --s-3:9px; --s-4:13px; --s-5:19px; --s-6:27px; --s-7:38px;
-  --r-0:3px; --r-1:6px; --r-2:9px; --r-3:12px; --r-4:14px; --r-full:999px;
-  --fast:.12s cubic-bezier(.2,0,0,1); --med:.22s cubic-bezier(.2,0,0,1);
+  /* ------------------------------------------------------------- TYPE
+     Six named roles. The audit found NINE sizes in use with two accidental
+     pairs — 13/13.5 and 8.5/9 — which are not decisions, they are the
+     residue of choosing at the call site. Everything below resolves to one
+     of six, and the old names are kept as aliases so no rule has to be
+     rewritten to obey the scale.
+
+     DATA is a role, not a size: financial values are the subject of this
+     product and must never render as body copy. */
+  --type-display:34px;   /* the case amount, once per screen */
+  --type-title:20px;     /* identity, the lens's headline */
+  --type-data:15px;      /* figures inside a composition */
+  --type-body:13px;      /* statements, row content */
+  --type-label:11px;     /* small-caps section labels */
+  --type-micro:10px;     /* provenance, timestamps, counts */
+
+  --t-micro:var(--type-micro); --t-label:var(--type-label);
+  --t-small:var(--type-label); --t-body:var(--type-body);
+  --t-lead:var(--type-data);   --t-h3:var(--type-title);
+  --t-h2:var(--type-title);    --t-num:var(--type-display);
+  --t-hero:var(--type-display);
+
+  /* ----------------------------------------------------------- SPACING
+     Eight steps on a 4px base, replacing 4/6/9/13/19/27/38 — a geometric
+     drift where no two steps shared a relationship. A component that needs
+     a ninth value is a component that is structurally wrong. */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:40px;
+  --s-1:var(--sp-1); --s-2:var(--sp-2); --s-3:var(--sp-2); --s-4:var(--sp-3);
+  --s-5:var(--sp-5); --s-6:var(--sp-6); --s-7:var(--sp-8);
+
+  /* ------------------------------------------------------------ RADII
+     Two. Six were in use. A row is not a card; a separator is not a chip. */
+  --r-sm:4px;            /* controls, small interactive elements */
+  --r-lg:8px;            /* contextual surfaces */
+  --r-0:var(--r-sm); --r-1:var(--r-sm); --r-2:var(--r-lg);
+  --r-3:var(--r-lg); --r-4:var(--r-lg); --r-full:999px;
+
+  /* ----------------------------------------------------------- MOTION
+     Three tiers. Two existed, and the spatial one — an object opening out
+     of the row that owns it — ran on the same token as a hover tint. */
+  --micro:.13s cubic-bezier(.2,0,0,1);      /* interaction feedback */
+  --standard:.2s cubic-bezier(.2,0,0,1);    /* lens and state change */
+  --spatial:.3s cubic-bezier(.16,1,.3,1);   /* context open and close */
+  --fast:var(--micro); --med:var(--standard);
 }
 :root[data-theme=dark]{
   --bg:#0b0f14; --sur:#0f151c; --sur2:#131b24; --sur3:#18222c;
@@ -41,7 +81,7 @@
   --shadow:none;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:13.5px/1.5 var(--s);
+body{background:var(--bg);color:var(--ink);font:var(--type-body)/1.55 var(--s);
 -webkit-font-smoothing:antialiased;overflow:hidden}
 button{font:inherit;color:inherit}
 
@@ -75,11 +115,14 @@ line-height:1.2}
 .c-subject-id .sub{font-size:var(--t-label);color:var(--dim3)}
 /* The amount belongs to the object, not to the right edge. A thousand pixels
    between `setl_000089 AMBIGUOUS` and `₹1,00,036.83` reads as two things. */
-.c-subject-amt{text-align:left;line-height:1.1;flex:none;
-padding-left:var(--s-4);border-left:1px solid var(--line);margin-left:var(--s-2)}
+/* The amount is the financial subject of the case, not a field in a record.
+   It was rendering at the same size as the identity beside it; the autopsy
+   measured it at 13.5px against body text at 13.5px. */
+.c-subject-amt{text-align:right;line-height:1;flex:none;margin-left:auto;
+padding-left:var(--sp-5)}
 .c-subject-amt .v{display:block;font-family:var(--m);
-font-variant-numeric:tabular-nums;font-size:var(--t-h3);letter-spacing:-.02em;
-line-height:1.2}
+font-variant-numeric:tabular-nums;font-size:var(--type-display);
+letter-spacing:-.035em;line-height:1;font-weight:500}
 .c-subject-amt .k{display:block;font-size:var(--t-micro);color:var(--dim3);
 letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
 .c-subject-meta{display:flex;gap:var(--s-4);flex-wrap:wrap;
@@ -112,7 +155,21 @@ transition:transform var(--med),width var(--med)}
 grid-template-columns:1fr}
 #workspace.mode-master-detail.has-pane{grid-template-columns:minmax(340px,0.92fr)
 minmax(0,1.08fr)}
-.w-main{overflow-y:auto;padding:var(--s-5) var(--s-5) var(--s-7);min-width:0}
+#workspace.mode-master-detail.has-pane #w-spine{grid-column:1/-1}
+/* No empty context pane. `has-pane` says this lens CAN hold a context;
+   `has-ctx` says one is open. The pane was already hidden when nothing was
+   selected, but its grid COLUMN stayed — so the master rendered at 54% of the
+   workspace and the other 46% was reserved for a sentence. The absence of a
+   context is itself the correct state, and it is what gives the opening
+   transition something to mean. */
+#workspace.mode-master-detail.has-pane:not(.has-ctx){grid-template-columns:minmax(0,1fr)}
+.w-main{overflow-y:auto;padding:var(--s-5) var(--s-5) var(--s-7);min-width:0;
+  /* Opening a context changes the master's height, and Chrome's scroll
+     anchoring then nudges scrollTop to keep visible content still — which
+     silently defeats the explicit restore in renderContext and loses the
+     reader's place by a few dozen pixels. §7 says the master is where they
+     already were, so the position is ours to decide, not the browser's. */
+  overflow-anchor:none}
 .mode-focus .w-main{max-width:1180px;width:100%}
 /* The detail pane is the RAISED surface, because it is the thing you opened.
    It was on --sunk, which is undefined here and fell back to one hex value
@@ -205,7 +262,7 @@ font-size:var(--t-h2);letter-spacing:-.02em;line-height:1.1}
 .c-status{font-size:var(--t-micro);letter-spacing:.1em;font-weight:600;
 padding:2px 7px;border-radius:var(--r-full);white-space:nowrap;
 color:var(--st-INSUFFICIENT);background:var(--st-INSUFFICIENT-bg)}
-.c-status.sm{font-size:8.5px;padding:1px 6px}
+.c-status.sm{font-size:var(--type-micro);padding:1px 6px}
 .s-PROVEN{color:var(--st-PROVEN);background:var(--st-PROVEN-bg)}
 .s-AMBIGUOUS{color:var(--st-AMBIGUOUS);background:var(--st-AMBIGUOUS-bg)}
 .s-CONTRADICTED{color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
@@ -281,7 +338,7 @@ transition:transform var(--fast)}
 line-height:1.65;max-width:84ch}
 .c-disc-b p+p{margin-top:7px}
 .c-disc-b code{font-family:var(--m);font-size:var(--t-small)}
-.c-reasons{margin-left:16px}
+.c-reasons{margin-left:var(--sp-4)}
 .c-reasons li{margin-bottom:4px}
 
 .c-empty{padding:var(--s-6) 0;color:var(--dim3);font-size:var(--t-label);
@@ -441,8 +498,23 @@ line-height:1.3;max-width:44ch}
 .i-tl{list-style:none;position:relative;padding-left:var(--s-5)}
 .i-tl::before{content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;
 background:var(--line2)}
-.i-tl-s{position:relative;padding:0 0 var(--s-5) var(--s-4);cursor:pointer;
-border-radius:var(--r-2);transition:background var(--fast)}
+/* A TEST LOG, not a timeline.
+   Investigate and Activity were the product's closest pair (0.721): both
+   rendered as a flat vertical list of actor-marked steps, and connectors
+   alone did not separate them because the shared shape is the row itself.
+   So the shapes differ now. Activity is a chain — events linked by their
+   causes, read downward. This is a ledger of attempts: each row is a claim
+   on the left and what happened to it on the right, in columns, because
+   the question Investigate answers is "what was tried and did it work". */
+.i-tl-s{position:relative;display:grid;
+grid-template-columns:minmax(0,1fr) minmax(0,168px);
+column-gap:var(--sp-5);align-items:start;
+padding:var(--sp-2) var(--sp-2) var(--sp-4) var(--sp-4);cursor:pointer;
+border-top:1px solid var(--line);border-radius:0;
+transition:background var(--fast)}
+.i-tl-s:first-child{border-top:0}
+.i-tl-s .i-tl-r{grid-column:2;grid-row:1;margin-left:0;text-align:right;
+align-self:start;padding-top:2px}
 .i-tl-s:hover{background:var(--sur)}
 .i-tl-s.sel{background:var(--sur)}
 .i-tl-m{position:absolute;left:-19px;top:4px;width:9px;height:9px;
@@ -545,7 +617,7 @@ border-radius:var(--r-full);padding:2px 9px}
 .p-bound-t{position:relative;height:34px;background:var(--sur3);
 border-radius:var(--r-0);margin-bottom:9px}
 .p-bound-line{position:absolute;top:-4px;bottom:-4px;width:2px;
-background:var(--ink);border-radius:1px}
+background:var(--ink);border-radius:var(--r-sm)}
 .p-bound-mark{position:absolute;top:50%;width:11px;height:11px;
 margin:-5.5px 0 0 -5.5px;border-radius:var(--r-full);
 background:var(--st-AMBIGUOUS);box-shadow:0 0 0 3px var(--bg)}
@@ -655,8 +727,21 @@ font-size:var(--t-lead)}
 .a-state-a.no{color:var(--dim3)}
 
 .a-tl{position:relative;padding-left:var(--s-5)}
-.a-cause{display:flex;align-items:center;gap:var(--s-3);
-padding:2px 0 2px var(--s-4);margin-left:-1px}
+/* Causality as structure, not as a line of prose between two rows.
+   Activity's primitive is CAUSE │ EVENT │ EFFECT, and Investigate's is a
+   reasoning trail — they were measurably the closest pair in the product
+   (0.721) because both rendered as a flat vertical list of actor-marked
+   steps. The connector makes Activity's chain a chain: the "because" hangs
+   off a rule that physically links the event above to the one below. */
+.a-cause{display:grid;grid-template-columns:auto minmax(0,1fr);
+align-items:center;gap:var(--sp-3);
+padding:var(--sp-1) 0 var(--sp-1) var(--sp-5);position:relative;
+font-style:italic}
+.a-cause::before{content:"";position:absolute;left:var(--sp-4);top:0;bottom:0;
+width:1px;background:var(--line2)}
+.a-cause::after{content:"";position:absolute;left:calc(var(--sp-4) - 2px);
+bottom:0;width:5px;height:5px;border-right:1px solid var(--line2);
+border-bottom:1px solid var(--line2);transform:rotate(45deg) translate(-1px,-1px)}
 .a-cause i{width:1px;height:20px;background:var(--line2);flex:none;
 margin-left:-19px}
 .a-cause span{font-size:var(--t-micro);color:var(--dim3);font-style:italic}
@@ -697,8 +782,9 @@ border-radius:var(--r-full);padding:1px 8px;border:1px solid}
 .a-badge.undone{color:var(--dim3);border-color:var(--line2);border-style:dashed}
 .a-val{font-family:var(--m);font-variant-numeric:tabular-nums;
 font-size:var(--t-body);margin-top:3px}
-.a-eff{font-size:var(--t-label);color:var(--dim3);line-height:1.5;margin-top:2px;
-max-width:88ch}
+.a-eff{font-size:var(--t-label);color:var(--dim3);line-height:1.5;
+margin-top:var(--sp-1);max-width:88ch;padding-left:var(--sp-3);
+border-left:2px solid var(--line)}
 
 .a-out{display:flex;flex-direction:column;gap:1px}
 .a-out-r{display:grid;grid-template-columns:1fr 140px 130px;gap:var(--s-4);

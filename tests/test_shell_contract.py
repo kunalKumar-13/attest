@@ -134,7 +134,11 @@ def test_a_result_is_discarded_when_the_subject_moved_during_the_request(page):
     # the stylesheet rather than about the behaviour.
     body = page.inner_text("#workspace").lower()
     assert "money trail" not in body, "a stale journal render landed"
-    assert "where it stopped" in body or "how it cleared" in body
+    # "Where it stopped" moved out of Control and into the shell's state spine,
+    # which now renders above every lens — so it no longer identifies Control.
+    # The guarantee is unchanged: the stale journal must not land, and Control
+    # must be what is showing.
+    assert "what we know" in body or "the decision" in body
 
 
 def test_an_unsupported_lens_falls_back_visibly_and_never_silently(page):

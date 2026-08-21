@@ -127,7 +127,9 @@ function StateSpine(spine, opts = {}) {
   const top = known ? Math.max(...vals, 1) : 1;
   const MIN = 0.6;   // a surviving sliver must stay visible or it reads as zero
 
-  return `<div class="c-flow${per ? ' portfolio' : ''}">
+  return `<div class="c-flow${per ? ' portfolio' : ''}${opts.rail ? ' rail' : ''}"
+    role="img" aria-label="Money flow${spine.stopped_at
+      ? `, stopped at ${esc(spine.stopped_at)}` : ''}">
     ${spine.stages.map(s => {
       const w = known
         ? Math.max(s.continues_paise / top * 100, s.continues_paise > 0 ? MIN : 0)
@@ -187,6 +189,18 @@ function ContextChrome({ subject, lens, kind, title, status, promote }) {
  * than re-rendering, so that switching lens leaves it visually untouched —
  * which is the difference between an instrument and a page load.
  */
+/* One composed identity, not four fields in a row.
+ *
+ * A case is its name, its state, its money and where that money currently
+ * stands. The old header set those side by side at the same weight and the
+ * amount — the financial subject of the whole screen — read as a field in a
+ * record at 13.5px. Here the amount is the largest thing on the page and the
+ * state and stage hang off the identity, because they are properties OF the
+ * case rather than neighbours of it.
+ *
+ * It is patched, never re-rendered. During a lens change the workspace turns
+ * over and this must not blink: the case is what did not change.
+ */
 class SubjectHeader {
   constructor(host) {
     this.host = host;
@@ -194,12 +208,25 @@ class SubjectHeader {
     this.host.innerHTML = `
       <div class=c-subject-id>
         <span class=lbl></span>
-        <span class=sub></span>
         <span class=st></span>
+        <span class=sub></span>
+        <span class=c-subject-stage hidden></span>
       </div>
       <div class=c-subject-amt><span class=v></span><span class=k></span></div>
       <div class=c-subject-meta></div>`;
     this.q = sel => this.host.querySelector(sel);
+  }
+
+  /* Where the money currently stands, from the spine the shell already
+   * fetched. Written here rather than drawn twice. */
+  stage(stopped, spine) {
+    const n = this.q('.c-subject-stage');
+    if (!n) return;
+    const st = (spine && spine.stages || []).find(x => x.key === stopped);
+    const text = st ? st.label : '';
+    n.hidden = !text;
+    n.className = `c-subject-stage${text ? ' stopped' : ''}`;
+    if (n.textContent !== text) n.textContent = text;
   }
 
   update(s) {

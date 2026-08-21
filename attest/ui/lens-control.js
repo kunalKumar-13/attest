@@ -34,11 +34,9 @@
       api(`/api/attention?run=${S.run}`),
     ]);
 
-    const spineBlock = Section({
-      title: 'Where the money stopped',
-      aside: `<span class=c-muted>${esc(spine.stages[0].value)} in</span>`,
-      body: StateSpine(spine),
-    });
+    // The spine is rendered by the shell, above every lens. Drawing it again
+    // here made Control the only view with two of them.
+    const spineBlock = '';
 
     const actionBlock = Section({
       title: 'What unlocks the most',
@@ -217,11 +215,7 @@
       </div>`,
     });
 
-    return Section({
-        title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
-        body: StateSpine(spine),
-      })
-      + Section({ title: 'What we know', body: known })
+    return Section({ title: 'What we know', body: known })
       + why + decide;
   }
 
@@ -254,9 +248,7 @@
     ]) : '';
 
     return { ...shell, body:
-      Section({ title: spine.stopped_at ? 'Where it stopped' : 'How it cleared',
-                body: StateSpine(spine, { detail: false }) })
-      + (known ? Section({ title: 'What we know', body: known }) : '')
+      (known ? Section({ title: 'What we know', body: known }) : '')
       + Section({
           title: 'The decision',
           body: `<div class=c-decide>
