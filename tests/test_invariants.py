@@ -1231,3 +1231,33 @@ def test_every_unpostable_reason_is_named_not_guessed() -> None:
     assert isinstance(out, Refusal)
     assert "not in the candidate universe" in out.reason, \
         f"the ledger hardcoded a reason instead of naming the real one: {out.reason!r}"
+
+
+def test_running_the_gates_does_not_republish_the_numbers_they_check() -> None:
+    """Verification must be read-only. FAILURES.md D24.
+
+    `benchmark/results.json` is what generates the figures in README, and the
+    gate used to rewrite it on every run — so merely *checking* the gates
+    republished the project's headline numbers as a side effect.
+
+    That is not harmless, because the numbers depend on the execution path.
+    Without the Rust extension the numpy kernel has a narrower envelope and
+    "value accounted for" measures 22.7% against the 66.7% the committed
+    artifact records. A gate run on a machine with no Rust toolchain — which is
+    exactly what CI is, deliberately — would have rewritten README to the numpy
+    figures without anyone asking.
+    """
+    import pathlib
+
+    from attest.eval.gate import BASELINE, RESULTS, run
+
+    before = {p: p.read_bytes() for p in (RESULTS, BASELINE) if p.is_file()}
+    assert before, "no artifacts to protect"
+
+    run(8)          # small n: the point is the side effect, not the numbers
+
+    for p, was in before.items():
+        assert p.read_bytes() == was, (
+            f"a plain gate run rewrote {pathlib.Path(p).name}. Checking the "
+            f"gates must not change what they check, nor what README publishes "
+            f"from it. Refreshing is deliberate: `gate --update`.")

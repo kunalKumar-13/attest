@@ -1179,6 +1179,59 @@ it is not linear: per-settlement cost rises with portfolio size because pools
 grow with density. A throughput figure quoted without its portfolio size means
 nothing, which is the same lesson as D11 in a different clothing.
 
+## D24 — 2026-08-22
+
+**Cloned the repository into an empty directory and followed my own
+instructions. Three of the steps did not work, and one of them was a failure
+this project had already recorded as fixed.**
+
+```
+$ python3 -m venv .venv && ./.venv/bin/pip install -e .
+  error: Multiple top-level packages discovered in a flat-layout:
+         ['eval', 'native', 'attest', 'reports', 'contracts']
+
+$ ./.venv/bin/python -m pytest tests/ -q
+  TypeError: dataclass() got an unexpected keyword argument 'slots'
+```
+
+The second is **D1, verbatim**, eleven months after it was logged as fixed. The
+failure map recorded its defence as "the pinned version in `ci/gates.yml` and
+the interpreter check in `docs/REPRODUCE.md`" — and `docs/REPRODUCE.md` did not
+exist. A pinned CI version protects CI; it does nothing for a person on a Mac,
+where `python3` is 3.9. The defence was a sentence describing a document nobody
+had written.
+
+`requires-python = ">=3.11"` did not help either: the pip that ships with 3.9 is
+old enough to install anyway, and `import attest` then appears to work from
+inside the repository because the package is simply on the path. The first real
+symptom is a `TypeError` about `slots` raised from `model.py`, which points a
+newcomer at the wrong file entirely.
+
+Now `attest/__init__.py` refuses on the version, in words, with the command to
+fix it. A README is not executable; an `__init__` is.
+
+The third defect is the one worth the most. `attest.eval.gate` — the safety
+gates, the thing that exists to *check* — rewrote `benchmark/results.json` on
+every run, and `results.json` is what generates the figures in README. So
+running the gates republished the project's headline numbers as a side effect.
+
+On the clean clone, which has no Rust toolchain, that side effect would have
+rewritten **value accounted for from 66.7% to 23.6%** with nobody asking. The
+numpy kernel has a narrower envelope and resolves less; that is expected and
+documented. Silently publishing it as the result is not. It is exactly the
+document drift of D13, arriving through the door marked "verification".
+
+Gating is now read-only. Refreshing the published numbers takes `--update`.
+Regression: `test_running_the_gates_does_not_republish_the_numbers_they_check`,
+confirmed red against the old behaviour.
+
+**None of the three was visible from inside the development environment**, and
+for the same reason in each case: that environment was configured before the
+conditions that break them existed. The venv predated the directories that break
+package discovery, the interpreter was chosen once and never re-chosen, and the
+Rust extension had been built so long ago that the numpy path was never what I
+was measuring. A reproduction you have not performed is a belief.
+
 ## D23 — 2026-08-22
 
 **Six defects in the reader. Every one of them changes a verdict, and not one

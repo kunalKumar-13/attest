@@ -368,17 +368,47 @@ Statuses used:
 - **WHY IT MATTERS** — an asymmetric gate is the difference between a build that
   protects users and one that protects the headline.
 
-## D1 — `dataclass(slots=True)` exploded on import
+## D1 / D24 — `dataclass(slots=True)` exploded on import, and still did
 
 - **WHAT BROKE** — macOS ships Python 3.9 as `python3`; `slots=` landed in 3.10.
-- **HOW IT WAS FOUND** — it crashed on import.
-- **REGRESSION TEST** — none. The CI workflow pins `python-version: "3.13"`.
-- **CURRENT STATUS** — NO REGRESSION. Conditions 1, 2 and 5 hold. There is no
-  test, because the failure is an environment mismatch a test running in the
-  wrong environment could not detect. The defence is the pinned version in
-  `ci/gates.yml` and the interpreter check in `docs/REPRODUCE.md`.
-- **WHY IT MATTERS** — small, but it is the reason the reproduction document
-  states an interpreter version rather than assuming one.
+- **HOW IT WAS FOUND** — it crashed on import in 2026-08-21. Then it crashed on
+  import again on 2026-08-22, on a clean clone, exactly as before.
+- **REGRESSION TEST** — none that runs in the wrong interpreter, because a test
+  suite that cannot start cannot report. The defence is executable instead:
+  `attest/__init__.py` refuses below 3.11 with the command to fix it.
+- **CURRENT STATUS** — was NO REGRESSION and was **wrong about its own
+  defence**. This entry used to read "the defence is the pinned version in
+  `ci/gates.yml` and the interpreter check in `docs/REPRODUCE.md`" — and
+  `docs/REPRODUCE.md` did not exist. A pinned CI version protects CI; it does
+  nothing for a person on a Mac. `requires-python` does not help either: the pip
+  that ships with 3.9 installs anyway. Now fixed at the only place that runs
+  before anything else can fail.
+- **WHY IT MATTERS** — the map itself claimed a defence that was not there, and
+  only performing the reproduction rather than describing it caught that. This
+  is the entry that argues for the whole document.
+
+## D24 — the reproduction, and the three things that did not work
+
+- **WHAT BROKE** — `pip install -e .` failed on a clean checkout (setuptools
+  refusing flat-layout discovery with `eval/`, `native/`, `reports/` and
+  `contracts/` beside `attest/`); D1 reproduced verbatim; and
+  `attest.eval.gate` rewrote `benchmark/results.json` on every run, which is
+  what generates README's figures — so *checking* the gates republished the
+  headline numbers, and on a machine with no Rust toolchain would have moved
+  "value accounted for" from 66.7% to 23.6% unasked.
+- **HOW IT WAS FOUND** — cloning into an empty directory and running the
+  documented commands instead of writing them.
+- **REGRESSION TEST** —
+  `test_running_the_gates_does_not_republish_the_numbers_they_check`
+- **CURRENT STATUS** — FIXED for the gate side, all five conditions, confirmed
+  red against the old behaviour. The packaging and interpreter fixes have no
+  unit test — both are conditions a running test suite cannot observe, since
+  they decide whether the suite runs at all. `ci/verify.sh` on a clean clone is
+  their check, and `docs/REPRODUCE.md` records the commands.
+- **WHY IT MATTERS** — the gates are the part of this project that exists to
+  check the rest, and they were mutating what they checked. None of the three
+  was visible from inside the development environment, because that environment
+  was configured before the conditions that break them existed.
 
 ## D2 — meet-in-the-middle was the wrong algorithm
 

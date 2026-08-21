@@ -113,8 +113,23 @@ def compare(before: dict[str, object], after: dict[str, object]) -> list[Result]
 
 def run(n: int = 250, update: bool = False) -> int:
     payload = benchmark(n)
-    write_source_of_truth(RESULTS, payload)
     after = payload["pooled"]
+
+    # Gating is READ-ONLY unless asked otherwise. This used to overwrite
+    # benchmark/results.json on every run, and results.json is what generates
+    # the figures in README — so simply checking the gates republished the
+    # project's headline numbers as a side effect.
+    #
+    # That matters because the numbers depend on the execution path. On a clean
+    # machine with no Rust extension the numpy kernel has a narrower envelope
+    # and "value accounted for" measures 22.7% against the 66.7% the committed
+    # artifact records. A gate run there would have rewritten README to the
+    # numpy figures without anyone asking, which is the drift D13 recorded
+    # arriving through the door marked "verification".
+    #
+    # Refreshing the published numbers is now deliberate: --update.
+    if update:
+        write_source_of_truth(RESULTS, payload)
 
     if not BASELINE.exists():
         write_source_of_truth(BASELINE, payload)
@@ -153,7 +168,8 @@ def run(n: int = 250, update: bool = False) -> int:
 
     if update:
         write_source_of_truth(BASELINE, payload)
-        print(f"  baseline updated — commit {BASELINE.relative_to(ROOT)}.\n")
+        print(f"  baseline and results updated — commit "
+              f"{BASELINE.relative_to(ROOT)} and {RESULTS.relative_to(ROOT)}.\n")
     else:
         print("  All safety gates held.\n")
     return 0
