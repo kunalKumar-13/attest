@@ -189,7 +189,7 @@ Navigation is four verbs, and depth lives inside a mode rather than beside it:
 CONTROL      what is happening      Attention · Overview
 INVESTIGATE  why                    Settlements · Exceptions · What changed · Ask
 VERIFY       can we prove it        Accuracy · Failures · Trust centre
-AUTOMATE     what is allowed        Policy · Agents · Sources · Live events
+AUTOMATE     what is allowed        Policy · Journal · Agents · Sources · Live events
 ```
 
 CONTROL opens on what needs a person, ordered by value at stake rather than by
@@ -231,6 +231,7 @@ attest/subsetsum.py    counting DP over the amount axis
 attest/evidence.py     cross-settlement propagation (off by default)
 attest/generate/       hazard taxonomy + generator — FROZEN
 attest/policy.py       Wilson-priced risk, the auto-post inequality
+attest/ledger.py       the journal entry a proof implies, balanced to the paisa
 attest/rules.py        content-hashed rule set + run provenance
 attest/agents.py       capabilities, and the four granted to nothing
 attest/whatchanged.py  run-to-run diff with computed attribution

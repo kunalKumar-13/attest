@@ -681,6 +681,40 @@ background:var(--sur2);border:1px solid transparent;border-radius:var(--r-1);
 padding:3px 8px;cursor:pointer;transition:border-color var(--fast),color var(--fast)}
 .exl:hover{border-color:var(--acc);color:var(--ink)}
 
+/* ---------------- journal ---------------- */
+.je{background:var(--sur);border:1px solid var(--line);border-radius:var(--r-3);
+padding:var(--s-4) var(--s-5) var(--s-4);margin-bottom:8px}
+.je-h{display:flex;align-items:baseline;gap:var(--s-4);margin-bottom:10px;
+flex-wrap:wrap}
+.jid{font-size:var(--t-label)}
+.jd,.jn{color:var(--dim3);font-size:var(--t-label)}
+.ju{color:var(--dim3);font-size:var(--t-micro)}
+.jt{margin-left:auto;font-family:var(--m);font-variant-numeric:tabular-nums;
+font-size:var(--t-lead)}
+.jl{width:100%;border-collapse:collapse;font-size:var(--t-label)}
+.jl th{text-align:left;font-size:var(--t-micro);letter-spacing:.1em;
+text-transform:uppercase;color:var(--dim3);font-weight:600;
+padding:0 var(--s-3) 6px 0;border-bottom:1px solid var(--line)}
+.jl th:nth-child(2),.jl th:nth-child(3){text-align:right}
+.jl td{padding:6px var(--s-3) 6px 0;border-bottom:1px solid var(--line)}
+.jnum{font-family:var(--m);font-variant-numeric:tabular-nums;text-align:right;
+white-space:nowrap;width:120px}
+.jmemo{color:var(--dim3)}
+.jsum td{border-bottom:0;border-top:2px solid var(--line2);font-weight:600;
+padding-top:7px}
+.jprov{font-size:var(--t-micro);color:var(--dim3);margin-top:9px}
+.jref{background:var(--sur);border:1px solid var(--line);
+border-radius:var(--r-2);padding:11px var(--s-4);margin-bottom:5px}
+.jref-h{display:flex;align-items:baseline;gap:var(--s-3);margin-bottom:5px}
+.jref-h b{font-size:var(--t-body)}
+.jref-h .n{font-family:var(--m);color:var(--dim3);font-size:var(--t-label)}
+.jref-h .tot{margin-left:auto;font-family:var(--m);
+font-variant-numeric:tabular-nums;font-size:var(--t-body)}
+.jref-e{color:var(--dim3);font-size:var(--t-label);line-height:1.55}
+@media (max-width: 620px){
+  .jl th:nth-child(4),.jl td:nth-child(4){display:none}
+}
+
 /* ---------------- command palette (§57) ---------------- */
 .pal-wrap{position:fixed;inset:0;z-index:200;background:rgba(15,18,22,.34);
 display:flex;align-items:flex-start;justify-content:center;padding-top:13vh;

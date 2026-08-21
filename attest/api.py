@@ -12,6 +12,7 @@ the ledger is the whole failure.
 
 from __future__ import annotations
 
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -1042,4 +1043,67 @@ def whatchanged_view(r: Run, withhold: float = 0.06) -> dict[str, Any]:
                           "most alarming transition there is: the engine was "
                           "certain twice and disagreed with itself.",
         },
+    }
+
+
+def journal_view(r: Run, review_paise: int = 15_000,
+                 exposure_paise: int = 10_000_000) -> dict[str, Any]:
+    """The accounting ATTEST would write, and a stated reason for everything
+    it would not. §21.
+
+    A verdict is not the deliverable. Everything upstream — the pool, the
+    subset-sum, the kernel, the risk pricing — exists to earn the right to write
+    a journal entry, and this is the screen where that right is exercised or
+    declined. The refusals are grouped because two settlements withheld for the
+    same reason are one problem.
+    """
+    from attest.ledger import Journal, JournalEntry, post
+
+    # The costing is the reader's, not a constant. The Journal reflecting a
+    # different policy from the one the Policy screen is showing would make two
+    # screens disagree about the same portfolio.
+    costs = Costs(review_paise=review_paise, max_exposure_paise=exposure_paise)
+    st = {x.settlement_id: x for x in r.settlements}
+    orders = {o.order_id: o for o in r.orders}
+    prov = r.provenance.render() if r.provenance else ""
+
+    j = Journal()
+    for f in r.findings:
+        s = st[f.settlement_id]
+        out = post(f, s, decide(f, s, r.risk or RiskModel(), costs),
+                   orders, provenance=prov)
+        (j.entries if isinstance(out, JournalEntry) else j.refusals).append(out)
+
+    reasons: dict[str, dict[str, Any]] = {}
+    for x in j.refusals:
+        # Group on the SHAPE of the reason, not its text. "expected loss
+        # ₹1,162.56 >= review cost ₹150.00" and "expected loss ₹154.95 >= review
+        # cost ₹150.00" are one problem stated twice; keying on the sentence put
+        # fifty settlements in fifty buckets of one, which is a list wearing a
+        # summary's clothes.
+        head = x.reason.split("—")[0].split(";")[0].strip()
+        key = re.sub(r"\s+", " ", re.sub(r"[₹\d,.]+", "", head)).strip()
+        g = reasons.setdefault(key, {"reason": key, "count": 0,
+                                     "amount_paise": 0, "example": x.reason,
+                                     "largest_paise": 0})
+        g["count"] += 1
+        g["amount_paise"] += x.amount_paise
+        if x.amount_paise > g["largest_paise"]:
+            g["largest_paise"] = x.amount_paise
+            g["example"] = x.reason
+
+    return {
+        "entries": [e.to_json() for e in
+                    sorted(j.entries, key=lambda e: -e.total_paise)[:40]],
+        "entry_count": len(j.entries),
+        "posted_paise": j.posted_paise,
+        "refused_paise": j.refused_paise,
+        "refusals": sorted(reasons.values(), key=lambda g: -g["amount_paise"]),
+        "refusal_count": len(j.refusals),
+        "balances": j.balances(),
+        "provenance": prov,
+        "accounts": ["Bank", "Payment gateway fees", "Input GST (recoverable)",
+                     "Trade receivables"],
+        "review_paise": review_paise,
+        "exposure_paise": exposure_paise,
     }

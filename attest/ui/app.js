@@ -91,10 +91,12 @@ const MODES = {
             trust: () => drawTrust() },
   },
   automate: {
-    views: [['policy', 'Policy', true], ['agents', 'Agents', true],
-            ['sources', 'Sources', true], ['events', 'Live events', true]],
-    draw: { policy: () => loadPolicy(), agents: () => drawAgents(),
-            sources: () => drawIntegrations(), events: () => drawEvents() },
+    views: [['policy', 'Policy', true], ['journal', 'Journal', true],
+            ['agents', 'Agents', true], ['sources', 'Sources', true],
+            ['events', 'Live events', true]],
+    draw: { policy: () => loadPolicy(), journal: () => drawJournal(),
+            agents: () => drawAgents(), sources: () => drawIntegrations(),
+            events: () => drawEvents() },
   },
 };
 
@@ -1354,4 +1356,86 @@ async function drawChanged() {
     const i = S.view.findIndex(x => x.id === b.dataset.sid);
     if (i >= 0) { S.i = i; go('investigate', 'cases'); }
   });
+}
+
+/* ---------------------------------------------------------------- journal
+ * §21. A verdict is not the deliverable. Everything upstream exists to earn the
+ * right to write an accounting entry, and this is where that right is exercised
+ * or declined — with the balance check shown, because the check is the fee
+ * model restated and an entry that does not balance means the rules disagree
+ * with the records.
+ */
+async function drawJournal() {
+  el('right').innerHTML = '<div class=empty><span class=spin></span>composing entries…</div>';
+  const d = await api(`/api/journal?run=${S.run.run_id}`
+    + `&review=${S.review}&exposure=${S.exposure}`);
+  if (S.screen !== 'journal') return;
+  const amt = v => v ? rs(v) : '';
+
+  el('right').innerHTML = `<div class=ctl>
+    <div class=ctl-hd><h1>Journal</h1>
+      <span class=sub>${plural(d.entry_count, 'entry', 'entries')} ·
+        ${plural(d.refusal_count, 'refusal')} · priced at
+        ${rs(d.review_paise)} a review</span>
+      <button class=btn id=j-pol style="margin-left:auto">Change the costing →</button></div>
+    <p class=lede>The accounting ATTEST would write. Each entry is fixed by the
+      fee model and nothing else — bank, gateway fee and recoverable GST against
+      receivables discharged — so the balance check is <b>net = gross − fee −
+      tax</b> restated. An entry that does not balance is a rule set disagreeing
+      with the records, not a bookkeeping slip, and it is refused at construction
+      rather than held for review.</p>
+
+    <div class=fs>
+      <div class=metric><span class=k>posted</span>
+        <span class=v style="color:var(--st-proven)">${rs(d.posted_paise, true)}</span>
+        <span class=s>${plural(d.entry_count, 'entry', 'entries')} at this policy</span></div>
+      <div class=metric><span class=k>withheld</span>
+        <span class=v>${rs(d.refused_paise, true)}</span>
+        <span class=s>${plural(d.refusal_count, 'settlement')}, each with a reason</span></div>
+      <div class=metric><span class=k>balance</span>
+        <span class=v style="color:${d.balances ? 'var(--st-proven)' : 'var(--st-contradicted)'}">
+          ${d.balances ? '✓' : '✕'}</span>
+        <span class=s>${d.balances ? 'debits equal credits, to the paisa'
+          : 'THE JOURNAL DOES NOT BALANCE'}</span></div>
+    </div>
+
+    <div class=att-hd><h2>Entries</h2>
+      <span class=amt>${rs(d.posted_paise, true)}</span></div>
+    ${d.entries.length ? d.entries.map(e => `<article class=je>
+      <div class=je-h><span class="mono jid">${esc(e.settlement_id)}</span>
+        <span class=jd>${esc(e.value_date)}</span>
+        <span class="mono ju">UTR ${esc(e.utr)}</span>
+        <span class=jn>${plural(e.orders, 'order')}</span>
+        <span class=jt>${rs(e.total_paise)}</span></div>
+      <table class=jl><thead><tr><th>Account</th><th>Debit</th><th>Credit</th>
+        <th>Memo</th></tr></thead><tbody>
+        ${e.lines.map(L => `<tr>
+          <td>${esc(L.account)}</td>
+          <td class=jnum>${amt(L.debit_paise)}</td>
+          <td class=jnum>${amt(L.credit_paise)}</td>
+          <td class=jmemo>${esc(L.memo)}</td></tr>`).join('')}
+        <tr class=jsum><td>Balance</td>
+          <td class=jnum>${rs(e.total_paise)}</td>
+          <td class=jnum>${rs(e.total_paise)}</td>
+          <td class=jmemo>residual ${e.residual_paise}p within
+            ±${e.tolerance_paise}p</td></tr>
+      </tbody></table>
+      <div class="mono jprov">${esc(e.provenance)}</div>
+    </article>`).join('')
+      : `<div class=empty>Nothing clears the policy at ${rs(d.review_paise)} a
+         review. Raise what a review is worth and entries appear — the boundary
+         is the inequality, not a setting.</div>`}
+
+    <div class=att-hd style="margin-top:var(--s-6)"><h2>Withheld</h2>
+      <span class=amt>${rs(d.refused_paise, true)}</span></div>
+    <p class=lede>Grouped by why, not by which. Two settlements withheld for the
+      same reason are one problem.</p>
+    ${d.refusals.map(g => `<div class=jref>
+      <div class=jref-h><b>${esc(g.reason)}</b>
+        <span class=n>${g.count}</span>
+        <span class=tot>${rs(g.amount_paise, true)}</span></div>
+      <div class=jref-e>${esc(g.example)}</div></div>`).join('')}
+  </div>`;
+
+  el('j-pol').onclick = () => go('automate', 'policy');
 }

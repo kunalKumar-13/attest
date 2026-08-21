@@ -469,3 +469,108 @@ def test_pipeline_refuses_a_compromised_search_space_even_when_proven() -> None:
     a = Pipeline().request("reconciliation", "reconcile", "s1",
                            Capability.RUN_SOLVER, evidence="x", finding=f)
     assert a.stopped_at is Stage.VERIFICATION
+
+
+# --------------------------------------------------------------------- ledger
+
+def _journal(n: int = 250, seed: int = 20260821):
+    from attest import api
+    from attest.ledger import JournalEntry, Journal, post
+    r = api.execute(n, seed)
+    st = {x.settlement_id: x for x in r.settlements}
+    orders = {o.order_id: o for o in r.orders}
+    j = Journal()
+    for f in r.findings:
+        s = st[f.settlement_id]
+        out = post(f, s, api._judge(r, f, s), orders)
+        (j.entries if isinstance(out, JournalEntry) else j.refusals).append(out)
+    return r, st, j
+
+
+def test_every_journal_entry_balances_to_the_paisa() -> None:
+    """The balance check is the fee model restated: net = gross - fee - tax. An
+    entry that does not balance is a rule set disagreeing with the records, not
+    a bookkeeping slip, so this is an engine assertion wearing accounting
+    clothes."""
+    _, _, j = _journal()
+    assert j.entries, "no entry posted; the invariant would be vacuous"
+    for e in j.entries:
+        d = sum(x.debit_paise for x in e.lines)
+        c = sum(x.credit_paise for x in e.lines)
+        assert d == c, f"{e.settlement_id}: {d} != {c}"
+    assert j.balances()
+
+
+def test_the_bank_line_is_the_credit_that_actually_arrived() -> None:
+    """Not the modelled net. Where the two differ it is by the proof's residual,
+    and letting the modelled figure onto the bank line would post an amount the
+    bank never paid — which reconciles perfectly and is wrong."""
+    _, st, j = _journal()
+    for e in j.entries:
+        assert e.lines[0].debit_paise == st[e.settlement_id].net_paise
+
+
+def test_nothing_posts_without_a_unique_kernel_checked_explanation() -> None:
+    from attest.policy import Decision
+    from attest.verdict import Verdict
+    r, st, j = _journal()
+    from attest import api
+    posted = {e.settlement_id for e in j.entries}
+    for f in r.findings:
+        if f.settlement_id not in posted:
+            continue
+        assert f.verdict is Verdict.PROVEN
+        assert f.postable
+        assert api._judge(r, f, st[f.settlement_id]).decision is Decision.AUTO_POST
+
+
+def test_every_refusal_states_a_reason() -> None:
+    """A queue of unexplained gaps is how a reconciliation becomes an argument."""
+    _, _, j = _journal()
+    assert j.refusals
+    for x in j.refusals:
+        assert x.reason.strip()
+
+
+def test_an_unbalanced_entry_cannot_be_constructed() -> None:
+    import pytest
+    from attest.ledger import BANK, RECEIVABLES, JournalEntry, Line, Unbalanced
+    with pytest.raises(Unbalanced):
+        JournalEntry("s1", "2026-01-01", "utr", (
+            Line(BANK, debit_paise=100), Line(RECEIVABLES, credit_paise=99),
+        ), ("o1",), "", 0, 1)
+
+
+def test_a_line_cannot_be_both_a_debit_and_a_credit() -> None:
+    import pytest
+    from attest.ledger import BANK, Line, Unbalanced
+    with pytest.raises(Unbalanced):
+        Line(BANK, debit_paise=100, credit_paise=100)
+
+
+def test_a_foreign_rule_set_is_refused_rather_than_absorbed() -> None:
+    """Splitting the charge under rules that did not produce the proof would
+    balance — the drift lands on the fee line — and would silently misstate
+    recoverable GST. It raises instead."""
+    import pytest
+    from attest import api
+    from attest.ledger import Unbalanced, post
+    from attest.policy import Decision
+    from attest.rules import DEFAULT, FeeSchedule
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 20260821)
+    st = {x.settlement_id: x for x in r.settlements}
+    orders = {o.order_id: o for o in r.orders}
+    foreign = DEFAULT.with_(fees=FeeSchedule(tax_bps=2800))
+
+    tried = False
+    for f in r.findings:
+        s = st[f.settlement_id]
+        jm = api._judge(r, f, s)
+        if f.verdict is not Verdict.PROVEN or jm.decision is not Decision.AUTO_POST:
+            continue
+        tried = True
+        with pytest.raises(Unbalanced):
+            post(f, s, jm, orders, rules=foreign)
+    assert tried, "no postable finding to test against"
