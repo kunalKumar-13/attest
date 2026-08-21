@@ -396,3 +396,76 @@ def test_a_changed_rule_changes_the_version() -> None:
     from attest.rules import DEFAULT, FeeSchedule
     other = DEFAULT.with_(fees=FeeSchedule(fixed_paise=200))
     assert DEFAULT.version != other.version
+
+
+# --------------------------------------------------------------------------
+# Agent permissions — §42, §68, §69
+# --------------------------------------------------------------------------
+
+def test_no_agent_can_be_configured_with_a_write_capability() -> None:
+    """Enforced at GRANT time, not only at call time.
+
+    A permission that can be granted and refused later is one somebody will be
+    surprised by. Refusing the configuration means the unsafe state cannot exist.
+    """
+    import pytest
+
+    from attest.agents import Agent, Capability
+    for c in (Capability.POST_ENTRY, Capability.TRIGGER_REFUND,
+              Capability.MODIFY_RECORD, Capability.MARK_RECONCILED):
+        with pytest.raises(PermissionError):
+            Agent("x", "X", "", frozenset({c}))
+
+
+def test_no_agent_in_the_roster_holds_a_write_capability() -> None:
+    from attest.agents import NEVER_GRANTED, ROSTER
+    for a in ROSTER.values():
+        assert not (a.capabilities & NEVER_GRANTED), a.id
+
+
+def test_pipeline_refuses_a_write_at_the_capability_stage() -> None:
+    from attest.agents import Capability, Pipeline, Stage
+    a = Pipeline().request("investigation", "post", "s1", Capability.POST_ENTRY)
+    assert not a.permitted
+    assert a.stopped_at is Stage.CAPABILITY
+
+
+def test_pipeline_stops_at_the_first_refusal() -> None:
+    """A later stage must not excuse an earlier one — an action that failed the
+    capability check never reaches the policy."""
+    from attest.agents import Capability, Pipeline, Stage
+    a = Pipeline().request("explanation", "run the solver", "s1",
+                           Capability.RUN_SOLVER, evidence="x")
+    assert a.stopped_at is Stage.CAPABILITY
+    assert len(a.steps) == 1
+
+
+def test_pipeline_requires_evidence_before_verification() -> None:
+    from attest.agents import Capability, Pipeline, Stage
+    a = Pipeline().request("evidence", "read", "s1", Capability.READ_EVIDENCE)
+    assert a.stopped_at is Stage.EVIDENCE
+
+
+def test_pipeline_refuses_an_unproven_finding() -> None:
+    from attest.agents import Capability, Pipeline, Stage
+    from attest.verdict import Finding, Verdict
+    f = Finding("s1", Verdict.AMBIGUOUS, ())
+    a = Pipeline().request("reconciliation", "reconcile", "s1",
+                           Capability.RUN_SOLVER, evidence="x", finding=f)
+    assert a.stopped_at is Stage.VERIFICATION
+
+
+def test_pipeline_refuses_a_compromised_search_space_even_when_proven() -> None:
+    """The arithmetic can be perfect and still answer a question that excluded
+    the truth. D8, as a control."""
+    from attest.agents import Capability, Pipeline, Stage
+    from attest.searchspace import SearchSpace, date_window
+    from attest.verdict import Finding, Proof, Verdict
+    sp = SearchSpace(universe=100)
+    sp.reductions.append(date_window(10, 0, (2,)))
+    sp.note_known_loss(1)
+    f = Finding("s1", Verdict.PROVEN, (Proof("s1", ("o",), 1, 0, 0, 0, 1, 0, 1),),
+                space=sp)
+    a = Pipeline().request("reconciliation", "reconcile", "s1",
+                           Capability.RUN_SOLVER, evidence="x", finding=f)
+    assert a.stopped_at is Stage.VERIFICATION

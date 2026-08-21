@@ -7,7 +7,7 @@
  */
 'use strict';
 
-const S = { mode: 'board', review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
+const S = { mode: 'board', events: null, review: 15000, exposure: 10000000, pol: null, run: null, rows: [], view: [], i: 0, q: '', vf: '', cache: new Map() };
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -423,7 +423,7 @@ el('board').onclick = () => {
 
 function boardContext() {
   return {
-    summary: S.run, rows: S.rows, policy: S.pol,
+    summary: S.run, rows: S.rows, policy: S.pol, events: S.events,
     open: sid => {
       const i = S.view.findIndex(r => r.id === sid);
       if (i < 0) return;
@@ -432,12 +432,19 @@ function boardContext() {
   };
 }
 
+async function refreshEvents() {
+  try { S.events = await api('/api/events'); } catch { /* feed is optional */ }
+}
+
 function drawBoard() {
   el('right').innerHTML = '<div class=boardwrap id=boardhost></div>';
   const host = el('boardhost');
   if (!BOARD) BOARD = new ATTESTBoard.Board(host, boardContext());
   else { BOARD.host = host; BOARD.setContext(boardContext()); }
   BOARD.render();
+  // The feed is fetched after the board paints, so an unavailable feed cannot
+  // delay the widgets that do not need it.
+  refreshEvents().then(() => { if (S.mode === 'board') BOARD.render(); });
   host.addEventListener('click', e => {
     const row = e.target.closest('.bd-row.link');
     if (row) boardContext().open(row.dataset.sid);

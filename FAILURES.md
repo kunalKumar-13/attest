@@ -1026,3 +1026,57 @@ The active source renders as `SYNTHETIC · NOT LIVE · 0% linked`, Razorpay as
 `NOT CONNECTED` with the endpoints it *would* read and `data written: none —
 read only`. Nothing on that screen reports live unless it came from a connected
 account.
+
+---
+
+## D19 — 2026-08-21
+
+**Agent permissions, enforced at configuration time rather than at call time.**
+
+§43 draws `Agent → Intent → Evidence → Verification → Policy → Action`. A diagram
+is not a control, so `attest/agents.py` is that path as code: stages run in
+order, stop at the first refusal, and every refusal is recorded with a reason. A
+stage that has not run is indistinguishable from one that refused, which is the
+property that makes the log worth reading.
+
+The permission model is lopsided on purpose. Agents get broad read and propose
+rights, because neither can move money and constraining them buys nothing.
+Nothing gets a write capability:
+
+```
+POST_ENTRY, MARK_RECONCILED, TRIGGER_REFUND, MODIFY_RECORD
+    — defined, and granted to no agent
+```
+
+**They are defined rather than simply absent**, and that distinction is the
+design. An absence is silent; a refusal is auditable. When an agent asks to post
+an entry the log records what it asked for and that it was denied, which is the
+record you want when someone asks what the automation attempted.
+
+**Enforced at grant time.** `Agent(...)` raises if constructed with any of them.
+A permission that can be granted and then refused later is a permission somebody
+will eventually be surprised by; refusing the configuration means the unsafe
+state cannot exist to be reasoned about.
+
+The full path, against a real finding:
+
+```
+reconciliation · reconcile · setl_000020
+  ✓ capability    Reconciliation Agent holds run_solver
+  ✓ evidence      2 orders, kernel-checked
+  ✓ verification  unique explanation, kernel-checked, space intact
+  ✓ policy        expected loss 13548 < review cost 15000
+  ✓ action        eligible — executed by the engine, not by the agent
+```
+
+That last line is §68. The engine posts entries, after a unique explanation has
+been kernel-checked and the policy has priced the risk. No agent is in that path,
+so there is no configuration in which one appears.
+
+A control worth having is one with a test that fails when it stops working.
+Seven of them: a write capability cannot be granted, no roster agent holds one,
+the pipeline refuses at capability, it stops at the FIRST refusal rather than
+collecting them, evidence is required before verification, an unproven finding is
+refused, and — the one that matters most — **a PROVEN finding over a compromised
+search space is still refused.** The arithmetic can be perfect and still answer a
+question that excluded the truth, and D8 is now a control rather than a memory.

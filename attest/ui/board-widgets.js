@@ -192,6 +192,28 @@
     },
   });
 
+  defineWidget('events', {
+    title: 'Live events', category: 'Operations', w: 6, h: 3,
+    blurb: 'webhooks, and exactly what each one changed',
+    render: ({ events: e }) => {
+      if (!e) return none('no events received');
+      if (!e.events.length) return `<div class=bd-empty>No events yet.<br>
+        <span style="font-size:10.5px">POST a signed webhook to /api/events —
+        nothing is simulated on a timer.</span></div>`;
+      const col = s => s === 'accepted' ? 'var(--ok)'
+        : s === 'duplicate' ? 'var(--dim3)' : 'var(--warn)';
+      return `<div class=bd-feed>${e.events.slice(0, 14).map(v => `
+        <div class=bd-ev><span class=bd-t2>${esc(v.received_at.slice(11, 19))}</span>
+          <div><b>${esc(v.kind)}</b>
+            <span class=n style="color:${col(v.status)};font-size:9px;margin-left:7px;
+              letter-spacing:.09em">${v.status.toUpperCase()}</span>
+            <div class=bd-ss>${esc(v.detail)}${v.affected.length
+              ? ` — ${v.affected.map(esc).join(', ')}` : ''}</div></div>
+        </div>`).join('')}
+        <div class=bd-note>${esc(e.note)}</div></div>`;
+    },
+  });
+
   defineWidget('rules', {
     title: 'Rules in force', category: 'Technical', w: 6, h: 3,
     blurb: 'what the engine believes about how money moves',

@@ -33,6 +33,57 @@ from attest.verdict import Finding, Verdict
 #: for a local tool a dict is the honest amount of machinery.
 _RUNS: dict[str, "Run"] = {}
 
+#: One ingest log for the process. Events arrive independently of runs — that is
+#: the point of them — so the log outlives any single reconciliation.
+_INGEST = None
+
+
+def ingest():
+    global _INGEST
+    if _INGEST is None:
+        import os
+
+        from attest.webhooks import Ingest
+        _INGEST = Ingest(secret=os.environ.get("RAZORPAY_WEBHOOK_SECRET", ""))
+    return _INGEST
+
+
+def receive_event(r: "Run | None", body: bytes, signature: str) -> dict[str, Any]:
+    """Accept one webhook and report exactly what it changed.
+
+    The settlement index is built from the CURRENT run, which is what makes the
+    blast radius real rather than nominal: an event is scoped against the book
+    the engine actually holds, and one naming nothing in it changes nothing.
+    """
+    o2s: dict[str, str] = {}
+    known: set[str] = set()
+    if r is not None:
+        known = {s.settlement_id for s in r.settlements}
+        for f in r.findings:
+            for p in f.proofs:
+                for oid in p.order_ids:
+                    o2s[oid] = f.settlement_id
+
+    ev = ingest().handle("razorpay", body, signature, o2s, known)
+    return ev.to_json()
+
+
+def event_feed(limit: int = 60) -> dict[str, Any]:
+    log = ingest().log
+    events = [e.to_json() for e in log.events[-limit:]][::-1]
+    counts: dict[str, int] = {}
+    for e in log.events:
+        counts[e.status.value] = counts.get(e.status.value, 0) + 1
+    return {
+        "events": events,
+        "counts": counts,
+        "total": len(log.events),
+        "signature_required": bool(ingest().secret),
+        "note": ("Events are scoped against the current run's book. One naming "
+                 "nothing it holds reports that it changed nothing rather than "
+                 "triggering a full pass."),
+    }
+
 
 @dataclass
 class Run:

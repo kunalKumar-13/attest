@@ -42,6 +42,21 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, payload: object, code: int = 200) -> None:
         self._reply(json.dumps(payload).encode(), "application/json", code)
 
+    def do_POST(self) -> None:
+        u = urlparse(self.path)
+        q = parse_qs(u.query)
+        if u.path != "/api/events":
+            self._json({"error": "not found"}, 404)
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        sig = self.headers.get("X-Razorpay-Signature", "")
+        try:
+            self._json(api.receive_event(
+                api.get(q.get("run", [""])[0]), body, sig))
+        except Exception as exc:  # a malformed body is the client's problem
+            self._json({"error": str(exc)}, 400)
+
     def do_GET(self) -> None:
         u = urlparse(self.path)
         q = parse_qs(u.query)
@@ -59,6 +74,9 @@ class Handler(BaseHTTPRequestHandler):
             r = api.get(q.get("run", [""])[0])
             v = api.investigate_view(r, q.get("id", [""])[0]) if r else None
             self._json(v or {"error": "not found"}, 200 if v else 404)
+
+        elif u.path == "/api/events":
+            self._json(api.event_feed())
 
         elif u.path == "/api/integrations":
             self._json(api.integrations(api.get(q.get("run", [""])[0])))
