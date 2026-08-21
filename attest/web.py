@@ -55,6 +55,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.rows(r) if r else {"error": "unknown run"},
                        200 if r else 404)
 
+        elif u.path == "/api/ask":
+            r = api.get(q.get("run", [""])[0])
+            self._json(api.ask(r, q.get("q", [""])[0]) if r
+                       else {"error": "unknown run"}, 200 if r else 404)
+
         elif u.path == "/api/policy":
             r = api.get(q.get("run", [""])[0])
             if r is None:

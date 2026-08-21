@@ -176,7 +176,7 @@ function flow(g) {
 /* --------------------------------------------------------------- case file */
 
 async function open_() {
-  if (S.mode === 'policy') return;
+  if (S.mode !== 'work') return;
   const r = S.view[S.i];
   if (!r) return void (el('right').innerHTML = '<div class=empty>no selection</div>');
   paint();
@@ -305,9 +305,77 @@ function setVF(v) {
   apply(); open_();
 }
 el('run').onclick = run;
+el('ask').onclick = () => {
+  S.mode = S.mode === 'ask' ? 'work' : 'ask';
+  el('ask').style.color = S.mode === 'ask' ? 'var(--acc)' : '';
+  el('policy').style.color = '';
+  S.mode === 'ask' ? drawAsk(null) : open_();
+};
+
+/* ------------------------------------------------------------------ ask
+ * §34: not a chatbot. No bubbles, no avatar, no sidebar. A command line over
+ * the run's own records, where every claim carries the rows that make it
+ * checkable — because a statement with nothing behind it is a thing a model can
+ * produce whether or not it happened.
+ */
+const ASKS = [
+  'why is setl_000089 unresolved',
+  'which settlements are unsafe to auto-post',
+  'what is settled but not proven',
+  'show unexplained amounts above 100',
+  'show high value ambiguous settlements',
+  'show contradicted settlements',
+];
+
+async function runAsk(text) {
+  if (!S.run || !text.trim()) return;
+  drawAsk(null, text, true);
+  const a = await api(`/api/ask?run=${S.run.run_id}&q=${encodeURIComponent(text)}`);
+  drawAsk(a, text);
+}
+
+function drawAsk(a, text = '', busy = false) {
+  const body = busy
+    ? '<div class=empty><span class=spin></span>querying the records…</div>'
+    : a ? `<div class=ans>
+        <div class=hd><b>${esc(a.headline)}</b>
+          <span class=kind>${a.understood ? esc(a.query.kind) : 'not understood'}</span></div>
+        ${a.facts.map(f => `<div class=ft>${esc(f.text)}
+          ${f.settlement_ids.length ? `<div class=ev>${f.settlement_ids.slice(0, 24)
+            .map(id => `<b data-sid="${id}">${id.replace('setl_', '')}</b>`).join('')}
+            ${f.settlement_ids.length > 24 ? `<b style="cursor:default">+${f.settlement_ids.length - 24}</b>` : ''}</div>` : ''}
+          </div>`).join('')}
+        <div class=q>executed as ${esc(JSON.stringify(a.query))}</div>
+      </div>` : '';
+
+  el('right').innerHTML = `<div class=ask>
+    <h2>Ask ATTEST</h2>
+    <p class=lead>Questions become a <b>structured query</b> that runs against this
+      run's records. The translation could be a model; the execution never is — so
+      a bad reading answers the wrong question, it cannot invent a number. Every
+      claim carries the rows behind it.</p>
+    <div class=qbar><span class=pr>&gt;</span>
+      <input id=q value="${esc(text)}" placeholder="ask about this run…" autocomplete=off></div>
+    <div class=chips>${ASKS.map(x => `<span class=chip>${esc(x)}</span>`).join('')}</div>
+    ${body}</div>`;
+
+  const inp = el('q');
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+  inp.onkeydown = e => { if (e.key === 'Enter') runAsk(inp.value); e.stopPropagation(); };
+  el('right').querySelectorAll('.chip').forEach(c =>
+    c.onclick = () => runAsk(c.textContent));
+  el('right').querySelectorAll('.ev b[data-sid]').forEach(b =>
+    b.onclick = () => {
+      const i = S.view.findIndex(r => r.id === b.dataset.sid);
+      if (i >= 0) { S.mode = 'work'; el('ask').style.color = ''; S.i = i; open_(); }
+    });
+}
+
 el('policy').onclick = () => {
   S.mode = S.mode === 'policy' ? 'work' : 'policy';
   el('policy').style.color = S.mode === 'policy' ? 'var(--acc)' : '';
+  el('ask').style.color = '';
   S.mode === 'policy' ? loadPolicy() : open_();
 };
 

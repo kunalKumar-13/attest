@@ -218,6 +218,18 @@ def _wilson(w: int, t: int) -> float:
     return _wilson_upper(w, t) if t else 1.0
 
 
+def ask(r: Run, question: str) -> dict[str, Any]:
+    """Answer a question from the run's own records.
+
+    The translation from words to a query may one day be a model; the execution
+    never will be. That boundary is why a wrong translation can only answer the
+    wrong question — it cannot produce a number that did not come from the data.
+    """
+    from attest.ask import execute as run_query, parse
+    return run_query(parse(question), rows(r), summary(r),
+                     lambda sid: detail(r, sid) or {}).to_json()
+
+
 def _by_reason(r: Run) -> list[dict[str, Any]]:
     agg: dict[str, dict[str, Any]] = {}
     for e in r.exceptions.values():
