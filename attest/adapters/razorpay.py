@@ -160,8 +160,38 @@ class RazorpayAdapter:
         settled_on: dict[str, int] = {}
         linked = 0
         unknown_methods: set[str] = set()
+        malformed = 0
+        non_integer: set[str] = set()
 
+        # ADAPTER-001. Recon rows are aggregated into a settlement total, so the
+        # same row arriving twice DOUBLES that settlement. Pagination with an
+        # overlapping `skip` window and a retried pull both produce exactly
+        # that, and the result is a settlement net that no bank credit matches —
+        # a CONTRADICTED verdict caused by the reader rather than the books.
+        # Identity is `entity_id` where the API supplies one, and a hash of the
+        # row where it does not.
+        seen: set[str] = set()
+        deduped: list[dict[str, object]] = []
         for it in items:
+            if not isinstance(it, dict):
+                # ADAPTER-003. A non-dict row used to raise AttributeError out
+                # of normalisation. A malformed row is the source's problem and
+                # is counted, not fatal.
+                malformed += 1
+                continue
+            import hashlib as _h
+            import json as _j
+            key = str(it.get("entity_id") or "")
+            if not key:
+                key = _h.sha256(
+                    _j.dumps(it, sort_keys=True, default=str).encode()).hexdigest()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(it)
+        duplicates = len(items) - len(deduped) - malformed
+
+        for it in deduped:
             sid = str(it.get("settlement_id") or "")
             kind = str(it.get("type") or "")
             credit = int(it.get("credit") or 0)
@@ -191,7 +221,16 @@ class RazorpayAdapter:
                 unknown_methods.add(raw_method or "(absent)")
                 continue
 
-            gross = int(it.get("amount") or credit + fee + tax)
+            # ADAPTER-002. Every amount is integer paise. A float here was
+            # silently truncated — 10.5 became 10 — which is a money value
+            # changed by the reader without anyone being told.
+            raw_amount = it.get("amount")
+            if raw_amount is None:
+                raw_amount = credit + fee + tax
+            if isinstance(raw_amount, float) and raw_amount != int(raw_amount):
+                non_integer.add(str(raw_amount))
+                continue
+            gross = int(raw_amount)
             oid = str(it.get("order_id") or it.get("entity_id") or "")
             pid = str(it.get("payment_id") or it.get("entity_id") or "") or None
             created = int(it.get("created_at") or 0)
@@ -214,6 +253,20 @@ class RazorpayAdapter:
                 f"bank_{sid}", when, net,
                 f"NEFT-{utrs.get(sid, '')}-RAZORPAY SOFTWARE PVT LTD-SETTLEMENT"))
 
+        if duplicates:
+            warnings.append(
+                f"{duplicates} duplicate recon row(s) discarded before "
+                f"aggregation. Counting one twice inflates a settlement total "
+                f"and produces a CONTRADICTED verdict caused by the reader.")
+        if malformed:
+            warnings.append(
+                f"{malformed} row(s) were not objects and were skipped.")
+        if non_integer:
+            warnings.append(
+                f"amounts that were not whole paise, dropped rather than "
+                f"rounded: {', '.join(sorted(non_integer))}. Every amount in "
+                f"ATTEST is integer paise; truncating one silently changes "
+                f"money without saying so.")
         if unknown_methods:
             warnings.append(
                 f"unrecognised payment methods dropped: {', '.join(sorted(unknown_methods))}. "

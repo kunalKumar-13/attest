@@ -1025,3 +1025,80 @@ def test_the_engine_still_attaches_a_search_space_to_every_proof() -> None:
         assert isinstance(f.space, SearchSpace), \
             f"{f.settlement_id} is proven with no search-space record"
         assert f.space.reductions, "a space with no recorded reductions"
+
+
+# ----------------------------------------------------- the Razorpay adapter
+
+def _recon_row(**kw):
+    base = {"entity_id": "pay_1", "settlement_id": "setl_1", "type": "payment",
+            "credit": 1000, "debit": 0, "fee": 20, "tax": 4, "amount": 1024,
+            "method": "upi", "order_id": "ord_1", "payment_id": "pay_1",
+            "created_at": 1747000000, "settled_at": 1747200000,
+            "settlement_utr": "UTR1"}
+    base.update(kw)
+    return base
+
+
+def test_adapter001_the_same_recon_row_twice_does_not_inflate_a_settlement() -> None:
+    """ADAPTER-001. Rows are aggregated into a settlement total, so a repeated
+    row doubles it. Razorpay pagination with an overlapping `skip` window and a
+    retried pull both produce exactly that, and the result is a settlement net
+    no bank credit matches — a CONTRADICTED verdict caused by the reader."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    a = RazorpayAdapter(key_id=None, key_secret=None)
+    one = a.normalise([_recon_row()], [])
+    two = a.normalise([_recon_row(), _recon_row()], [])
+    assert two.settlements[0].net_paise == one.settlements[0].net_paise
+    assert len(two.orders) == len(one.orders) == 1
+    assert any("duplicate" in w for w in two.warnings)
+
+
+def test_adapter001_distinct_rows_are_not_deduplicated() -> None:
+    """Failing closed on duplicates must not swallow genuine second payments."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    a = RazorpayAdapter(key_id=None, key_secret=None)
+    snap = a.normalise([_recon_row(),
+                        _recon_row(entity_id="pay_2", order_id="ord_2")], [])
+    assert len(snap.orders) == 2
+    assert snap.settlements[0].net_paise == 2000
+
+
+def test_adapter002_a_non_integer_amount_is_dropped_not_truncated() -> None:
+    """ADAPTER-002. `int(10.5)` was 10 — money changed by the reader without
+    anyone being told. docs/MONEY-MODEL.md says every amount is integer paise."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    a = RazorpayAdapter(key_id=None, key_secret=None)
+    snap = a.normalise([_recon_row(amount=10.5)], [])
+    assert not snap.orders
+    assert any("whole paise" in w for w in snap.warnings)
+    # a float that IS a whole number is fine; the objection is to losing paise
+    ok = a.normalise([_recon_row(amount=1024.0)], [])
+    assert len(ok.orders) == 1 and ok.orders[0].gross_paise == 1024
+
+
+def test_adapter003_a_malformed_row_is_counted_not_fatal() -> None:
+    """ADAPTER-003. A non-dict row raised AttributeError out of normalisation.
+    One bad row in a page should not lose the page."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    a = RazorpayAdapter(key_id=None, key_secret=None)
+    snap = a.normalise(["nonsense", None, _recon_row()], [])
+    assert len(snap.orders) == 1
+    assert any("not objects" in w for w in snap.warnings)
+
+
+def test_the_adapter_refuses_to_fetch_without_credentials() -> None:
+    """No demo mode inside the adapter: absent credentials produce no data."""
+    import pytest as _pytest
+
+    from attest.adapters.base import NotConnected
+    from attest.adapters.razorpay import RazorpayAdapter
+    with _pytest.raises(NotConnected):
+        RazorpayAdapter(key_id=None, key_secret=None).fetch(2026, 5)
+
+
+def test_the_adapter_never_reports_a_fixture_as_live() -> None:
+    """§39. `live` is set by fetch and by nothing else."""
+    from attest.adapters.razorpay import RazorpayAdapter
+    snap = RazorpayAdapter(key_id=None, key_secret=None).normalise(
+        [_recon_row()], [])
+    assert snap.live is False
