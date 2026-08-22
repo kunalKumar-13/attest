@@ -1,0 +1,37 @@
+ATTEST — FINAL FREEZE
+
+commit             43f090b9f807e416ef9cd64b4341e79ef489ac90
+
+verification
+  tests              251
+  browser contracts  94
+  gates              6/6 at +0.0000
+  adversarial        34/34 defended, 0 harness errors
+  claim audit        PASS
+  artifact drift     none
+
+evaluation panel
+  calibration seeds  [20260821, 314159, 271828]
+  evaluation seeds   [555001, 999983]  (held out)
+  settlements/seed   250
+
+versions
+  rules_version      rules_d4cb21a4b0ac
+  policy_version     policy_661e43db9242
+  solver_version     solver_c53ecade566d
+  dataset_version    synthetic_n250_s20260821
+  model_version      none
+
+artifact hashes (sha256, first 16)
+  47a77f631ebe1204   benchmark/results.json
+  391ad4d079cffc77   benchmark/baseline.json
+  3977fea46ffde9c7   benchmark/baselines.json
+  9d76dea51ee0c693   benchmark/anchoring.json
+
+boundaries that remain
+  live Razorpay account   NOT VERIFIED
+  bank statement          SIMULATED
+  pagination stop         UNVERIFIED against a real response
+  fee / secret handling   read-only evidence
+  adapter rejections      do not outlive the process
+  numbers describe        generated data (ground truth is why they are knowable)
