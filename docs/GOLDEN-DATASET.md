@@ -1,0 +1,103 @@
+# The golden dataset
+
+One dataset. No demo-only code, no seeded exceptions, no fixture that exists to
+make a screenshot work. Every state below is produced by the engine running on
+generated data, and the demo operates on the real product.
+
+```
+seed              20260821
+settlements       250
+orders            2,368
+dataset version   synthetic_n250_s20260821
+rules             rules_d4cb21a4b0ac
+policy            policy_661e43db9242
+solver            solver_c53ecade566d
+```
+
+The run id (`run_0013`) is a session label and increments per launch; the
+**data** is a function of the seed and the size, so the same command produces
+the same book, the same verdicts and the same numbers on any machine.
+
+> One caveat, because it decides which column of numbers you see. Without the
+> Rust extension the engine runs the numpy path, which has a narrower envelope
+> and resolves less — "value accounted for" measures 23.6% against 66.7%. The
+> safety gates hold on both. See `docs/REPRODUCE.md`.
+
+## The eleven canonical states
+
+| | state | why it exists | source | verdict | policy | action | lens | context |
+|---|---|---|---|---|---|---|---|---|
+| **A** | clean PROVEN settlement | one candidate set explains the credit exactly, and nothing else does | `setl_000020`, ₹353.73, UTR 857043679462 | PROVEN | AUTO-POST | entry written | Journal | the balanced entry |
+| **B** | AMBIGUOUS with multiple valid explanations | four disjoint order sets satisfy the amount to the paisa | `setl_000089`, ₹1,00,036.83 | AMBIGUOUS | REVIEW | supply an order-level reference | Evidence | explanation A–D |
+| **C** | CONTRADICTED settlement | no combination of candidates satisfies the amount at all | `setl_000109`, ₹6,316.03 | CONTRADICTED | REVIEW | look for a fee correction or manual adjustment | Control | the settlement |
+| **D** | search-space boundary | 3 of 5 reductions are conventions, not facts — the proof is unique *inside a space the calendar chose* | 2,368 → 73 on `setl_000089` | — | — | — | Evidence | the reduction |
+| **E** | bad model hypothesis | the model proposes a capture-batch anchor that every surviving explanation contains | `setl_000089` investigation, step 1 | — | — | — | Investigate | the model step |
+| **F** | solver rejection | the solver tests the anchor against uniqueness and returns NON-DISCRIMINATIVE | `setl_000089` investigation, step 2 | — | — | — | Investigate | the solver step |
+| **G** | policy AUTO-POST | expected loss below the cost of checking, and a proof exists to price against | 1 of 250 | PROVEN | AUTO-POST | — | Policy | the decision |
+| **H** | policy REVIEW | 249 of 250, including every ambiguous case | 249 of 250 | mixed | REVIEW | — | Policy | the decision |
+| **I** | activity trail | eight events through the real ingest path, three signed correctly | 8 deliveries, 8 events | — | — | — | Activity | an event |
+| **J** | Trust limitation | 2 of 8 claims are not MEASURED; 11 unknowns are stated | claim register | — | — | — | Trust | the claim |
+| **K** | Razorpay adapter boundary | six frozen boundaries, including live validation NOT VERIFIED | `docs/RAZORPAY-INTEGRATION.md` | — | — | — | Trust | the unknown |
+
+## The canonical cases
+
+Five cases tell the whole story. Three would tell most of it; these five are the
+smallest set where nothing important is left implicit.
+
+### Case A — `setl_000020` · ₹353.73 · PROVEN · AUTO-POST
+
+The system's happy path, and the only settlement in 250 that clears it. Two
+orders explain the credit exactly. The journal entry balances to the paisa
+across four accounts — Bank, Payment gateway fees, Input GST (recoverable),
+Trade receivables — because the fee and the tax on it are split from the single
+charge the proof carries, and a merchant needs them apart.
+
+**What it shows:** the whole chain succeeding, and how rare that is.
+
+### Case B — `setl_000089` · ₹1,00,036.83 · AMBIGUOUS · REVIEW
+
+Four disjoint sets of orders satisfy the amount exactly, within a tolerance of
+31 paise for 31 orders. **27 orders are in every explanation** — ₹97,759.84 is
+not in question. The argument is 12 orders and ₹7,292.03.
+
+**What it shows:** the product's actual thesis. Arithmetic cannot choose between
+four exact answers, so the engine does not, and it says precisely how much is
+agreed rather than refusing the whole settlement.
+
+### Case C — `setl_000089` investigation · model → solver → engine
+
+The model proposes a capture-batch anchor: three orders captured together on
+2026-05-06, the densest batch in the window. The solver tests it against
+uniqueness and returns **NON-DISCRIMINATIVE** — 4 of 4 valid explanations
+contain that anchor, so it cannot choose between them. The model exhausts. The
+engine **abstains**, and the verdict is unchanged.
+
+**What it shows:** the AI is not on the decision path, demonstrated rather than
+asserted. `verdict_changed: false`.
+
+### Case D — the policy boundary
+
+`expected loss ₹135.48` against `cost of checking ₹150.00` → AUTO-POST for the
+one PROVEN case. For every AMBIGUOUS case the boundary is not drawn at all:
+**UNPRICED**, because no proof was established, so there is no error probability
+to price. A threshold drawn there would be a number invented to fill a space.
+
+**What it shows:** automation is gated on proof first and economics second, and
+the system will decline to compute rather than fabricate a zero.
+
+### Case E — the Razorpay boundary in Trust
+
+Trust states **"Live account validation is NOT VERIFIED"** in those words, along
+with five more frozen boundaries: synthetic bank statements, an unverified
+pagination stop condition, read-only evidence for fee and secret handling, and
+rejections that do not outlive the process.
+
+**What it shows:** the system is specific about what it has not established, in
+the lens an auditor reads.
+
+## What the dataset deliberately does not contain
+
+A live Razorpay pull. A real bank statement. A settlement spanning a period
+boundary. Any record whose provenance is a person rather than a generator.
+These are boundaries, recorded in `docs/RAZORPAY-INTEGRATION.md`, and the demo
+does not pretend otherwise.

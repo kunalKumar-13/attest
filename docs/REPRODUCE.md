@@ -54,9 +54,10 @@ Three outcomes, all measured on a fresh clone:
 
 | environment | result |
 |---|---|
-| Playwright installed **and** `attest.web` running | **247 passed** |
-| Playwright installed, server not running | **157 passed, 90 skipped** |
+| Playwright and `ortools` installed, `attest.web` running | **251 passed** |
+| Playwright installed, server not running | **157 passed, 94 skipped** |
 | Playwright not installed | **157 passed, 1 skipped** |
+| neither Playwright nor `ortools` | **131 passed, 2 skipped** |
 
 The 90 are the browser contracts, which skip themselves when nothing is
 listening on `:8420`. Without Playwright the whole module skips as one, so the

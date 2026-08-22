@@ -332,11 +332,15 @@ async function renderContext() {
   ws.classList.toggle('has-pane', mode === 'master-detail');
 
   if (!SHELL.context) {
-    pane.hidden = mode !== 'master-detail';
+    // No placeholder. The absence of a context is the correct state, not a
+    // state that needs explaining — and a pane holding one sentence was
+    // taking a full grid row (1440x125) beneath the master, which is the
+    // empty-pane finding of the 9.1 autopsy in a new orientation. Emptying it
+    // rather than styling it around means `#w-ctx:empty` can remove it from
+    // the layout entirely, whichever way the grid happens to be flowing.
+    pane.hidden = true;
     pane.className = 'w-ctx';
-    pane.innerHTML = mode === 'master-detail'
-      ? window.C.EmptyState(lens.emptyContext || 'Select a row to inspect it.')
-      : '';
+    pane.innerHTML = '';
     ws.classList.remove('has-ctx');
     requestAnimationFrame(() => requestAnimationFrame(settled));
     return;

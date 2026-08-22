@@ -48,6 +48,29 @@ A proof is accepted only if the kernel accepts it.
 
 > A bug anywhere in the prover can cost recall. It cannot post a wrong entry.
 
+## What this does not claim
+
+Stated here rather than in an appendix, because a system that reports only what
+it wins has not been evaluated.
+
+- **No live Razorpay account has ever been contacted.** `fetch` performs a real
+  authenticated request and has never been called with real credentials. The
+  product says so itself, on the Trust lens, unprompted.
+- **The bank statement is simulated.** Every synthetic credit matches its
+  settlement by construction, so the adapter cannot exercise the one case the
+  engine exists for — a credit that corresponds to no single settlement.
+- **`exact_only` is more precise than ATTEST**: 0.0% false proofs against 4.8%.
+  It achieves that by answering 22 settlements of 500 and declining 478.
+  Published in the product as claim C-004.
+- **The numbers describe generated data.** That is what makes a false-proof rate
+  knowable at all — the generator holds ground truth — and it is a population
+  ATTEST created.
+- **Coverage is 16%, not 90%.** Most settlements are correctly refused rather
+  than resolved.
+
+`docs/RAZORPAY-DEMO.md` separates IMPLEMENTED from SIMULATED from NOT VERIFIED,
+capability by capability.
+
 Same reason a proof assistant separates its kernel from its tactics.
 
 ---
@@ -311,3 +334,16 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[docs/EVALUATION.md](docs/EVALUATION.md)** — ground truth, the metric vocabulary, baselines, the seed panel
 - **[docs/DECISIONS.md](docs/DECISIONS.md)** — fifteen ADRs, including the five that rejected work already built
 - **[native/BENCH.md](native/BENCH.md)** — parity methodology and benchmarks
+
+**Evidence and boundaries**
+
+- **[docs/ARCHITECTURE-DIAGRAM.md](docs/ARCHITECTURE-DIAGRAM.md)** — the one diagram: source → ledger, with the model outside the decision path
+- **[docs/EVALUATION-PANEL.md](docs/EVALUATION-PANEL.md)** — ATTEST against three baselines, including the one that beats it
+- **[docs/FAILURE-STORY.md](docs/FAILURE-STORY.md)** — five failures that changed the system, with reproductions
+- **[docs/FAILURE-REGRESSION-MAP.md](docs/FAILURE-REGRESSION-MAP.md)** — every failure mapped to the test that would catch it returning, machine-checked
+- **[docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md)** — capability matrix with an evidence column, and the frozen boundaries
+- **[docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md)** — IMPLEMENTED / SIMULATED / NOT VERIFIED, capability by capability
+- **[docs/GOLDEN-DATASET.md](docs/GOLDEN-DATASET.md)** — the canonical dataset and the eleven states it produces
+- **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 34 attacks from source to ledger, and the defect they found
+- **[docs/REPRODUCE.md](docs/REPRODUCE.md)** — clone to running, with the three things that did not work
+- **[docs/MONEY-MODEL.md](docs/MONEY-MODEL.md)** — integer paise, tolerance, rounding direction

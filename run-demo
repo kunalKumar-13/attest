@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# One command. Loads the canonical dataset, starts the engine, opens the Case
+# Desk. No credentials, no external services, no hidden steps.
+#
+# The demo runs on GENERATED data — seed 20260821, 250 settlements, 2,368
+# orders — because ground truth is what makes a false-proof rate knowable. No
+# live Razorpay account is contacted, and the product says so itself on the
+# Trust lens. See docs/RAZORPAY-DEMO.md.
+
+set -euo pipefail
+cd "$(dirname "$0")"
+PY=${PY:-./.venv/bin/python}
+PORT=8420
+
+[ -x "$PY" ] || { echo "no venv — see docs/REPRODUCE.md:"; \
+  echo "  python3.13 -m venv .venv && ./.venv/bin/pip install -e ."; exit 1; }
+
+"$PY" -c 'import attest' || exit 1
+
+if lsof -ti:$PORT >/dev/null 2>&1; then
+  echo "  something is already listening on :$PORT — reusing it"
+else
+  echo "  starting the engine (it reconciles 250 settlements before first paint)"
+  "$PY" -m attest.web > /tmp/attest-demo.log 2>&1 &
+  for _ in $(seq 1 40); do
+    curl -sf -o /dev/null "http://127.0.0.1:$PORT/api/observatory" && break
+    sleep 1
+  done
+fi
+
+curl -sf -o /dev/null "http://127.0.0.1:$PORT/api/observatory" || {
+  echo "  the engine did not come up. log:"; tail -20 /tmp/attest-demo.log; exit 1; }
+
+cat <<TXT
+
+  ATTEST is running.   http://127.0.0.1:$PORT/
+
+  The canonical journey, five stops:
+
+    1  the portfolio          where the money stopped, and what unlocks the most
+    2  setl_000089            #/settlement/setl_000089/evidence
+                              2,368 orders reduced to 73; four explanations,
+                              27 orders agreed by all of them
+    3  the model              #/settlement/setl_000089/investigate
+                              proposes, the solver refutes, the engine abstains
+    4  the boundary           #/settlement/setl_000089/policy
+                              UNPRICED, because no proof was established
+    5  what is not verified   #/portfolio/trust
+                              starting with the failures
+
+  Everything above is produced by the run. There is no demo-only code.
+
+TXT
+command -v open >/dev/null && open "http://127.0.0.1:$PORT/" || true
