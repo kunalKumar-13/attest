@@ -17,7 +17,7 @@
 'use strict';
 
 (() => {
-  const { StateSpine, Section, Row, MetricRow, Disclosure, EmptyState,
+  const { StateSpine, Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           DataTable, rupees, plural, esc } = window.C;
 
   const KIND = {
@@ -224,7 +224,23 @@
       </div>`,
     });
 
-    return Section({ title: 'What we know', body: known })
+    // The rail now carries agreed and disputed for the case, so repeating them
+    // here would be the redundancy the autopsy measured, moved rather than
+    // removed. Control's own question is "what is happening", and its answer
+    // is which gate the settlement is standing at and why.
+    const failed = (d.checks || []).filter(c => !c.ok);
+    const answer = Conclusion({
+      fact: failed.length
+        ? `${plural(failed.length, 'check')} did not pass`
+        : 'Every check passed',
+      tone: failed.length ? 'stop' : 'go',
+      because: failed.length
+        ? failed[0].detail
+        : 'A unique candidate set satisfies every constraint, and the '
+          + 'independent kernel re-derived it from source records.',
+    });
+
+    return answer + Section({ title: 'What we know', body: known })
       + why + decide;
   }
 

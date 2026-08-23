@@ -21,7 +21,7 @@
 'use strict';
 
 (() => {
-  const { Section, Row, MetricRow, Disclosure, EmptyState,
+  const { Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           rupees, plural, esc } = window.C;
 
   /* ------------------------------------------------------- shared pieces */
@@ -123,7 +123,26 @@
 
   /* ------------------------------------------------ composition A · MAP */
   function compositionA(d) {
-    return Section({
+    const n = (d.explanations || []).length;
+    const sh = d.shared || {};
+    // The room's answer, first and largest. Evidence's question is "why should
+    // I believe this", and its answer is whether a unique proof exists — which
+    // was previously reachable only by reading three sections down.
+    const answer = n > 1
+      ? Conclusion({
+          fact: 'No unique proof', tone: 'stop',
+          figure: rupees(sh.disputed_paise || 0), figureLabel: 'in dispute',
+          because: `${n} disjoint order sets satisfy the amount exactly, so `
+            + `arithmetic cannot choose between them. ${sh.n || 0} orders are in `
+            + `every one of them — ${rupees(sh.paise || 0)} is settled whichever `
+            + `is right, and the argument is ${sh.differing || 0} orders.`,
+        })
+      : Conclusion({
+          fact: 'One explanation survives', tone: 'go',
+          because: 'A single candidate set satisfies every constraint, and the '
+            + 'independent kernel re-derived it from source records.',
+        });
+    return answer + Section({
       title: 'What was considered',
       aside: `<span class=c-muted>${Number(d.space ? d.space.universe : 0)
         .toLocaleString()} → ${d.space ? d.space.candidates : 0}</span>`,

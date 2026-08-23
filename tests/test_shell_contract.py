@@ -333,17 +333,32 @@ def test_the_context_chrome_is_generic_not_per_kind(page):
 
 
 def test_the_master_scroll_position_survives_open_and_close(page):
-    """§7: only context disappears."""
+    """§7: only context disappears.
+
+    The literal position 420 is gone, not the guarantee. Moving the case into
+    the rail gave the instrument 343px more height, so the same content now
+    scrolls 132px where it used to scroll 666 — 420 is past the end and the
+    browser clamps it, which would make the assertion about arithmetic rather
+    than about behaviour.
+
+    Scrolling to the maximum instead is a STRONGER test of the same thing: the
+    bottom is exactly where a reflow-induced clamp would bite.
+    """
     page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1800)
-    page.evaluate("document.getElementById('w-main').scrollTop = 420")
+    want = page.evaluate("""() => {
+        const e = document.getElementById('w-main');
+        const max = e.scrollHeight - e.clientHeight;
+        e.scrollTop = max;
+        return e.scrollTop; }""")
+    assert want > 0, "the master does not scroll at all; this asserts nothing"
     page.wait_for_timeout(300)
     page.click(".c-row.link")
     page.wait_for_timeout(1100)
-    assert page.evaluate("document.getElementById('w-main').scrollTop") == 420
+    assert page.evaluate("document.getElementById('w-main').scrollTop") == want
     page.click("[data-close-ctx]")
     page.wait_for_timeout(900)
-    assert page.evaluate("document.getElementById('w-main').scrollTop") == 420
+    assert page.evaluate("document.getElementById('w-main').scrollTop") == want
 
 
 # ------------------------------------------------------------ P3: Evidence
@@ -1179,8 +1194,12 @@ def test_the_state_spine_is_present_on_every_lens(page):
                      "policy", "activity", "trust"):
             page.evaluate(f"() => location.hash = '#/{subject}/{lens}'")
             page.wait_for_timeout(500)
+                # The spine moved from a band above the workspace into the case
+                # rail — part of the case's financial identity now, not a strip
+                # over the instrument. The guarantee is unchanged: present on
+                # every lens, which is what this asserts.
             h = page.evaluate("""() => {
-                const e = document.querySelector('#w-spine .c-flow');
+                const e = document.querySelector('.c-flow');
                 return e ? e.getBoundingClientRect().height : 0; }""")
             assert h > 0, f"no state spine on {subject}/{lens}"
 

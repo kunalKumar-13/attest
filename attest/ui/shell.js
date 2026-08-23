@@ -239,6 +239,46 @@ let MASTER_SCROLL = 0;
 let SETTLING = false;
 
 const SPINE = new Map();
+const CASE = new Map();
+
+/* What the rail says about the case, beyond identity and amount: what is
+ * agreed, what is disputed, and what the highest-value next action is.
+ *
+ * Keyed on SUBJECT, never on lens. That is not an optimisation — it is the
+ * product model. The rail is the case; if it were written by whichever lens
+ * happened to be open it would become a summary of the instrument, and the
+ * whole point is that the case does not change when the room does.
+ */
+async function caseFor(subject) {
+  const key = `${SHELL.run}/${subject.type}/${subject.id}`;
+  if (!CASE.has(key)) {
+    CASE.set(key, (async () => {
+      try {
+        if (subject.type === 'portfolio') {
+          const acts = await api(`/api/actions?run=${SHELL.run}`);
+          const a = (acts.actions || [])[0];
+          return a ? {
+            next: { what: a.what.split(';')[0], kind: a.kind,
+                    value_paise: a.leverage_paise || a.value_paise,
+                    cases: a.settlements, steps: a.steps },
+          } : {};
+        }
+        const ev = await api(`/api/evidence?run=${SHELL.run}&type=settlement`
+                             + `&id=${encodeURIComponent(subject.id)}`);
+        const sh = ev.shared || {};
+        const miss = (ev.missing || [])[0];
+        return {
+          agreed_paise: sh.paise, disputed_paise: sh.disputed_paise,
+          differing: sh.differing, shared_n: sh.n,
+          explanations: (ev.explanations || []).length,
+          candidates: (ev.space || {}).candidates,
+          next: miss ? { what: miss.next || miss.what } : null,
+        };
+      } catch { return {}; }
+    })());
+  }
+  return CASE.get(key);
+}
 async function spineFor(subject) {
   const key = `${SHELL.run}/${subject.type}/${subject.id}/${SHELL.review}/${SHELL.exposure}`;
   if (!SPINE.has(key)) {
@@ -263,13 +303,14 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   if (move) host.classList.add(`x-out-${move}`);
 
   const t = token();
-  let main, spine;
+  let main, spine, kase;
   try {
-    [main, spine] = await Promise.all([
+    [main, spine, kase] = await Promise.all([
       mode === 'master-detail'
         ? lens.master(SHELL.subject, SHELL)
         : lens.render(SHELL.subject, SHELL),
       spineFor(SHELL.subject),
+      caseFor(SHELL.subject),
     ]);
   } catch (err) {
     main = window.C.ErrorState(String((err && err.message) || err));
@@ -280,12 +321,12 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   host.classList.remove('x-out-turn', 'x-out-slide');
   host.innerHTML = `
     ${SHELL.notice ? `<div class=c-notice role=status>${window.C.esc(SHELL.notice)}</div>` : ''}
-    <div class=w-spine id=w-spine>${window.C.StateSpine(spine, { rail: true })}</div>
     <div class=w-main id=w-main>${main}</div>
     <aside class=w-ctx id=w-ctx hidden aria-live=polite></aside>`;
-  // The header carries the stage the spine stopped at, so identity and state
-  // are one object rather than two things that happen to agree.
-  if (HEADER && spine) HEADER.stage(spine.stopped_at, spine);
+  // The rail IS the case: identity, amount, verdict, financial state, what is
+  // agreed, what is disputed, what to do next. Written from subject-level data
+  // so it holds still while the room changes.
+  if (HEADER) HEADER.caseState(spine, kase);
   if (move) {
     host.classList.add(`x-in-${move}`);
     host.addEventListener('animationend',
@@ -462,6 +503,7 @@ async function boot() {
   SHELL.run = summary.run_id;
   GUARD.invalidateAll();
   SPINE.clear();
+  CASE.clear();
   const start = fromHash(location.hash)
              || { subject: { type: 'portfolio', id: 'portfolio' }, lens: 'control' };
   await navigate(start, { replace: true });

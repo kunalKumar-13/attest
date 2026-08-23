@@ -12,6 +12,7 @@
      which is the case that failed. */
   --ink:#101418; --dim:#414953; --dim2:#585f69; --dim3:#636d7a;
   --acc:#1669ea; --acc-d:#eef4fe;
+  --rail-bg:#f1f3f6;
   --st-PROVEN:#0c7d5a;       --st-PROVEN-bg:#eaf7f1;
   --st-AMBIGUOUS:#946811;    --st-AMBIGUOUS-bg:#fdf5e4;
   --st-CONTRADICTED:#b4442e; --st-CONTRADICTED-bg:#fdeeeb;
@@ -72,6 +73,7 @@
   --line:#151d26; --line2:#22303d;
   --ink:#dfe7ee; --dim:#a6b2be; --dim2:#8796a4; --dim3:#6c8298;
   --acc:#5185af; --acc-d:#0c1720;
+  --rail-bg:#0d1218;
   --st-PROVEN:#7ee3c1;       --st-PROVEN-bg:#0d2019;
   --st-AMBIGUOUS:#e2b34e;    --st-AMBIGUOUS-bg:#1c1708;
   --st-CONTRADICTED:#e0715a; --st-CONTRADICTED-bg:#241310;
@@ -86,11 +88,44 @@ body{background:var(--bg);color:var(--ink);font:var(--type-body)/1.55 var(--s);
 button{font:inherit;color:inherit}
 
 /* --------------------------------------------------------------- app shell */
-#app{display:grid;grid-template-rows:auto auto auto 1fr auto;height:100vh;
-min-height:0}
+/* ============================================================== THE FRAME
+   THE CASE IS THE OBJECT. THE RAIL IS THE CASE. THE INSTRUMENT IS THE ROOM.
 
-#bar{display:flex;align-items:center;gap:var(--s-4);padding:0 var(--s-5);
-height:46px;border-bottom:1px solid var(--line);background:var(--sur)}
+   The autopsy measured 343px of identical chrome stacked above every
+   instrument, squeezing it into 533px of a 900px viewport. The case turns 90
+   degrees: written once into a rail, never re-rendered, and the room starts
+   at y=0 with the full height.
+
+   The rail is a tax and has to earn every pixel, so its width was measured
+   rather than chosen. At 240/256/272 the rail overflows by 36/20/4px. At 288
+   it does not overflow, but the portfolio total is silently CLIPPED — the
+   amount's natural width is 255px and only 247px is available, and clipping
+   the primary financial object to save eight pixels is not a trade worth
+   making.
+
+   296px is the smallest width that renders ₹53,02,701.96 in full at 34px
+   with the 20px gutters. The rail is therefore sized by the largest amount
+   the product must display, which is the right thing for it to be sized by. */
+:root{--rail:296px}
+#app{display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) auto auto;
+  grid-template-areas:"case room" "inst room" "bar room";
+  height:100vh;min-height:0}
+#app>*{min-width:0}
+#subject{grid-area:case;overflow-y:auto;overflow-x:hidden}
+#lenses{grid-area:inst}
+#bar{grid-area:bar}
+#workspace{grid-area:room}
+#foot{display:none}          /* the rail says what the foot used to */
+
+/* Secondary controls. Moved out of the primary interaction path — the first
+   interactive element on the page was the theme toggle, which is a statement
+   about what the product thinks it is for. */
+#bar{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);
+height:auto;border-top:1px solid var(--line);background:var(--rail-bg)}
+#bar .wm{opacity:.55}
+#bar #hint{display:none}
 #bar .wm{font-family:var(--m);font-weight:700;letter-spacing:.2em;
 font-size:var(--t-small)}
 #bar .sp{flex:1}
@@ -104,48 +139,146 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 /* Wraps deliberately: the meta line belongs under the identity, not squeezed
    beside it. Without wrap a 100%-width meta row crushed the label to an
    ellipsis, which is the one thing a subject header may never do. */
-.c-subject{display:flex;flex-wrap:wrap;align-items:baseline;
-column-gap:var(--s-4);row-gap:2px;padding:var(--s-4) var(--s-5) var(--s-4);
-background:var(--sur)}
-.c-subject::after{content:"";flex:1 1 auto;order:5}
-.c-subject-id{display:flex;align-items:baseline;gap:var(--s-3);
-flex-wrap:wrap;min-width:0;flex:0 1 auto}
-.c-subject-id .lbl{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
-line-height:1.2}
-.c-subject-id .sub{font-size:var(--t-label);color:var(--dim3)}
-/* The amount belongs to the object, not to the right edge. A thousand pixels
-   between `setl_000089 AMBIGUOUS` and `₹1,00,036.83` reads as two things. */
-/* The amount is the financial subject of the case, not a field in a record.
-   It was rendering at the same size as the identity beside it; the autopsy
-   measured it at 13.5px against body text at 13.5px. */
-.c-subject-amt{text-align:right;line-height:1;flex:none;margin-left:auto;
-padding-left:var(--sp-5)}
-.c-subject-amt .v{display:block;font-family:var(--m);
-font-variant-numeric:tabular-nums;font-size:var(--type-display);
-letter-spacing:-.035em;line-height:1;font-weight:500}
-.c-subject-amt .k{display:block;font-size:var(--t-micro);color:var(--dim3);
-letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
-.c-subject-meta{display:flex;gap:var(--s-4);flex-wrap:wrap;
-flex:1 0 100%;order:9;padding:2px 0 0}
-.c-subject-meta span{font-size:var(--t-micro);color:var(--dim3);
-font-family:var(--m)}
-.c-subject-meta i{font-style:normal;letter-spacing:.12em;text-transform:uppercase;
-margin-right:6px;opacity:.75}
+/* ---------------------------------------------------------- THE CASE RAIL
+   Not a sidebar and not navigation. It answers: what am I looking at, how
+   much, what state is it in, where did the money stop, what is agreed, what
+   is disputed, what should I do. The instrument answers a different
+   question — which one is being asked. */
+.c-subject{background:var(--rail-bg);border-right:1px solid var(--line)}
+.c-case{display:flex;flex-direction:column;gap:var(--sp-4);
+  padding:var(--sp-5) var(--sp-5) var(--sp-3)}
+
+/* 1. the amount — the financial subject, and unmistakably the largest thing */
+.c-case-amt .v{display:block;font-family:var(--m);
+  font-variant-numeric:tabular-nums;font-size:var(--type-display);
+  letter-spacing:-.035em;line-height:1;font-weight:500}
+.c-case-amt .k{display:block;font-size:var(--type-micro);color:var(--dim3);
+  letter-spacing:.13em;text-transform:uppercase;margin-top:var(--sp-1)}
+
+/* 2. verdict, 3. identity */
+.c-case-id{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--sp-2);
+  margin-top:calc(var(--sp-4) * -1 + var(--sp-2))}
+.c-case-id .lbl{font-size:var(--type-title);font-weight:600;letter-spacing:-.02em;
+  line-height:1.15;order:2;flex-basis:100%}
+.c-case-id .st{order:1}
+.c-case-id .sub{order:3;font-size:var(--type-micro);color:var(--dim3);
+  letter-spacing:.12em;text-transform:uppercase}
+.c-case-meta{display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-3);
+  font-size:var(--type-micro);color:var(--dim3);font-family:var(--m)}
+.c-case-meta i{font-style:normal;letter-spacing:.1em;text-transform:uppercase;
+  margin-right:4px;opacity:.7}
+
+/* 4/5/6 — the state, what is agreed, what to do */
+.c-slot{border-top:1px solid var(--line);padding-top:var(--sp-3)}
+.c-slot[hidden],.c-slot:empty{display:none}
+.c-fact{display:grid;grid-template-columns:1fr;gap:1px;padding-bottom:var(--sp-3)}
+.c-fact:last-child{padding-bottom:0}
+.c-fk{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim3)}
+.c-fv{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-data);font-weight:500}
+.c-fact.hot .c-fv{color:var(--st-CONTRADICTED)}
+.c-fact em{font-style:normal;font-size:9px;color:var(--dim3)}
+.c-nx-w{font-size:var(--type-body);line-height:1.4;padding-top:2px}
+.c-nx-v{padding-top:var(--sp-2)}
+.c-nx-v b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-data);color:var(--st-PROVEN)}
+.c-nx-v em{display:block;font-style:normal;font-size:9px;color:var(--dim3)}
+
+/* the spine, in the rail, as part of the case's identity */
+.c-state .c-flow{gap:0}
+.c-state .c-flow-r{grid-template-columns:64px minmax(0,1fr);
+  gap:2px var(--sp-2);padding:var(--sp-1) 0;align-items:center}
+.c-state .c-flow-n{grid-column:1;grid-row:1;font-size:9px}
+.c-state .c-flow-track{grid-column:2;grid-row:1;height:9px;max-width:none}
+.c-state .c-flow-v{grid-column:2;grid-row:2;text-align:left;
+  font-size:var(--type-micro);padding-bottom:2px}
+.c-state .c-flow-x{grid-column:1/3;grid-row:3;font-size:9px;padding-bottom:var(--sp-1)}
+.c-state .c-flow-d{display:none}
+
+
 
 /* lens strip — an instrument, not browser tabs */
-.c-lenses{position:relative;display:flex;gap:var(--s-1);padding:0 var(--s-5);
-background:var(--sur);border-bottom:1px solid var(--line)}
-/* An instrument selector, not tabs. No underline, no bottom border: the
-   active lens is a filled key and the others are legends beside it. */
+/* --------------------------------------------- THE RAIL ON A SMALL SCREEN
+   A 296px rail against a 360px viewport leaves the instrument 40px, which is
+   not a narrow layout, it is a broken one. Below 768px the rail becomes a
+   compact case BAND — identity, amount, verdict, and the stage model reduced
+   to marks — and the instrument gets the rest. Not the old giant header: the
+   band is one or two lines, and the full financial state is a scroll away
+   inside it rather than a wall above the room. */
+@media (max-width:767px){
+  :root{--rail:100%}
+  #app{grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto auto;
+    grid-template-areas:"case" "room" "inst" "bar"}
+  /* The band is capped so the instrument keeps the majority of a phone
+     screen. Agreed, disputed and the next action scroll INSIDE it rather
+     than being dropped — a phone is a smaller window on the case, not a
+     different case. */
+  #subject{border-right:0;border-bottom:1px solid var(--line);
+    max-height:25vh;overflow-y:auto}
+  .c-case{padding:var(--sp-3) var(--sp-4);gap:var(--sp-2);
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"id amt" "meta meta" "state state" "now now" "next next"}
+  .c-case-amt{grid-area:amt;text-align:right}
+  .c-case-amt .v{font-size:var(--type-title)}
+  .c-case-id{grid-area:id;margin-top:0}
+  .c-case-id .lbl{flex-basis:auto;font-size:var(--type-body)}
+  .c-case-meta{grid-area:meta}
+  .c-state{grid-area:state} .c-now{grid-area:now} .c-next{grid-area:next}
+  /* The stage model must survive to a phone — it is the one thing that must
+     not be dropped. Five columns across 360px overlapped their own labels, so
+     it stays a list and gets tighter instead: name, bar, figure on one line,
+     and only the stage that stopped keeps its sentence. */
+  .c-state .c-flow{display:flex;flex-direction:column;gap:0}
+  .c-state .c-flow-r{grid-template-columns:62px minmax(0,1fr) auto;
+    gap:var(--sp-2);padding:2px 0;align-items:center}
+  .c-state .c-flow-n{grid-column:1;grid-row:1}
+  .c-state .c-flow-track{grid-column:2;grid-row:1;height:7px}
+  .c-state .c-flow-v{grid-column:3;grid-row:1;font-size:9px;text-align:right}
+  .c-state .c-flow-x{display:none}
+  .c-state .c-flow-r.stopped .c-flow-x{display:block;grid-column:1/4;grid-row:2;
+    font-size:9px;padding-bottom:2px}
+  .c-now,.c-next{display:flex;gap:var(--sp-5);flex-wrap:wrap}
+  .c-fact{padding-bottom:0}
+  .c-lenses{grid-area:inst;grid-template-columns:repeat(4,1fr)}
+  #bar{grid-area:bar}
+}
+
+/* ------------------------------------------------------ THE ROOM'S ANSWER
+   The instrument's conclusion, first and largest. The autopsy found the
+   lens's own answer outside the top three by visual weight on six of seven
+   lenses; on Policy the word REVIEW lost to the application's name. */
+.c-concl{padding-bottom:var(--sp-6);max-width:74ch}
+.c-concl-f{font-size:var(--type-title);font-weight:600;letter-spacing:-.02em;
+  line-height:1.2}
+.c-concl-n{display:flex;align-items:baseline;gap:var(--sp-3);padding-top:var(--sp-2)}
+.c-concl-n b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-display);font-weight:500;letter-spacing:-.035em;line-height:1}
+.c-concl-n em{font-style:normal;font-size:var(--type-micro);color:var(--dim3);
+  letter-spacing:.12em;text-transform:uppercase}
+.c-concl-w{font-size:var(--type-body);color:var(--dim);line-height:1.5;
+  padding-top:var(--sp-3);max-width:68ch}
+.t-stop .c-concl-f{color:var(--st-CONTRADICTED)}
+.t-hold .c-concl-f{color:var(--st-AMBIGUOUS)}
+.t-go .c-concl-f{color:var(--st-PROVEN)}
+.t-stop .c-concl-n b{color:var(--st-CONTRADICTED)}
+
+/* -------------------------------------------------- THE INSTRUMENT INDEX
+   The 46px horizontal band is deleted: it was identical pixels on every one
+   of seven lenses. This sits in the rail, quiet, and the ROOM is what tells
+   you which instrument you are holding. */
+.c-lenses{grid-area:inst;display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  padding:var(--sp-2);border-top:1px solid var(--line);background:var(--rail-bg)}
 .c-lenses button{position:relative;z-index:1;background:transparent;border:0;
 padding:8px var(--s-4);margin:6px 0;border-radius:var(--r-2);
 font-size:var(--t-label);letter-spacing:.06em;text-transform:uppercase;
 color:var(--dim3);cursor:pointer;transition:color var(--fast)}
-.c-lenses button:hover{color:var(--ink)}
-.c-lenses button.on{color:var(--ink);font-weight:600}
-.c-lens-ink{position:absolute;top:6px;left:0;height:calc(100% - 12px);
-background:var(--sur3);border-radius:var(--r-2);
-transition:transform var(--med),width var(--med)}
+.c-lenses button{padding:var(--sp-2) var(--sp-3);border-radius:var(--r-sm);
+  font-size:var(--type-micro);letter-spacing:.11em;text-transform:uppercase;
+  color:var(--dim3);text-align:left;transition:background var(--micro),color var(--micro)}
+.c-lenses button:hover{color:var(--ink);background:var(--sur)}
+.c-lenses button.on{color:var(--sur);background:var(--ink);font-weight:600}
+
 
 /* ------------------------------------------------------------- palette
    Case navigation, not application search. Sits above everything, dismisses
@@ -185,7 +318,7 @@ border-radius:var(--r-sm);padding:0 4px;margin-right:3px}
  * scrolling container scrolls away with the content it is meant to be
  * inspecting, which is the difference between a drawer and a section. */
 #workspace{position:relative;overflow:hidden;min-height:0;display:grid;
-grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+grid-template-columns:1fr;grid-template-rows:minmax(0,1fr)}
 #workspace>*{min-width:0}
 
 /* ------------------------------------------------------- the state spine
@@ -285,7 +418,7 @@ font-family:var(--m);font-size:var(--t-micro);color:var(--dim3)}
 .x-in-slide{animation:slide-in var(--med)}
 @media (prefers-reduced-motion: reduce){
   .x-out-turn,.x-in-turn,.x-out-slide,.x-in-slide,
-  .c-lens-ink{animation:none!important;transition:none!important}
+
 }
 
 /* ------------------------------------------------------------- components */
@@ -1123,6 +1256,8 @@ border-radius:var(--r-0)}
 }
 </style>
 <div id=app>
+  <div id=subject></div>
+  <div id=lenses></div>
   <div id=bar>
     <span class=wm>ATTEST</span>
     <span id=hint></span>
@@ -1132,8 +1267,6 @@ border-radius:var(--r-0)}
       <option>120</option><option selected>250</option><option>500</option></select>
     <button class="btn go" id=run>Run</button>
   </div>
-  <div id=subject></div>
-  <div id=lenses></div>
   <main id=workspace tabindex=-1></main>
   <div id=foot><span id=footmeta></span></div>
 </div>

@@ -206,54 +206,86 @@ class SubjectHeader {
     this.host = host;
     this.host.className = 'c-subject';
     this.host.innerHTML = `
-      <div class=c-subject-id>
-        <span class=lbl></span>
-        <span class=st></span>
-        <span class=sub></span>
-        <span class=c-subject-stage hidden></span>
-      </div>
-      <div class=c-subject-amt><span class=v></span><span class=k></span></div>
-      <div class=c-subject-meta></div>`;
+      <div class=c-case>
+        <div class=c-case-amt><span class=v></span><span class=k></span></div>
+        <div class=c-case-id>
+          <span class=st></span>
+          <span class=lbl></span>
+          <span class=sub></span>
+        </div>
+        <div class=c-case-meta></div>
+        <div class="c-slot c-state" id=c-state></div>
+        <div class="c-slot c-now" id=c-now></div>
+        <div class="c-slot c-next" id=c-next></div>
+      </div>`;
     this.q = sel => this.host.querySelector(sel);
-  }
-
-  /* Where the money currently stands, from the spine the shell already
-   * fetched. Written here rather than drawn twice. */
-  stage(stopped, spine) {
-    const n = this.q('.c-subject-stage');
-    if (!n) return;
-    const st = (spine && spine.stages || []).find(x => x.key === stopped);
-    const text = st ? st.label : '';
-    n.hidden = !text;
-    n.className = `c-subject-stage${text ? ' stopped' : ''}`;
-    if (n.textContent !== text) n.textContent = text;
   }
 
   update(s) {
     if (!s || s.error) return;
+    this.rec = s;
     const set = (sel, text) => {
       const n = this.q(sel);
       const t = text ?? '';
       if (n.textContent !== t) n.textContent = t;   // patch, never replace
       n.hidden = !t;
     };
-    set('.lbl', s.label);
-    set('.sub', s.sublabel);
-    // The status hook class must survive the status classes being written, or
-    // the next lookup finds nothing. Toggle only the semantic part.
+    set('.lbl', s.type === 'portfolio' ? s.label : s.id);
+    set('.sub', s.type === 'portfolio' ? s.sublabel : (s.amount_label || ''));
     const st = this.q('.st');
     st.className = s.status ? `st c-status s-${s.status}` : 'st c-status';
     st.textContent = s.status || '';
     st.hidden = !s.status;
-    const amt = this.q('.c-subject-amt');
+    const amt = this.q('.c-case-amt');
     amt.hidden = s.amount_paise === null || s.amount_paise === undefined;
-    set('.c-subject-amt .v', rupees(s.amount_paise));
-    set('.c-subject-amt .k', s.amount_label);
+    set('.c-case-amt .v', rupees(s.amount_paise));
+    set('.c-case-amt .k', s.type === 'portfolio' ? (s.amount_label || '') : '');
     const meta = (s.meta || [])
       .map(m => `<span><i>${esc(m.k)}</i>${esc(m.v)}</span>`).join('');
-    const box = this.q('.c-subject-meta');
+    const box = this.q('.c-case-meta');
     if (box.innerHTML !== meta) box.innerHTML = meta;
     this.host.dataset.type = s.type;
+  }
+
+  /* The financial state of the case, and what follows from it.
+   *
+   * Written from SUBJECT-level data only. A rail assembled from whichever lens
+   * is open would be a summary of the instrument, and the product model is that
+   * the case does not change when the room does — which is also asserted by
+   * `test_changing_lens_leaves_the_subject_and_the_header_untouched`.
+   */
+  caseState(spine, kase) {
+    const put = (id, html) => {
+      const n = this.q('#' + id);
+      if (!n) return;
+      if (n.innerHTML !== html) n.innerHTML = html;
+      n.hidden = !html;
+    };
+
+    put('c-state', spine ? StateSpine(spine, { rail: true }) : '');
+
+    const k = kase || {};
+    const rows = [];
+    if (k.agreed_paise != null) {
+      rows.push(`<div class=c-fact><span class=c-fk>agreed</span>
+        <b class=c-fv>${esc(rupees(k.agreed_paise))}</b>
+        <em>${esc(plural(k.shared_n || 0, 'order'))} in every explanation</em></div>`);
+    }
+    if (k.disputed_paise != null) {
+      rows.push(`<div class="c-fact hot"><span class=c-fk>disputed</span>
+        <b class=c-fv>${esc(rupees(k.disputed_paise))}</b>
+        <em>turns on ${esc(plural(k.differing || 0, 'order'))}</em></div>`);
+    }
+    put('c-now', rows.join(''));
+
+    const n = k.next;
+    put('c-next', n ? `<div class=c-nx>
+      <span class=c-fk>next</span>
+      <div class=c-nx-w>${esc(n.what)}</div>
+      ${n.value_paise != null ? `<div class=c-nx-v><b>${esc(rupees(n.value_paise))}</b>
+        <em>unlocked${n.cases ? ` · ${esc(plural(n.cases, 'case'))}` : ''}${
+          n.steps ? ` · ${esc(plural(n.steps, 'step'))}` : ''}</em></div>` : ''}
+    </div>` : '');
   }
 }
 
@@ -288,29 +320,46 @@ class LensStrip {
       this.keys = keys;
       this.host.innerHTML = lenses.map(l =>
         `<button data-lens="${esc(l.key)}" role=tab title="${esc(l.question)}"
-           aria-selected=false>${esc(l.label)}</button>`).join('')
-        + '<i class=c-lens-ink aria-hidden=true></i>';
+           aria-selected=false>${esc(l.label)}</button>`).join('');
     }
-    let ink = null;
+    // The sliding ink indicator went with the horizontal tab band it belonged
+    // to. Absolutely positioned inside what is now a two-column grid in the
+    // rail, it stretched to 136x888 and painted over the case. The active
+    // instrument is carried by weight and ground instead — and the ROOM is
+    // what should be telling you which instrument you are holding.
     this.host.querySelectorAll('[data-lens]').forEach(b => {
       const on = b.dataset.lens === active;
       b.setAttribute('aria-selected', String(on));
       b.classList.toggle('on', on);
-      if (on) ink = b;
     });
-    const bar = this.host.querySelector('.c-lens-ink');
-    if (ink && bar) {
-      bar.style.width = `${ink.offsetWidth}px`;
-      bar.style.transform = `translateX(${ink.offsetLeft}px)`;
-    }
   }
+}
+
+/* THE ROOM'S ANSWER.
+ *
+ * Every lens asks one question, and the autopsy found that on six of seven the
+ * answer was not among the three strongest things on screen — on Policy the
+ * word REVIEW lost to the application's own name. This is the instrument's
+ * conclusion, and it is the first and largest thing in the room.
+ *
+ * `fact` is the verdict in the lens's own vocabulary. `figure` is the money it
+ * turns on, when there is one. `because` is one sentence of why — prose is
+ * allowed to say WHY, never WHAT.
+ */
+function Conclusion({ fact, figure, figureLabel, because, tone }) {
+  return `<div class="c-concl${tone ? ` t-${esc(tone)}` : ''}">
+    <div class=c-concl-f>${esc(fact)}</div>
+    ${figure ? `<div class=c-concl-n><b>${esc(figure)}</b>${
+      figureLabel ? `<em>${esc(figureLabel)}</em>` : ''}</div>` : ''}
+    ${because ? `<p class=c-concl-w>${esc(because)}</p>` : ''}
+  </div>`;
 }
 
 /* Exported because a lens uses it. Amount and Panel were declared in Phase 1
    and called by nothing, so they are gone — a component with no caller is a
    guess about the future, and it will be the wrong guess. */
 window.C = {
-  esc, rupees, plural,
+  esc, rupees, plural, Conclusion,
   Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
   DataTable, EmptyState, LoadingState, ErrorState, StateSpine,
   SubjectHeader, LensStrip,
