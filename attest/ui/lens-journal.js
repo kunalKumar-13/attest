@@ -13,7 +13,7 @@
 'use strict';
 
 (() => {
-  const { Section, DataTable, Disclosure, EmptyState, MetricRow, Row,
+  const { Section, DataTable, Disclosure, EmptyState, MetricRow, Row, Conclusion,
           rupees, plural, esc } = window.C;
 
   /* ORDERS → FEES → GST → SETTLEMENT → BANK, as proportional segments. */
@@ -49,8 +49,14 @@
       const j = det.judgement || {};
       const why = (j.reasons || []).slice(-1)[0]
         || 'no unique kernel-checked explanation';
-      return Section({
-        title: 'No entry is written',
+      // The refusal IS the answer here, so it leads. It used to be a section
+      // heading at 10px, which made the lens look like it had nothing to say.
+      return Conclusion({
+        fact: 'No entry is written', tone: 'stop',
+        figure: rupees(det.amount), figureLabel: 'not posted',
+        because: why,
+      }) + Section({
+        title: 'Why nothing is posted',
         body: `<p class=c-lead>${esc(why)}</p>`
           + Disclosure({
               summary: 'Why nothing partial is posted',
@@ -66,7 +72,14 @@
       });
     }
 
-    return Section({
+    return Conclusion({
+      fact: 'Balanced to the paisa', tone: 'go',
+      figure: rupees(e.total_paise), figureLabel: 'posted',
+      because: `${plural(e.orders, 'order')} across `
+        + `${plural((e.lines || []).length, 'account')}, value date `
+        + `${e.value_date}, UTR ${e.utr}. Debits equal credits or the entry `
+        + `cannot be constructed at all.`,
+    }) + Section({
       title: 'The money trail',
       aside: `<span class=c-muted>${plural(e.orders, 'order')}</span>`,
       body: MoneyTrail(e.lines, e.total_paise),
@@ -144,7 +157,17 @@
         ? `<div class=c-group-d>${esc(tail(g.reason, g.example))}</div>` : ''}
     </div>`).join('');
 
-    return Section({ title: "Today's accounting", body: head })
+    // Journal's question is where the money went, and its answer is whether
+    // the books balance and how much actually moved.
+    return Conclusion({
+      fact: d.balances ? 'The books balance' : 'The books do not balance',
+      tone: d.balances ? 'go' : 'stop',
+      figure: rupees(d.posted_paise), figureLabel: 'posted',
+      because: `${plural(d.entry_count, 'entry', 'entries')} written, `
+        + `${plural(d.refusal_count, 'settlement')} withheld at `
+        + `${rupees(d.refused_paise)} — each with a stated reason. An entry is `
+        + `written only from a unique, kernel-checked explanation.`,
+    }) + Section({ title: "Today's accounting", body: head })
       + Section({
           title: 'Entries',
           aside: `<span class=c-muted>${esc(rupees(d.posted_paise, { whole: true }))}</span>`,

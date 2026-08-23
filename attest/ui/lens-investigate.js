@@ -16,7 +16,7 @@
 'use strict';
 
 (() => {
-  const { Section, Row, MetricRow, Disclosure, EmptyState,
+  const { Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           rupees, plural, esc } = window.C;
 
   const ACTOR = {
@@ -69,7 +69,20 @@
       + `&type=settlement&id=${encodeURIComponent(subject.id)}`);
     if (d.error) return EmptyState(d.error);
 
-    const head = `<div class=i-q>
+    // The loop's outcome is the answer, and the fact that the verdict did NOT
+    // change is the product's whole claim about where the model sits.
+    const OUT = { abstained: ['Engine abstained', 'stop'],
+                  resolved: ['Engine resolved it', 'go'],
+                  open: ['Still open', 'hold'] };
+    const [word, tone] = OUT[d.state] || ['Engine abstained', 'stop'];
+    const head = Conclusion({
+      fact: word, tone,
+      figure: d.verdict_changed ? null : 'Verdict unchanged',
+      because: d.tested
+        ? `${plural(d.tested, 'anchor')} tested, ${d.discriminative} `
+          + `discriminative. ${d.note || ''}`.trim()
+        : (d.note || ''),
+    }) + `<div class=i-q>
       <span class=i-q-k>the question</span>
       <h2>${esc(d.question)}</h2></div>`;
 
@@ -130,7 +143,14 @@
   /* ------------------------------------------------------------- portfolio */
   async function portfolioMaster(S) {
     const d = await window.shellApi(`/api/investigation?run=${S.run}&type=portfolio`);
-    return `<div class=i-q><span class=i-q-k>the queue</span>
+    return Conclusion({
+      fact: `${plural(d.groups.length, 'question')} account for the ambiguity`,
+      figure: rupees(d.total_paise), figureLabel: 'behind them',
+      tone: 'hold',
+      because: 'Ordered by what an answer would unlock, not by amount. A '
+        + 'question that resolves 197 settlements at once outranks one worth '
+        + 'more on a single case.',
+    }) + `<div class=i-q><span class=i-q-k>the queue</span>
         <h2>What should be investigated first?</h2></div>`
       + Section({
           aside: `<span class=c-muted>${esc(rupees(d.total_paise, { whole: true }))} behind ${

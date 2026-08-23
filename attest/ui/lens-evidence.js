@@ -172,7 +172,18 @@
     const d = await window.shellApi(`/api/evidence?run=${S.run}&type=portfolio`);
     const heur = (d.integrity || {}).heuristic || 0;
     const val = (d.integrity || {}).validated || 0;
-    return Section({
+    const tot = heur + val;
+    // Evidence's portfolio answer is not how many orders there are. It is how
+    // much of the book's proof rests on a convention rather than a fact.
+    return Conclusion({
+      fact: `${heur} of ${tot} search spaces rest on a convention`,
+      tone: 'hold',
+      figure: rupees(d.heuristic_paise), figureLabel: 'proved inside one',
+      because: 'The settlement calendar and the already-claimed reduction are '
+        + 'conventions, not facts. A proof can be arithmetically perfect inside '
+        + 'a space that already excluded the truth, which is what makes the '
+        + 'boundary matter more than the selection.',
+    }) + Section({
       title: 'The evidence in this run',
       body: MetricRow((d.counts || []).map(c => ({
         label: c.kind + (c.n === 1 ? '' : 's'),

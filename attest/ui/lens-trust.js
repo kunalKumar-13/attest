@@ -24,7 +24,8 @@
 'use strict';
 
 (() => {
-  const { Section, MetricRow, Disclosure, EmptyState, plural, esc } = window.C;
+  const { Section, MetricRow, Disclosure, EmptyState, Conclusion,
+          plural, esc } = window.C;
 
   const STATE = {
     MEASURED: 'ok', SUPPORTED: 'ok', LIMITED: 'lim',
@@ -81,7 +82,22 @@
     const d = await window.shellApi(`/api/claims?run=${S.run}`);
     const failing = d.gates.filter(g => g.state !== 'PASS').length;
 
-    return `<div class=t-head>
+    // Trust leads with what the system will not claim. The strongest thing on
+    // this screen must be a limitation, not a green tick — a trophy wall is
+    // the failure mode this lens exists to avoid.
+    const unmeasured = (d.claims || []).filter(c => c.status !== 'MEASURED').length;
+    const unknowns = (d.unknowns || []).length;
+    return Conclusion({
+      fact: 'Live Razorpay validation',
+      tone: 'stop',
+      figure: 'NOT VERIFIED',
+      figureLabel: `${unknowns} things not known`,
+      because: `${unmeasured} of ${(d.claims || []).length} claims are not `
+        + `MEASURED, ${(d.failures || {}).count || 0} failures are recorded with `
+        + `what broke and what changed, and ${failing} of ${d.gates.length} `
+        + `gates are failing. No live account has ever been contacted; the `
+        + `numbers here describe generated data.`,
+    }) + `<div class=t-head>
         <span class=t-head-k>where ATTEST has failed</span>
         <h2>The uncomfortable numbers first</h2>
       </div>`
@@ -206,8 +222,13 @@
       && (ctx.type === 'claim' || ctx.type === 'failure'),
     render(subject, S) {
       if (subject.type === 'portfolio') return portfolio(S);
-      return EmptyState('Trust is a property of the system, not of one '
-        + 'settlement. Open it on the portfolio.');
+      return Conclusion({
+        fact: 'Trust is a property of the system',
+        tone: 'hold',
+        because: 'Not of one settlement. Whether this case is right depends on '
+          + 'whether the engine, the rules and the search space can be '
+          + 'believed at all — open Trust on the portfolio.',
+      });
     },
     context(ctx, subject, S) {
       return ctx.type === 'claim'

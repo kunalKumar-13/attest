@@ -23,7 +23,7 @@
 'use strict';
 
 (() => {
-  const { Section, Row, MetricRow, Disclosure, EmptyState,
+  const { Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           rupees, plural, esc } = window.C;
 
   const ACTOR = {
@@ -64,7 +64,21 @@
       + `&type=settlement&id=${encodeURIComponent(subject.id)}`);
     if (d.error) return EmptyState(d.error);
 
-    return `<div class=a-state>
+    // Activity's question is what actually happened, and the most important
+    // fact is usually what did NOT: eight events ran and the ledger is
+    // unchanged. An absence is a result.
+    const posted = d.state && d.state.posted;
+    return Conclusion({
+      fact: posted ? 'An entry was written' : 'Ledger unchanged',
+      tone: posted ? 'go' : 'hold',
+      figure: plural((d.events || []).length, 'event'),
+      figureLabel: 'this run',
+      because: posted
+        ? 'The proof was unique, the policy permitted it, and the entry balances.'
+        : `Every event was recorded and none of them changed the verdict. `
+          + `It ended ${esc((d.state || {}).verdict || '')} and was decided `
+          + `${esc(((d.state || {}).decision || '').replace('_', ' '))}.`,
+    }) + `<div class=a-state>
         <span class=a-state-k>where it ended up</span>
         <div class=a-state-r>
           <span class="c-status s-${esc(d.state.verdict)}">${esc(d.state.verdict)}</span>
@@ -91,7 +105,19 @@
     const d = await window.shellApi(`/api/activity?run=${S.run}&type=portfolio`);
     const del = d.delivery_counts || {};
 
-    return `<div class=a-state>
+    const unrev = (d.unrevised || []).length;
+    return Conclusion({
+      fact: unrev ? `${plural(unrev, 'settlement')} unrevised`
+                  : 'Nothing is unrevised',
+      tone: unrev ? 'hold' : 'go',
+      figure: String((d.deliveries || []).length),
+      figureLabel: 'events delivered',
+      because: unrev
+        ? 'Events arrived after these settlements were decided; their verdicts '
+          + 'have not been recomputed.'
+        : (d.unrevised_note || 'Every ingested event is reflected in the '
+           + 'current verdicts.'),
+    }) + `<div class=a-state>
         <span class=a-state-k>the run</span>
         <div class=a-state-r>
           <span class=c-mono>${esc(d.run.id)}</span>

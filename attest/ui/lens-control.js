@@ -47,6 +47,16 @@
         hint: `${g.label}${it.amount_paise ? ' · ' + rupees(it.amount_paise) : ''}`,
       }))).filter(r => r.id);
 
+    const top = (acts.actions || [])[0];
+    const answer = top ? Conclusion({
+      fact: `One change unlocks ${plural(top.settlements, 'settlement')}`,
+      tone: 'hold',
+      figure: rupees(top.leverage_paise || top.value_paise),
+      figureLabel: `${(KIND[top.kind] || ['', ''])[0].toLowerCase()} · `
+        + `${plural(top.steps, 'step')}`,
+      because: top.rationale || top.why || '',
+    }) : '';
+
     const actionBlock = Section({
       title: 'What unlocks the most',
       aside: `<span class=c-muted>${plural(acts.total_steps, 'piece')} of work</span>`,
@@ -87,7 +97,7 @@
       </div>`).join(''),
     });
 
-    return spineBlock + actionBlock + queue;
+    return answer + spineBlock + actionBlock + queue;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the

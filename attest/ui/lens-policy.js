@@ -21,7 +21,7 @@
 'use strict';
 
 (() => {
-  const { Section, Row, MetricRow, Disclosure, EmptyState,
+  const { Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           rupees, plural, esc } = window.C;
 
   const STEPS = [2500, 5000, 10000, 15000, 25000, 50000, 100000, 250000, 500000];
@@ -75,7 +75,18 @@
       + `&review=${S.review}&exposure=${S.exposure}`);
     if (d.error) return EmptyState(d.error);
 
-    return `<div class="p-head ${esc(d.decision)}">
+    // Policy's answer is the decision, and where no proof exists the honest
+    // answer is that nothing was priced — never a fabricated zero.
+    const b = d.boundary || {};
+    const answer = Conclusion({
+      fact: b.priced ? esc(d.decision).replace('_', '-') : 'Unpriced',
+      tone: d.decision === 'AUTO_POST' ? 'go' : 'hold',
+      figure: b.priced ? rupees(b.expected_loss_paise) : esc(d.decision).replace('_', '-'),
+      figureLabel: b.priced ? `expected loss · ${rupees(b.review_paise)} to check` : null,
+      because: b.statement || '',
+    });
+
+    return answer + `<div class="p-head ${esc(d.decision)}">
         ${d.simulated ? '<div class=p-sim>Simulated costing — no action will be executed</div>' : ''}
         <span class=p-head-k>what policy permits</span>
         <div class=p-head-d>
@@ -128,7 +139,14 @@
     const total = d.settlements || 1;
     const idx = STEPS.indexOf(S.review);
 
-    return `<div class="p-head ${d.simulated ? 'sim' : ''}">
+    return Conclusion({
+      fact: `${d.auto_post} of ${total} may post without a person`,
+      tone: 'hold',
+      figure: rupees(d.protected_paise), figureLabel: 'held for review',
+      because: `Expected loss ${rupees(d.expected_loss_paise)} against `
+        + `${rupees(d.review_paise)} to check one. Proof gates first, `
+        + `economics second — and ${d.wrong_posts} posted wrongly.`,
+    }) + `<div class="p-head ${d.simulated ? 'sim' : ''}">
         ${d.simulated ? '<div class=p-sim>Simulated costing — no action will be executed</div>' : ''}
         <span class=p-head-k>what ATTEST may automate</span>
         <div class=p-head-d><i aria-hidden=true></i>${esc(rupees(d.posted_paise, { whole: true }))}</div>
