@@ -274,13 +274,25 @@
       && (ctx.type === 'claim' || ctx.type === 'failure'),
     render(subject, S) {
       if (subject.type === 'portfolio') return portfolio(S);
+      /* The refusal is correct — one settlement cannot testify to its own
+         engine. But it named a destination and gave no way to reach it, so the
+         last beat of a case read as a two-line screen. The sentence IS the
+         affordance now; it carries subject and lens together, which is one
+         navigation and one history entry. */
       return Conclusion({
         fact: 'Trust is a property of the system',
         tone: 'hold',
         because: 'Not of one settlement. Whether this case is right depends on '
           + 'whether the engine, the rules and the search space can be '
-          + 'believed at all — open Trust on the portfolio.',
-      });
+          + 'believed at all.',
+      }) + `<button class="c-onward up" data-subject="portfolio:portfolio"
+          data-lens=trust data-context="">
+        <span class=c-onward-k>the next question</span>
+        <span class=c-onward-q>What can I believe about the system that
+          decided this?</span>
+        <span class=c-onward-l>Trust · all settlements</span>
+        <span class=c-onward-x aria-hidden=true>&rarr;</span>
+      </button>`;
     },
     context(ctx, subject, S) {
       return ctx.type === 'claim'

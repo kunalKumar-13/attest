@@ -1725,3 +1725,174 @@ def test_the_search_space_chain_ends_at_the_surviving_explanations(page):
     # and the assumption the whole chain rests on is stated, not disclosed
     assert "convention" in uni.lower(), \
         "the chain does not say the boundary rests on a convention"
+
+
+def test_returning_to_the_work_returns_to_the_work(page):
+    """Phase 22 §1 step 15, §6. The close of the loop the product is built on.
+
+    'Back to the work' inherited the case's lens and dropped the blocker
+    context, so a return from Trust landed on portfolio Trust — a page with no
+    work on it, nothing selected, and the affected population gone. The button
+    was labelled with the one thing it did not do."""
+    _ev(page, "#/portfolio/control")
+    page.click(".c-blk")
+    page.wait_for_timeout(600)
+    came_from = page.evaluate("() => location.hash")
+    assert "in=action" in came_from
+    page.click(".c-pop-r")
+    page.wait_for_timeout(700)
+    # wander to the far end of the loop before turning round
+    page.click('[data-lens="trust"]')
+    page.wait_for_timeout(600)
+    page.click(".c-from-b")
+    page.wait_for_timeout(900)
+
+    back = page.evaluate("() => location.hash")
+    assert back == came_from, \
+        f"did not return to the work: went to {back}, came from {came_from}"
+    assert len(page.query_selector_all(".c-pop-r")) > 0, \
+        "the affected population is not listed after returning"
+    assert len(page.query_selector_all(".c-blk")) == 3, \
+        "the ranked work is not on screen after returning"
+
+
+# Phase 22 §10. Which stages of the chain each instrument is talking about.
+# The routing is derived, not authored: VERIFICATION belongs to Evidence when
+# there is a proof to read and to Investigate when the question is what would
+# separate the explanations.
+CHAIN_OWNERS = {
+    "source": "evidence", "matching": "evidence",
+    "policy": "policy", "action": "journal",
+}
+
+
+def test_the_state_spine_is_the_way_into_the_instruments(page):
+    """Phase 22 §10. The spine states the whole model and was five inert divs.
+
+    Each stage is owned by exactly one instrument, so clicking a stage is a
+    lens change — already addressable, already in the URL, already reversible
+    with Back. No new state, no new screen."""
+    _ev(page, "#/settlement/setl_000089/control")
+    stages = page.query_selector_all(".c-state .c-flow-r")
+    assert len(stages) == 5, f"expected five stages, saw {len(stages)}"
+    for st in stages:
+        assert st.get_attribute("data-lens"), \
+            f"stage is inert: {st.inner_text()[:30]!r}"
+    for name, lens in CHAIN_OWNERS.items():
+        el = page.query_selector(f'.c-state .c-flow-r[data-stage="{name}"]')
+        assert el, f"no stage {name}"
+        assert el.get_attribute("data-lens") == lens, \
+            f"{name} routes to {el.get_attribute('data-lens')}, expected {lens}"
+
+
+def test_an_ambiguous_verification_routes_to_investigate(page):
+    """The one stage whose owner depends on state. With a unique proof the
+    question is 'can it be proved' — Evidence. With four explanations surviving
+    it is 'what would separate them' — Investigate."""
+    _ev(page, "#/settlement/setl_000089/control")
+    amb = page.get_attribute('.c-state .c-flow-r[data-stage="verification"]',
+                             "data-lens")
+    _ev(page, "#/settlement/setl_000020/control")
+    proven = page.get_attribute('.c-state .c-flow-r[data-stage="verification"]',
+                                "data-lens")
+    assert amb == "investigate", f"ambiguous verification routes to {amb}"
+    assert proven == "evidence", f"proven verification routes to {proven}"
+
+
+def test_clicking_a_stage_changes_only_the_lens(page):
+    """The case must not move. A stage is a way into an instrument, not a
+    different subject and not a context."""
+    _ev(page, "#/settlement/setl_000089/control")
+    before = page.inner_text(".c-case-amt .v")
+    page.click('.c-state .c-flow-r[data-stage="policy"]')
+    page.wait_for_timeout(700)
+    assert "/policy" in page.evaluate("() => location.hash")
+    assert "setl_000089" in page.evaluate("() => location.hash")
+    assert page.inner_text(".c-case-amt .v") == before, "the case changed"
+
+
+def test_each_room_lights_the_stages_it_is_talking_about(page):
+    """Phase 22 §10. The spine is rendered by the shell on every lens, so a
+    room can mark its own segment without drawing a second spine."""
+    expect = {
+        "evidence": {"matching", "verification"},
+        "investigate": {"verification"},
+        "policy": {"verification", "policy"},
+        "journal": {"policy", "action"},
+    }
+    for lens, stages in expect.items():
+        _ev(page, f"#/settlement/setl_000089/{lens}")
+        lit = set(page.eval_on_selector_all(
+            ".c-state .c-flow-r.lit", "x => x.map(e => e.dataset.stage)"))
+        assert lit == stages, f"{lens} lights {lit or 'nothing'}, expected {stages}"
+
+
+def test_the_next_question_is_derived_from_the_case_not_a_script(page):
+    """Phase 22 §7. 'These must be derived from actual state.'
+
+    The same instrument proposes a different next question depending on what
+    the case actually is. Evidence on an ambiguous case sends you to
+    Investigate — several explanations survive and the question is what would
+    separate them. Evidence on a proven case has nothing to separate, so it
+    sends you to Policy."""
+    _ev(page, "#/settlement/setl_000089/evidence")     # AMBIGUOUS
+    amb = page.get_attribute(".c-onward", "data-lens")
+    _ev(page, "#/settlement/setl_000020/evidence")     # PROVEN
+    proven = page.get_attribute(".c-onward", "data-lens")
+    _ev(page, "#/settlement/setl_000109/evidence")     # CONTRADICTED
+    contra = page.get_attribute(".c-onward", "data-lens")
+    assert amb == "investigate", f"ambiguous evidence proposes {amb}"
+    assert proven == "policy", f"proven evidence proposes {proven}"
+    assert contra == "policy", \
+        f"contradicted evidence proposes {contra} — there is nothing to separate"
+
+
+def test_the_next_question_disappears_at_the_end_of_the_loop(page):
+    """Phase 22 §7. 'If there is no meaningful next action, show nothing.'
+
+    Trust is where the loop ends. An interface that always has a next thing to
+    offer is a workflow being forced, not a product being read."""
+    _ev(page, "#/settlement/setl_000089/trust")
+    # `.up` is a different affordance: a handoff to another SUBJECT, because
+    # one settlement cannot testify to its own engine. What must not exist here
+    # is a next INSTRUMENT — there is nothing after "what can I believe".
+    assert not page.query_selector(".c-onward:not(.up)"), \
+        "Trust proposes a next instrument; it is the end of the loop"
+
+
+def test_the_next_question_never_points_at_the_room_you_are_in(page):
+    """A suggestion to read what is already on screen is noise."""
+    for lens in ("control", "evidence", "investigate", "policy",
+                 "journal", "activity", "trust"):
+        _ev(page, f"#/settlement/setl_000089/{lens}")
+        el = page.query_selector(".c-onward:not(.up)")
+        if el:
+            assert el.get_attribute("data-lens") != lens, \
+                f"{lens} proposes itself"
+
+
+def test_the_next_question_is_a_question(page):
+    """It states what the next instrument would answer, not its name alone.
+    'Evidence' is a place; 'can the explanation be proved' is a reason to go."""
+    _ev(page, "#/settlement/setl_000089/control")
+    el = page.query_selector(".c-onward")
+    assert el, "control proposes no next question on an unresolved case"
+    assert "?" in el.inner_text(), f"not a question: {el.inner_text()!r}"
+
+
+def test_trust_on_a_case_offers_the_way_to_the_system(page):
+    """Phase 22 §6. Trust on a settlement correctly refuses to answer — whether
+    one case is right depends on whether the engine can be believed at all.
+
+    But it said 'open Trust on the portfolio' and gave no way to do it, so the
+    last beat of the case story was a two-line screen naming a destination the
+    reader had to find themselves."""
+    _ev(page, "#/settlement/setl_000089/trust")
+    go = page.query_selector(".c-onward[data-subject]")
+    assert go, "no way through to the systemic view"
+    assert go.get_attribute("data-lens") == "trust"
+    assert go.get_attribute("data-subject").startswith("portfolio")
+    go.click()
+    page.wait_for_timeout(900)
+    assert page.evaluate("() => location.hash") == "#/portfolio/trust"
+    assert "NOT VERIFIED" in page.inner_text("#w-main")

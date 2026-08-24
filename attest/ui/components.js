@@ -113,9 +113,39 @@ const ErrorState = (msg) => `<div class="c-empty err">${esc(msg)}</div>`;
  * holding it there — the same five stages for a portfolio and for one
  * settlement, because it is the same pipeline and only the population differs.
  */
+/* §22.10. Which instrument owns each stage of the chain.
+ *
+ * The spine states the whole model and was five inert divs — the one part of
+ * the product that says where money stops and could not be touched. A stage
+ * click is a LENS change: already addressable, already in the URL, already
+ * reversible with Back. No new state and no new screen.
+ *
+ * VERIFICATION is the only stage whose owner depends on the case. With a
+ * unique proof the question is "can it be proved" and that is Evidence; with
+ * several explanations surviving it is "what would separate them", which is
+ * the question Investigate exists to answer. Derived, not authored. */
+const STAGE_OWNER = {
+  source: 'evidence', matching: 'evidence',
+  policy: 'policy', action: 'journal',
+};
+const ownerOf = (stage) => stage.key === 'verification'
+  ? (String(stage.value).toUpperCase() === 'AMBIGUOUS'
+      ? 'investigate' : 'evidence')
+  : STAGE_OWNER[stage.key] || 'control';
+
+/* And the other direction: the segment each room is talking about, marked on
+   the spine the shell already draws rather than by drawing a second one. */
+const LENS_SEGMENT = {
+  evidence: ['matching', 'verification'],
+  investigate: ['verification'],
+  policy: ['verification', 'policy'],
+  journal: ['policy', 'action'],
+};
+
 function StateSpine(spine, opts = {}) {
   if (!spine || !spine.stages) return '';
   const per = spine.type === 'portfolio';
+  const lit = LENS_SEGMENT[opts.lens] || [];
 
   // Proportional to what CONTINUES past each stage. The bar collapsing from
   // full width to a sliver is the entire story of the portfolio, and it should
@@ -143,7 +173,11 @@ function StateSpine(spine, opts = {}) {
       // stage; the figure marks each collapse.
       const same = opts.rail && i > 0
         && spine.stages[i - 1].value === s.value;
-      return `<div class="c-flow-r ${esc(s.state)}">
+      const owner = ownerOf(s);
+      const on = lit.includes(s.key);
+      return `<${opts.rail ? 'button' : 'div'} class="c-flow-r ${esc(s.state)}${
+        on ? ' lit' : ''}"${opts.rail ? ` data-stage="${esc(s.key)}"
+        data-lens="${esc(owner)}" title="${esc(s.label)} — open ${esc(owner)}"` : ''}>
         <span class=c-flow-n>${esc(s.label)}</span>
         <span class=c-flow-track>
           <i class=c-flow-bar style="width:${w.toFixed(2)}%"></i>
@@ -153,7 +187,7 @@ function StateSpine(spine, opts = {}) {
           ? `<b class=c-flow-h>${esc(s.held_value || '')}</b> held · ${Number(s.held).toLocaleString()}`
           : s.state === 'stopped' ? `<b>stopped here</b>`
           : s.state === 'not_reached' ? 'not reached' : ''}</span>
-      </div>
+      </${opts.rail ? 'button' : 'div'}>
       ${(held || s.state === 'stopped') && opts.detail !== false
         ? `<div class=c-flow-d>${esc(s.detail)}</div>` : ''}`;
     }).join('')}
@@ -268,7 +302,7 @@ class SubjectHeader {
    * the case does not change when the room does — which is also asserted by
    * `test_changing_lens_leaves_the_subject_and_the_header_untouched`.
    */
-  caseState(spine, kase) {
+  caseState(spine, kase, lens) {
     const put = (id, html) => {
       const n = this.q('#' + id);
       if (!n) return;
@@ -276,7 +310,7 @@ class SubjectHeader {
       n.hidden = !html;
     };
 
-    put('c-state', spine ? StateSpine(spine, { rail: true }) : '');
+    put('c-state', spine ? StateSpine(spine, { rail: true, lens }) : '');
 
     const k = kase || {};
     const rows = [];
@@ -365,7 +399,9 @@ function FromBlocker(from) {
     <span class=c-from-x>→</span>
     <span class=v>${esc(from.value || '')}</span>
     <span>${esc(from.affected || '')}</span>
-    <button class=c-from-b data-subject="portfolio:portfolio">back to the work</button>
+    <button class=c-from-b data-subject="portfolio:portfolio"
+      data-lens=control data-context="action:${esc(from.reason)}"
+      >back to the work</button>
   </div>`;
 }
 

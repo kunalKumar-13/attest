@@ -369,7 +369,7 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   // The rail IS the case: identity, amount, verdict, financial state, what is
   // agreed, what is disputed, what to do next. Written from subject-level data
   // so it holds still while the room changes.
-  if (HEADER) HEADER.caseState(spine, kase);
+  if (HEADER) HEADER.caseState(spine, kase, SHELL.lens);
   if (move) {
     host.classList.add(`x-in-${move}`);
     host.addEventListener('animationend',
@@ -380,8 +380,48 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   if (mainEl) mainEl.addEventListener('scroll',
     () => { if (!SETTLING) MASTER_SCROLL = mainEl.scrollTop; }, { passive: true });
   if (lens.mount) lens.mount(mainEl, SHELL.subject, SHELL);
+  paintOnward(mainEl);
   markSelection();
   await renderContext();
+}
+
+/* §22.7 — the next question, derived from the case.
+ *
+ * Not a tour and not a workflow. The loop is the product's structure, and the
+ * one place state decides is Evidence: with several explanations surviving the
+ * next question is what would separate them, which is what Investigate exists
+ * to ask. With a unique proof there is nothing to separate, and with a
+ * contradiction there is no explanation to separate — both go straight to
+ * whether policy may act.
+ *
+ * Trust is the end. An interface that always has something else to offer is a
+ * workflow being forced rather than a product being read, so the affordance
+ * disappears rather than inventing a destination.
+ *
+ * The question text is the instrument's own, read from the record, so the dock
+ * and this cannot drift apart. */
+function onwardFrom(lens, verdict) {
+  if (SHELL.subject.type !== 'settlement') return null;
+  if (lens === 'evidence') {
+    return verdict === 'AMBIGUOUS' ? 'investigate' : 'policy';
+  }
+  return { control: 'evidence', investigate: 'policy', policy: 'journal',
+           journal: 'activity', activity: 'trust', trust: null }[lens] || null;
+}
+
+function paintOnward(host) {
+  if (!host) return;
+  const next = onwardFrom(SHELL.lens, (SHELL.record || {}).status);
+  const meta = next && (SHELL.lenses || []).find(l => l.key === next);
+  if (!meta) return;
+  const n = document.createElement('button');
+  n.className = 'c-onward';
+  n.dataset.lens = next;
+  n.innerHTML = `<span class=c-onward-k>the next question</span>
+    <span class=c-onward-q>${window.C.esc(meta.question)}</span>
+    <span class=c-onward-l>${window.C.esc(meta.label)}</span>
+    <span class=c-onward-x aria-hidden=true>→</span>`;
+  host.appendChild(n);
 }
 
 /* Only this runs when context changes. The workspace above it is untouched. */
@@ -495,13 +535,19 @@ function announce(text) { const n = el('live'); if (n) n.textContent = text; }
  * Two affordances, deliberately distinct:
  *   data-context  inspect this inside what I am already looking at
  *   data-subject  make this the thing the workspace is about
+ *
+ * An element carrying data-subject may ALSO carry data-lens and data-context,
+ * and then it means all of them at once — one navigation, one history entry.
+ * That is how a case gets back to the blocker it came from: the return is a
+ * subject, a lens and a context together, and doing it as three separate
+ * moves would leave two useless states in the Back button.
  */
 document.addEventListener('click', e => {
   const close = e.target.closest('[data-close-ctx]');
   if (close) { inspect(null); return; }
 
   const c = e.target.closest('[data-context]');
-  if (c) {
+  if (c && !c.hasAttribute('data-subject')) {
     e.preventDefault();
     // Remember where the click came from. §4: the drawer should look like it
     // opened out of the thing you clicked, not like a panel that lives at the
@@ -518,7 +564,23 @@ document.addEventListener('click', e => {
     // is on screen. `data-from=""` clears it deliberately.
     const from = b.dataset.from !== undefined ? (b.dataset.from || null)
                                               : SHELL.from;
-    navigate({ subject: { type, id: rest.join(':') }, from });
+    const next = { subject: { type, id: rest.join(':') }, from };
+    if (b.dataset.lens) next.lens = b.dataset.lens;
+    if (b.dataset.context !== undefined) {
+      next.context = b.dataset.context ? parseCtx(b.dataset.context) : null;
+      ORIGIN = null;
+    }
+    navigate(next);
+    return;
+  }
+  /* data-lens on its own: change instrument, keep everything else. The dock
+     owns its own handler on its own host, so it is excluded here rather than
+     firing twice. This is what makes a spine stage a way INTO an instrument
+     without being a different subject or a context. */
+  const l = e.target.closest('[data-lens]');
+  if (l && !l.closest('.c-lenses')) {
+    e.preventDefault();
+    navigate({ lens: l.dataset.lens });
   }
 });
 

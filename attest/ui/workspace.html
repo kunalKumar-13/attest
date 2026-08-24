@@ -241,6 +241,26 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
   font-weight:500}
 .c-state .c-flow-r.stopped .c-flow-n{color:var(--ink);font-weight:500}
 .c-state .c-flow-d{display:none}
+/* ------------------------------------------------- §22.10 THE PROOF CHAIN
+   The spine is the one object that states the whole model, and it was inert.
+   Each stage is now the way into the instrument that owns it, and each room
+   marks the segment it is talking about on the spine the shell already draws
+   rather than drawing a second one.
+
+   The mark is a rule down the left edge — the same device the search-space
+   reductions use for deterministic-versus-convention — not a fill, because a
+   filled row in a column of five reads as a selected menu item. */
+.c-state .c-flow-r{position:relative;width:100%;text-align:left;
+  border-left:2px solid transparent;padding-left:var(--sp-2);
+  margin-left:calc(var(--sp-2) * -1);
+  transition:background var(--micro),border-color var(--micro)}
+.c-state button.c-flow-r{cursor:pointer}
+.c-state button.c-flow-r:hover{background:var(--sur2)}
+.c-state button.c-flow-r:hover .c-flow-n{color:var(--ink)}
+.c-state button.c-flow-r:focus-visible{outline:2px solid var(--acc);
+  outline-offset:-2px}
+.c-state .c-flow-r.lit{border-left-color:var(--ink)}
+.c-state .c-flow-r.lit .c-flow-n{color:var(--ink);font-weight:500}
 
 
 
@@ -520,6 +540,27 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .t-hold .c-concl-f{color:var(--st-AMBIGUOUS)}
 .t-go .c-concl-f{color:var(--st-PROVEN)}
 .t-stop .c-concl-n b{color:var(--st-CONTRADICTED)}
+
+/* --------------------------------------------------- §22.7 THE NEXT QUESTION
+   One line at the foot of the room, not a banner and not a call to action. It
+   states what the next instrument would answer; the operator may ignore it and
+   the loop still works from the dock. On Trust it is absent — there is no
+   destination after "what can I believe", and inventing one would make the
+   product feel like it is steering. */
+.c-onward{display:flex;align-items:baseline;gap:var(--sp-3);width:100%;
+  margin-top:var(--sp-7);padding:var(--sp-4) 0 var(--sp-2);
+  border-top:1px solid var(--line);text-align:left;cursor:pointer;
+  transition:border-color var(--micro)}
+.c-onward:hover{border-top-color:var(--ink)}
+.c-onward-k{font-size:var(--type-micro);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3);flex:0 0 auto}
+.c-onward-q{font-size:var(--type-data);color:var(--ink);flex:1 1 auto}
+.c-onward-l{font-size:var(--type-micro);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim2)}
+.c-onward-x{font-family:var(--m);color:var(--dim3);
+  transition:transform var(--micro),color var(--micro)}
+.c-onward:hover .c-onward-x{transform:translateX(3px);color:var(--ink)}
+.c-onward:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
 /* -------------------------------------------------- THE INSTRUMENT DOCK
    Measured diagnosis of why the old one read as navigation: seven items of
