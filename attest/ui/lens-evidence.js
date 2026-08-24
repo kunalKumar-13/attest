@@ -30,7 +30,7 @@
      whether it is a deterministic fact or a convention — the distinction the
      32/92 failure was about, where a proof was perfect inside a space that had
      already excluded the truth. */
-  function Universe(space) {
+  function Universe(space, survivors) {
     if (!space) return '';
     const top = Math.max(space.universe, 1);
     const bar = (n, cls) =>
@@ -50,6 +50,13 @@
         <span class=e-uni-n>${Number(space.candidates).toLocaleString()}</span>
         ${bar(space.candidates, 'kept')}
         <span class=e-uni-l>could belong to this credit</span></div>
+      ${survivors ? `<div class="e-uni-r e-uni-end">
+        <span class=e-uni-n>${Number(survivors).toLocaleString()}</span>
+        ${bar(0, 'kept')}
+        <span class=e-uni-l>${survivors === 1
+          ? 'explanation survives'
+          : 'surviving explanations, and arithmetic cannot choose'}</span></div>`
+        : ''}
     </div>`;
   }
 
@@ -145,13 +152,19 @@
     return answer + Section({
       title: 'What was considered',
       aside: `<span class=c-muted>${Number(d.space ? d.space.universe : 0)
-        .toLocaleString()} → ${d.space ? d.space.candidates : 0}</span>`,
-      body: Universe(d.space) + (d.space ? Disclosure({
+        .toLocaleString()} → ${d.space ? d.space.candidates : 0}${
+        (d.explanations || []).length ? ` → ${d.explanations.length}` : ''}</span>`,
+      /* §11. The claim the whole chain rests on used to sit behind the
+         disclosure below. A proof is only as good as the space it was proved
+         in — that is the argument this composition exists to make, so it is
+         stated under the chain rather than folded away beneath it. */
+      body: Universe(d.space, (d.explanations || []).length)
+        + (d.space ? `<p class=e-uni-claim>${esc(d.space.claim)}</p>` + Disclosure({
         summary: 'Why the boundary matters more than the selection',
-        body: `<p>${esc(d.space.claim)}</p>
-          <p>A proof can be arithmetically perfect inside a space that already
-          excluded the truth. Two of the reductions above are conventions rather
-          than facts, so uniqueness established inside them is local.</p>`,
+        body: `<p>A proof can be arithmetically perfect inside a space that
+          already excluded the truth. Two of the reductions above are
+          conventions rather than facts, so uniqueness established inside them
+          is local.</p>`,
       }) : ''),
     })
     + (d.explanations && d.explanations.length > 1 ? Section({

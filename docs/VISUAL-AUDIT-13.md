@@ -408,3 +408,75 @@ count occurrences in the live room and to compare only against the conclusion.
   for no measurable hierarchy gain.
 - **The case rail still scrolls at 1440×900** (89px, down from 148px). It fits
   entirely at 1080px and above. Recorded rather than chased.
+
+## The signature moment now completes (§11)
+
+The Evidence compression was already the strongest composition in the product,
+and it stopped one step short. The number of explanations that survived the
+reductions lived in a separate section below, so the sequence a judge is meant
+to read in three seconds was never finished where it was being told.
+
+```
+WHAT WAS CONSIDERED                                 2,368 → 73 → 4
+
+  2,368  ████████████████████████  orders in the book
+ −2,295  settlement calendar (rung 0)   CONVENTION
+     −0  already claimed                CONVENTION
+     −0  amount ceiling                 DETERMINISTIC
+     73  ▍                          could belong to this credit
+  ─────────────────────────────────────────────────────────────
+      4                              surviving explanations, and
+                                     arithmetic cannot choose
+
+unique within the validated candidate space; the space itself rests on
+settlement calendar (rung 0), already claimed, which is a convention
+rather than a proof
+```
+
+The final row's track is deliberately empty. Four explanations are not a
+proportion of two thousand orders, and drawing a sliver there would invite
+exactly that reading.
+
+The claim underneath is this case's own — not a slogan. It used to sit behind
+the *Why the boundary matters more than the selection* disclosure. A proof is
+only as good as the space it was proved in is the argument this composition
+exists to make, so it is stated under the chain rather than folded away beneath
+it. A contract checks the chain's final figure equals the number of explanations
+actually drawn.
+
+---
+
+## Measured, before and after
+
+| | before | after |
+|---|---|---|
+| median painted ₹ type size | 11px | **15px** |
+| median non-₹ type size | 10px | 10px |
+| ₹ amounts at annotation size (≤11px), landing | **12 of 23** | **4 of 19** |
+| money held at verification | 9px | **20px** |
+| controls with browser-default chrome | **111** | **0** |
+| type sizes outside the declared scale | 9px ×50 | **none** |
+| sections that are a heading over nothing | 3 | **0** |
+| conclusions repeated verbatim in their own room | 4 | **0** |
+| elements competing for the eye, landing | 13 | **9** — all money or conclusions |
+| instruments stating their question | 1 of 7 | **7 of 7** |
+| largest contentful paint | 308ms | **252ms** |
+| landing rail overflow at 1440×900 | 4px | **0px** |
+| horizontal overflow at six widths | none | **none** |
+
+### TEST A, after
+
+```
+34px  ₹53,02,701.96      money that entered
+34px  ₹47,96,811.78      the work that unlocks the most
+20px  ₹48,03,127.81      money that stopped, at verification
+20px  ₹4,99,220.42       money that stopped, at policy
+20px  ₹6,316.03          one item of work
+13px  ₹4,99,574.15       money that continues
+10px  Verification       the stage
+```
+
+Blur everything but the amounts, the verdicts and the stages, and the hierarchy
+now matches the story: what came in, what to do about it, what stopped, what
+continues. Before, the first two lines were identical and everything explaining
+where the money stopped sat at the bottom of the visual order.

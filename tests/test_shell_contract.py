@@ -1703,3 +1703,25 @@ def test_no_section_is_a_heading_over_nothing(page):
                   return bodyText.length === 0; })
                 .map(s => (s.innerText || '').split('\\n')[0].slice(0, 40))""")]
     assert not empty, "sections with a heading and no body:\n  " + "\n  ".join(empty[:6])
+
+
+def test_the_search_space_chain_ends_at_the_surviving_explanations(page):
+    """Phase 13 §11. The signature moment: 2,368 → 73 → 4, in one object.
+
+    The compression stopped at the candidate universe, and the number of
+    explanations that survived it lived in a separate section below — so the
+    sequence a judge is meant to read in three seconds was never completed
+    where it was being told. 'The system did not magically find a match; it
+    proved inside an explicitly defined universe' only lands if the universe,
+    the cuts and what came out the far side are one figure."""
+    _ev(page, "#/settlement/setl_000089/evidence")
+    uni = page.inner_text(".e-uni")
+    assert "surviving" in uni.lower() or "explanation" in uni.lower(), \
+        f"the chain does not reach the explanations:\n{uni}"
+    survivors = page.inner_text(".e-uni-end .e-uni-n").strip()
+    shown = len(page.query_selector_all(".e-set-r"))
+    assert survivors == str(shown), \
+        f"chain says {survivors} survived, {shown} explanations are drawn"
+    # and the assumption the whole chain rests on is stated, not disclosed
+    assert "convention" in uni.lower(), \
+        "the chain does not say the boundary rests on a convention"
