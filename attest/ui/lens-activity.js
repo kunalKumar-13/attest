@@ -106,12 +106,18 @@
     const del = d.delivery_counts || {};
 
     const unrev = (d.unrevised || []).length;
+    /* The figure answers the fact above it. It used to be the delivery count,
+       labelled 'events delivered' — which counted arrival, not acceptance, and
+       went to zero on a freshly started run. The accept/refuse breakdown is
+       stated in 'Deliveries since' below, per status, where it cannot be read
+       as a headline claim about what landed. */
+    const total = (d.outcome || []).reduce((n, o) => Math.max(n, o.n || 0), 0);
     return Conclusion({
       fact: unrev ? `${plural(unrev, 'settlement')} unrevised`
                   : 'Nothing is unrevised',
       tone: unrev ? 'hold' : 'go',
-      figure: String((d.deliveries || []).length),
-      figureLabel: 'events delivered',
+      figure: total ? `${total - unrev} of ${total}` : '—',
+      figureLabel: 'verdicts current',
       because: unrev
         ? 'Events arrived after these settlements were decided; their verdicts '
           + 'have not been recomputed.'

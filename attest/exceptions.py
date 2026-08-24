@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from attest.model import Order, Settlement, tolerance_paise
+from attest.money import rupees
 from attest.searchspace import Integrity, SearchSpace
 from attest.verdict import Finding, Verdict
 
@@ -278,26 +279,26 @@ def classify(f: Finding, s: Settlement, pool: list[Order],
         unexplained = settled.disputed_paise if settled else 0
         if settled and settled.order_ids:
             established.append(
-                f"{len(settled.order_ids)} orders totalling {settled.net_paise} "
-                f"paise appear in {'every' if settled.certain else 'every known'} "
+                f"{len(settled.order_ids)} orders totalling {rupees(settled.net_paise)} "
+                f"appear in {'every' if settled.certain else 'every known'} "
                 f"explanation and are {'settled' if settled.certain else 'likely settled'}")
             established.append(
                 f"the explanations differ over {settled.differing_orders} orders "
-                f"worth {settled.disputed_paise} paise")
+                f"worth {rupees(settled.disputed_paise)}")
 
     else:  # CONTRADICTED — the interesting case, and where the residual lives
         partial = best_partial(pool, s.net_paise)
         unexplained = partial.unexplained_paise if partial else s.net_paise
         if partial:
             established.append(
-                f"{len(partial.order_ids)} orders explain {partial.net_paise} "
-                f"paise of {s.net_paise}")
+                f"{len(partial.order_ids)} orders explain "
+                f"{rupees(partial.net_paise)} of {rupees(s.net_paise)}")
         pool_total = sum(o.net for o in pool)
         if pool_total < s.net_paise - tolerance_paise(len(pool) or 1):
             reason = ReasonCode.MISSING_TRANSACTION
             unexplained = s.net_paise - pool_total
             established.append(
-                f"every candidate order together reaches only {pool_total} paise")
+                f"every candidate order together reaches only {rupees(pool_total)}")
         elif unexplained and unexplained < s.net_paise // 4:
             reason = ReasonCode.UNKNOWN_ADJUSTMENT
         else:

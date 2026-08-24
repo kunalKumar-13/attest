@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from attest.model import Order, Settlement
+from attest.money import rupees
 from attest.verdict import Finding, Verdict
 
 #: Orders drawn individually before the tail is collapsed. Beyond this the flows
@@ -138,7 +139,7 @@ def build(finding: Finding, settlement: Settlement,
         g.nodes.append(Node(o.order_id, NodeKind.ORDER, o.order_id.replace("ord_", ""),
                             o.net, o.method.value, x=0.0, y=y, h=h))
         g.edges.append(Edge(o.order_id, "settlement", EdgeKind.AMOUNT_MATCH, o.net,
-                            f"net {o.net} paise, captured {o.captured_on}"))
+                            f"net {rupees(o.net)}, captured {o.captured_on}"))
         y += h + gap
 
     if tail:
@@ -149,7 +150,7 @@ def build(finding: Finding, settlement: Settlement,
                             "collapsed for legibility", x=0.0, y=y, h=h))
         g.edges.append(Edge("remainder", "settlement", EdgeKind.AMOUNT_MATCH,
                             tail_net, f"{len(tail)} further orders totalling "
-                                      f"{tail_net} paise"))
+                                      f"{rupees(tail_net)}"))
 
     # Fees leave the flow rather than joining it, which is why they are drawn
     # above the settlement and not beside the orders.

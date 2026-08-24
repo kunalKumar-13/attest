@@ -16,6 +16,7 @@ should not fail a build for the wrong reason.
 
 from __future__ import annotations
 
+import re
 import urllib.error
 import urllib.request
 
@@ -1423,3 +1424,58 @@ def test_the_blocker_value_stays_visible_while_inspecting_a_case(page):
     page.wait_for_timeout(800)
     from_text = page.inner_text(".c-from")
     assert "₹" in from_text, "the blocker's value is not carried onto the case"
+
+
+def test_no_room_leads_with_a_bare_entity_count(page):
+    """Phase 12 Part 12. The first thing the eye meets in a room is the answer
+    to that room's question, not an inventory of what it contains.
+
+    Activity led with '60 / events delivered' — the only figure of seven that
+    was a countable rather than a conclusion."""
+    for lens in ("control", "evidence", "investigate", "policy",
+                 "journal", "activity", "trust"):
+        _ev(page, f"#/portfolio/{lens}")
+        fig = page.inner_text(".c-concl-n b").strip()
+        # a conclusion carries money, a verdict, or a ratio — never a lone count
+        assert ("₹" in fig or "/" in fig or " of " in fig
+                or fig.isupper()), \
+            f"{lens} leads with a bare count: {fig!r}"
+
+
+def test_activity_does_not_count_refused_events_as_delivered(page):
+    """Phase 12 G-2. 43 of 60 inbound events were refused as duplicates,
+    replays or bad signatures. A room whose subject is what actually happened
+    must not headline all 60 as though they landed."""
+    _ev(page, "#/portfolio/activity")
+    # a fresh run has no deliveries at all, and the claim under test is about
+    # how refusals are reported — so put some refusals in the log first
+    page.evaluate("""(async () => { await fetch(
+      `/api/events/demo?run=${SHELL.run}`, {method:'POST'}); })()""")
+    page.wait_for_timeout(2000)
+    page.evaluate("navigate({}, {replace:true})")
+    page.wait_for_timeout(2400)
+
+    label = page.inner_text(".c-concl-n em").lower()
+    assert "delivered" not in label, \
+        f"the headline still describes inbound events as delivered: {label!r}"
+
+    room = page.inner_text("#workspace").lower()
+    assert "deliveries since" in room, "the delivery record is gone entirely"
+
+    # whatever the webhook state, the room must state it exactly: every
+    # non-zero outcome named, and refusals never folded into acceptances
+    d = page.evaluate("""async () => {
+        const r = await fetch(`/api/activity?run=${SHELL.run}&type=portfolio`);
+        return await r.json();}""")
+    for kind, n in (d.get("delivery_counts") or {}).items():
+        if n:
+            assert kind.replace("_", " ") in room, \
+                f"{n} {kind} deliveries are not stated anywhere in Activity"
+
+    # the headline counts verdicts, not deliveries — asserted by derivation
+    # rather than by "the delivery number is absent", which collides by
+    # coincidence once enough events have been delivered
+    total = max((o.get("n") or 0) for o in d["outcome"])
+    unrev = len(d.get("unrevised") or [])
+    assert page.inner_text(".c-concl-n b").strip() == f"{total - unrev} of {total}", \
+        "the headline figure is not the count of settlements whose verdicts stand"

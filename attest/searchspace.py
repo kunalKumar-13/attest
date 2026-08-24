@@ -36,6 +36,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+from attest.money import rupees
+
 
 class Integrity(str, Enum):
     VALIDATED = "validated"
@@ -147,7 +149,7 @@ def amount_ceiling(removed: int, credit_paise: int) -> Reduction:
     """
     return Reduction(
         "amount ceiling", removed, True,
-        f"net exceeds the credit of {credit_paise} paise, so the order cannot "
+        f"net exceeds the credit of {rupees(credit_paise)}, so the order cannot "
         f"be a member of any subset summing to it")
 
 

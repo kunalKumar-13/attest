@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from attest.model import Settlement
+from attest.money import rupees
 from attest.searchspace import Integrity, SearchSpace
 from attest.verdict import Finding, Verdict
 
@@ -166,24 +167,10 @@ class Judgement:
         return "\n".join(self.reasons)
 
 
-def _rs(paise: int) -> str:
-    """Rupees with Indian digit grouping. The reasons are read by a person
-    deciding whether to trust a posting; "11613 paise" makes them do the
-    arithmetic, and money that has to be converted before it can be judged is
-    money that will be misjudged."""
-    neg, v = paise < 0, abs(paise)
-    r, pa = divmod(v, 100)
-    s = str(r)
-    if len(s) > 3:
-        head, tail = s[:-3], s[-3:]
-        parts = []
-        while len(head) > 2:
-            parts.insert(0, head[-2:])
-            head = head[:-2]
-        if head:
-            parts.insert(0, head)
-        s = ",".join(parts) + "," + tail
-    return f"{'-' if neg else ''}\u20b9{s}.{pa:02d}"
+# Rendering money for a person now lives in model.py, next to the integer
+# arithmetic it renders. Kept as a local name because the reasons below read
+# better with a short one.
+_rs = rupees
 
 
 def decide(f: Finding, s: Settlement, risk: RiskModel,
