@@ -320,7 +320,8 @@ class LensStrip {
       this.keys = keys;
       this.host.innerHTML = lenses.map(l =>
         `<button data-lens="${esc(l.key)}" role=tab title="${esc(l.question)}"
-           aria-selected=false>${esc(l.label)}</button>`).join('');
+           aria-selected=false><span class=c-lens-n>${esc(l.label)}</span>
+           <span class=c-lens-q>${esc(l.question)}</span></button>`).join('');
     }
     // The sliding ink indicator went with the horizontal tab band it belonged
     // to. Absolutely positioned inside what is now a two-column grid in the

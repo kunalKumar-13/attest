@@ -74,7 +74,7 @@ class Handler(BaseHTTPRequestHandler):
                        200 if r else 404)
 
         elif u.path == "/api/claims":
-            self._json(api.trust_claims())
+            self._json(api.trust_claims(api.get(q.get("run", [""])[0])))
 
         elif u.path == "/api/activity":
             self._json(api.activity_view(api.get(q.get("run", [""])[0]),

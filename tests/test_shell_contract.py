@@ -1006,10 +1006,23 @@ def test_trust_opens_with_the_failures_not_with_the_wins(page):
     assert _state(page)[:2] == ["portfolio:portfolio", "trust"]
     head = page.inner_text(".t-head")
     assert "failed" in head.lower()
-    body = page.inner_text("#w-main")
-    # the failure block precedes the claim register
-    assert body.index("recorded failures") < body.index("what supports it".upper()) \
-        or body.lower().index("recorded failures") < body.lower().index("what supports it")
+    body = page.inner_text("#w-main").lower()
+    assert "not verified" in body, "the surface does not lead with a limitation"
+
+    # The failure block precedes the claim register. Asserted by DOM position
+    # rather than by a heading string: the register's section is now titled
+    # "what it has demonstrated" and lives inside a verified zone, so searching
+    # for the old wording tested the copy rather than the ordering.
+    order = page.evaluate("""() => {
+        const main = document.getElementById('w-main');
+        const bad = main.querySelector('.t-bad');
+        const claim = main.querySelector('.t-claim');
+        if (!bad || !claim) return null;
+        return bad.compareDocumentPosition(claim)
+               & Node.DOCUMENT_POSITION_FOLLOWING ? 'bad-first' : 'claims-first';
+    }""")
+    assert order == "bad-first", \
+        f"the claim register comes before the failures ({order})"
 
 
 def test_every_claim_names_the_artifact_it_reads(page):

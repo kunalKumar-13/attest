@@ -2031,7 +2031,7 @@ def _artifact(name: str) -> dict[str, Any]:
         return {}
 
 
-def trust_claims() -> dict[str, Any]:
+def trust_claims(r: Run | None = None) -> dict[str, Any]:
     """Every claim ATTEST makes, and whether anything on disk supports it. §5, §6.
 
     Nothing here is transcribed. Each claim names the artifact it reads and the
@@ -2197,12 +2197,37 @@ def trust_claims() -> dict[str, Any]:
             "six gates at +0.0000.",
         "report": "reports/CORE-001-postable-fails-open.md",
         "tests": 8,
+    }, {
+        # CORE-002. Found by attacking the fix for CORE-001 rather than
+        # trusting it, which is why it is carried beside it: the second defect
+        # was written three lines below the first.
+        "id": "CORE-002",
+        "what": "Postability compared cardinality, not membership",
+        "status": "FIXED",
+        "why_it_mattered":
+            "Condition 4 checked the SIZE of the cited proof against the size "
+            "of the candidate universe. A forged proof citing two order ids "
+            "that exist nowhere passed against a universe of five, because two "
+            "is less than five. Counting is not belonging.",
+        "fix": "SearchSpace records `members`, populated at the single "
+               "construction site in blocking.py, and postability requires the "
+               "cited orders to be a subset of them.",
+        "measured":
+            "Found by one deliberate membership attack after CORE-001 was "
+            "fixed. All six gates at +0.0000 after the change.",
+        "report": "reports/CORE-002-cardinality-not-membership.md",
+        "tests": 4,
     }]
 
     return {
         "claims": claims,
         "fixed": fixed,
         "gates": gates,
+        # The versions that produced THIS run. Carried here because
+        # re-requesting /api/run starts a new one, so the Trust lens
+        # cannot fetch its own provenance any other way.
+        "provenance": (r.provenance.to_json()
+                       if r is not None and r.provenance else None),
         "failures": {"count": obs.get("count", 0),
                      "refusals": obs.get("refusals", 0),
                      "entries": obs.get("entries", [])},

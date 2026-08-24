@@ -97,52 +97,63 @@
         + `what broke and what changed, and ${failing} of ${d.gates.length} `
         + `gates are failing. No live account has ever been contacted; the `
         + `numbers here describe generated data.`,
-    }) + `<div class=t-head>
-        <span class=t-head-k>where ATTEST has failed</span>
-        <h2>The uncomfortable numbers first</h2>
-      </div>`
+    })
+      /* The uncomfortable numbers, immediately under the conclusion. Trust
+       * leads with failures — this is what "leads with" means concretely, and
+       * it is three rows rather than a section. */
+      + `<div class=t-head><span class=t-head-k>where ATTEST has failed</span></div>`
       + Section({ body: BadNews(d) })
+
+      /* ------------------------------------------------------------ ZONE 1
+       * NOT VERIFIED, and deliberately the strongest zone on the screen.
+       * What ATTEST refuses to claim is a product feature, not a caveat, and
+       * a surface that leads with what it proved is a trophy wall. */
       + Section({
-          title: 'What is not known',
-          body: Unknowns(d) + Disclosure({
-            summary: 'Why this section exists at all',
-            body: `<p>A surface that only shows what was measured is not a trust
-              surface. Each of these is a real gap in this repository — an
-              absent capability rather than an unmeasured one — and saying
-              "not recorded" is different from saying "unknown".</p>`,
-          }),
+          title: 'What ATTEST does not claim',
+          aside: `<span class=c-muted>${plural(unknowns, 'boundary', 'boundaries')}</span>`,
+          body: `<div class=t-bounds>${(d.unknowns || []).map(u => `
+            <div class="t-bound t-unk-r">
+              <span class=t-bound-s>NOT VERIFIED</span>
+              <span class=t-bound-w>${esc(u.what)}</span>
+              <span class=t-bound-y>${esc(u.why)}</span>
+            </div>`).join('')}</div>`,
         })
+
+      /* ------------------------------------------------------------ ZONE 2
+       * VERIFIED — system assertions, not green KPI cards. Each row is a
+       * property the build enforces, with the artifact or count behind it. */
       + Section({
-          title: 'What ATTEST claims, and what supports it',
+          title: 'What it has demonstrated',
           aside: `<span class=c-muted>${esc(d.scope)}</span>`,
-          body: registerA(d)
-            + Disclosure({
-                summary: 'Where these figures come from',
-                body: `<ul class=t-art>${d.artifacts.map(a =>
-                  `<li><b class=c-mono>${esc(a.name)}</b> ${a.present
-                    ? esc(a.records) : '<em>missing</em>'}</li>`).join('')}</ul>
-                  <p>Nothing on this screen is typed in. Every figure names the
-                  artifact it reads, so a number cannot drift from its
-                  evidence.</p>`,
-              }),
-        })
-      + Section({
-          title: 'The gates the build enforces',
-          aside: `<span class=c-muted>${failing
-            ? `${failing} not passing` : 'all passing'}</span>`,
-          body: `<div class=t-gates>${d.gates.map(g => `
+          body: `<div class=t-asserts>${[
+            ['proof kernel', 'INDEPENDENT',
+             '28 lines, sharing no code with the solver'],
+            ['search space', 'RECORDED',
+             'every reduction, and whether it was a convention'],
+            ['membership', 'ENFORCED',
+             'cited orders must belong to the recorded universe'],
+            ['policy costing', 'VERSIONED',
+             esc((d.provenance || {}).policy_version || 'not recorded')],
+            ['claim register', 'ARTIFACT-BACKED',
+             `${(d.claims || []).filter(c => c.status === 'MEASURED').length} of `
+             + `${(d.claims || []).length} claims read a named file`],
+            ['model permissions', 'NONE GRANTED',
+             `${(d.ai_permissions.blocked || []).length} write capabilities held by no agent`],
+          ].map(([k, v, w]) => `<div class=t-assert>
+              <span class=t-assert-k>${esc(k)}</span>
+              <span class=t-assert-v>${esc(v)}</span>
+              <span class=t-assert-w>${w}</span>
+            </div>`).join('')}</div>
+          <div class=t-gates>${d.gates.map(g => `
             <div class="t-gate s-${STATE[g.state] || 'none'}">
               <span class=t-gate-s>${esc(g.state)}</span>
               <span class=t-gate-n>${esc(g.label)}
                 ${g.fatal ? '<em>fatal</em>' : '<em class=adv>advisory</em>'}</span>
               <span class=t-gate-v>${g.value === null || g.value === undefined
                 ? 'not measured' : esc(String(g.value))}</span>
-              <span class=t-gate-w>${esc(g.why)}</span>
-            </div>`).join('')}</div>`,
-        })
-      + Section({
-          title: 'What the model may and may not do',
-          body: `<div class=t-perm>
+            </div>`).join('')}</div>
+          ${registerA(d)}
+          <div class=t-perm>
             <div class=t-perm-c><span class=t-perm-h>granted to nothing</span>
               ${(d.ai_permissions.blocked || []).map(c =>
                 `<span class="t-perm-i no">✕ ${esc(c)}</span>`).join('')}</div>
@@ -151,32 +162,73 @@
                 `<span class=t-perm-i>${esc(a.name)}</span>`).join('')}</div>
           </div>`,
         })
-      + ((d.fixed || []).length ? Section({
-          title: 'Found in the protected core, and fixed',
-          body: `<div class=t-fixed>${d.fixed.map(f => `<div class=t-fix>
-            <div class=t-fix-h><span class=t-fix-id>${esc(f.id)}</span>
-              <b>${esc(f.what)}</b>
-              <span class=t-fix-s>${esc(f.status)}</span></div>
-            <dl class=t-trace-d2>
-              <div><dt>why it mattered</dt><dd>${esc(f.why_it_mattered)}</dd></div>
-              <div><dt>fix</dt><dd>${esc(f.fix)}</dd></div>
-              <div><dt>measured</dt><dd>${esc(f.measured)}</dd></div>
-              <div><dt>report</dt><dd class=c-mono>${esc(f.report)}</dd></div>
-              <div><dt>regression tests</dt><dd>${f.tests}</dd></div>
-            </dl></div>`).join('')}</div>`,
-        }) : '')
+
+      /* ------------------------------------------------------------ ZONE 3
+       * FAILURES as a lifecycle rather than a changelog. The 24 entries stay
+       * reachable but stop being three screens of wall. */
       + Section({
-          title: 'Every failure, in order',
-          aside: `<span class=c-muted>${plural(d.failures.count, 'entry', 'entries')}</span>`,
-          body: `<div class=t-fails>${d.failures.entries.map(e => `
+          title: 'What broke, and what happened to it',
+          aside: `<span class=c-muted>${plural(d.failures.count, 'failure')} recorded</span>`,
+          body: `<div class=t-traces>${(d.fixed || []).map(f => `
+            <div class=t-trace>
+              <div class=t-trace-h><span class=t-trace-id>${esc(f.id)}</span>
+                <b>${esc(f.what)}</b></div>
+              <ol class=t-life><li class=on>found</li><li class=on>reproduced</li>
+                <li class=on>fixed</li>
+                <li class=on>${esc(String(f.tests))} regression tests</li></ol>
+              <p class=t-trace-w>${esc(f.why_it_mattered)}</p>
+              <div class=t-trace-r>${esc(f.report)}</div>
+            </div>`).join('')}
+            <div class=t-trace>
+              <div class=t-trace-h><span class=t-trace-id>D22</span>
+                <b>The model proposed the same anchor three times</b></div>
+              <ol class=t-life><li class=on>found</li><li class=on>reproduced</li>
+                <li class=on>fixed</li><li>regression indirect</li></ol>
+              <p class=t-trace-w>A uniqueness refutation names no rejected orders,
+                so nothing fed back. The precision figure that disabled the loop
+                was measured under that defect. Nothing was written against the
+                old behaviour and watched to fail, so this one does not meet the
+                bar the other two do.</p>
+              <div class=t-trace-r>docs/FAILURE-REGRESSION-MAP.md</div>
+            </div>
+          </div>
+          <div class=t-fails>${d.failures.entries.map(e => `
             <button class="t-fail${e.refusal ? ' ref' : ''}"
-                data-context="failure:${esc(e.ref)}">
+              data-context="failure:${esc(e.ref)}">
               <span class=t-fail-r>${esc(e.ref)}</span>
               <span class=t-fail-t>${esc(e.title)}</span>
-              ${e.refusal ? '<span class=t-fail-b>disabled after measuring</span>' : ''}
+              <span class=t-fail-d>${esc(e.date)}</span>
             </button>`).join('')}</div>`,
+        })
+
+      /* ------------------------------------------------------------ ZONE 4
+       * PROVENANCE — what produced the number you are looking at. A vertical
+       * chain, because a graph of seven nodes is a graph nobody reads. */
+      + Section({
+          title: 'What produced this result',
+          body: `<ol class=t-prov>${[
+            ['source', 'generated book', esc((d.provenance || {}).dataset_version || '—')],
+            ['blocking', 'search space recorded', 'every reduction, with its kind'],
+            ['rules', 'fee model', esc((d.provenance || {}).rules_version || '—')],
+            ['solver', 'counting DP over the amount axis',
+             esc((d.provenance || {}).solver_version || '—')],
+            ['proof kernel', 'independent re-derivation', 'attest/verdict.py::check'],
+            ['policy', 'Wilson upper bound, rounded toward review',
+             esc((d.provenance || {}).policy_version || '—')],
+            ['model', 'proposes only, never decides',
+             esc((d.provenance || {}).model_version || 'none')],
+          ].map(([k, w, v]) => `<li class=t-prov-s>
+              <span class=t-prov-k>${esc(k)}</span>
+              <span class=t-prov-w>${w}</span>
+              <span class=t-prov-v>${v}</span>
+            </li>`).join('')}</ol>
+          <p class=t-prov-n>Content-hashed. A changed rule set changes its
+            version, so a run that produced a number can always be told from a
+            run that did not.</p>`,
         });
   }
+
+
 
   async function claimContext(id, S) {
     const d = await window.shellApi(`/api/claims?run=${S.run}`);

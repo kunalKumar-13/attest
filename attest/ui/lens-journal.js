@@ -13,6 +13,50 @@
 'use strict';
 
 (() => {
+  /* THE MOVEMENT CHAIN — money entering the system, and where it stopped
+   * becoming an accounting fact.
+   *
+   * Journal's question is where the money went, and for an unresolved
+   * settlement the answer is that it went nowhere: it arrived, it was
+   * matched, and it never became an entry. That is an accounting
+   * CONSEQUENCE, not an empty result, and the room should show the
+   * consequence rather than apologise for it.
+   *
+   * Every figure below comes from the settlement, the decision and the
+   * journal. Nothing is constructed. */
+  function Movement(stages) {
+    return `<ol class=j-mv>${stages.map(st => `
+      <li class="j-mv-s ${esc(st.state)}">
+        <span class=j-mv-k>${esc(st.key)}</span>
+        <span class=j-mv-w>${esc(st.what)}</span>
+        <span class=j-mv-v>${st.value}</span>
+      </li>`).join('')}</ol>`;
+  }
+
+  /* THE LEDGER EFFECT — what actually happened to the books.
+   * Zeroes are the point. "Balanced by absence" is a true statement about a
+   * ledger that was not written, and it is different from a ledger that
+   * balanced because a transaction cancelled out. */
+  function LedgerEffect({ debit, credit, written, note }) {
+    return `<div class="j-eff ${written ? 'written' : 'absent'}">
+      <div class=j-eff-r><span class=j-eff-k>debit</span>
+        <b class=j-eff-v>${esc(debit)}</b></div>
+      <div class=j-eff-r><span class=j-eff-k>credit</span>
+        <b class=j-eff-v>${esc(credit)}</b></div>
+      <div class="j-eff-r net"><span class=j-eff-k>net</span>
+        <b class=j-eff-v>${esc(written ? '₹0.00' : '₹0.00')}</b></div>
+      <div class=j-eff-n>${esc(note)}</div>
+    </div>`;
+  }
+
+  /* Compact metadata, four rows. Deliberately not prose: the question each
+   * row answers is fixed, so the label carries it and the value is short. */
+  function EntryStatus(rows) {
+    return `<dl class=j-st>${rows.map(([k, v, tone]) => `
+      <div class="j-st-r${tone ? ` t-${tone}` : ''}">
+        <dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+  }
+
   const { Section, DataTable, Disclosure, EmptyState, MetricRow, Row, Conclusion,
           rupees, plural, esc } = window.C;
 
@@ -56,29 +100,98 @@
         figure: rupees(det.amount), figureLabel: 'not posted',
         because: why,
       }) + Section({
-        title: 'Why nothing is posted',
-        body: `<p class=c-lead>${esc(why)}</p>`
-          + Disclosure({
-              summary: 'Why nothing partial is posted',
-              body: `<p>Candidate order sets discharge receivables against
-                <em>different customers</em>. There is no partially correct
-                journal entry — posting the wrong one moves money in the books
-                against someone who does not owe it.</p>`,
-            }),
+        title: 'Financial movement',
+        aside: `<span class=c-muted>stopped before the ledger</span>`,
+        body: Movement([
+          { key: 'source', what: `Bank credit · UTR ${esc(det.utr || '—')}`,
+            value: rupees(det.amount), state: 'through' },
+          { key: 'reconciliation',
+            what: `Settlement ${esc(det.id)} · ${esc(det.date || '')}`,
+            value: rupees(det.amount), state: 'through' },
+          { key: 'verification', what: 'A unique kernel-checked explanation',
+            value: `<span class="c-status s-${esc(det.verdict)}">${esc(det.verdict)}</span>`,
+            state: 'stopped' },
+          { key: 'policy', what: 'Expected loss below the cost of checking',
+            value: `<span class=j-mv-d>${esc((j.decision || 'REVIEW').replace('_', '-'))}</span>`,
+            state: 'blocked' },
+          { key: 'ledger', what: 'A balanced double entry',
+            value: '<span class=j-mv-x>NO ENTRY</span>', state: 'blocked' },
+        ]),
       }) + Section({
-        title: 'What would change that',
-        body: `<p class=c-lead>${esc(det.exception ? det.exception.next_step
-          : 'A unique explanation, then a policy that clears it.')}</p>`,
+        title: 'Ledger effect',
+        body: LedgerEffect({
+          debit: '₹0.00', credit: '₹0.00', written: false,
+          note: 'Balanced by absence — nothing was written, rather than an '
+              + 'entry that happens to net to zero.',
+        }) + EntryStatus([
+          ['entry', 'Not written', 'stop'],
+          ['reason', why],
+          ['impact', 'No ledger mutation. Receivables unchanged.'],
+          ['reversibility', 'Not applicable — nothing to reverse'],
+          ['what would change it', det.exception ? det.exception.next_step
+            : 'A unique explanation, then a policy that clears it.'],
+        ]),
+      }) + Section({
+        body: Disclosure({
+          summary: 'Why nothing partial is posted',
+          body: `<p>Candidate order sets discharge receivables against
+            <em>different customers</em>. There is no partially correct journal
+            entry — posting the wrong one moves money in the books against
+            someone who does not owe it.</p>`,
+        }),
       });
     }
 
+    // The bank line is what ARRIVED. `total_paise` is the gross receivables
+    // discharged, which is larger by the fee and the tax on it — so showing
+    // the gross where the rail shows the credit reads as a discrepancy in the
+    // money. The credit leads; the gross belongs to the entry.
+    const bank = (e.lines || []).find(l => /bank/i.test(l.account)) || {};
+    const credit = bank.debit_paise != null ? bank.debit_paise : e.total_paise;
+    const charge = e.total_paise - credit;
+
     return Conclusion({
       fact: 'Balanced to the paisa', tone: 'go',
-      figure: rupees(e.total_paise), figureLabel: 'posted',
+      figure: rupees(credit), figureLabel: 'bank credit, posted',
       because: `${plural(e.orders, 'order')} across `
         + `${plural((e.lines || []).length, 'account')}, value date `
-        + `${e.value_date}, UTR ${e.utr}. Debits equal credits or the entry `
-        + `cannot be constructed at all.`,
+        + `${e.value_date}, UTR ${e.utr}. The entry discharges `
+        + `${rupees(e.total_paise)} of receivables — the credit plus `
+        + `${rupees(charge)} of gateway fee and the tax on it. Debits equal `
+        + `credits or the entry cannot be constructed at all.`,
+    }) + Section({
+      title: 'Financial movement',
+      aside: `<span class=c-muted>through to the ledger</span>`,
+      body: Movement([
+        { key: 'source', what: `Bank credit · UTR ${esc(e.utr)}`,
+          value: rupees(credit), state: 'through' },
+        { key: 'reconciliation',
+          what: `Settlement ${esc(e.settlement_id)} · ${esc(e.value_date)}`,
+          value: rupees(credit), state: 'through' },
+        { key: 'verification', what: 'A unique kernel-checked explanation',
+          value: '<span class="c-status s-PROVEN">PROVEN</span>', state: 'through' },
+        { key: 'policy', what: 'Expected loss below the cost of checking',
+          value: '<span class=j-mv-a>AUTO-POST</span>', state: 'through' },
+        { key: 'ledger',
+          what: `${plural((e.lines || []).length, 'account')}, `
+            + `${rupees(e.total_paise)} each side`,
+          value: '<span class=j-mv-w>ENTRY WRITTEN</span>', state: 'through' },
+      ]),
+    }) + Section({
+      title: 'Ledger effect',
+      body: LedgerEffect({
+        debit: rupees(e.total_paise), credit: rupees(e.total_paise), written: true,
+        note: `Debits equal credits. The ${rupees(e.total_paise)} on each side `
+            + `is the gross discharged: ${rupees(credit)} that reached the bank `
+            + `plus ${rupees(charge)} of fee and tax the gateway kept. An entry `
+            + `that does not balance cannot be constructed at all.`,
+      }) + EntryStatus([
+        ['entry', 'Written', 'go'],
+        ['reason', 'A unique explanation the independent kernel re-derived'],
+        ['impact', `Bank debited, receivables discharged across `
+          + `${plural(e.orders, 'order')}`],
+        ['reversibility', 'Reversible by a contra entry against the same UTR'],
+      ]),
     }) + Section({
       title: 'The money trail',
       aside: `<span class=c-muted>${plural(e.orders, 'order')}</span>`,
