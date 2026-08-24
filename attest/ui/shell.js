@@ -81,25 +81,38 @@ const parseCtx = s => {
  * glance, which §20 asks for. `in=` reads as what it is: what I am looking at
  * inside this.
  */
-function toHash({ subject, lens, context }) {
+/* `from` is the BLOCKER a case was opened out of.
+ *
+ * It is a fourth piece of addressable state, not a fourth axis: subject, lens
+ * and context are what you are looking at, and `from` is why you are looking
+ * at it. An operator who walks a systemic blocker into a case and then into
+ * Evidence should not have to remember which of 197 settlements this was, and
+ * the answer belongs in the URL for the same reason the other three do —
+ * reload, Back and a pasted link all have to survive it. */
+function toHash({ subject, lens, context, from }) {
   const base = subject.type === 'portfolio'
     ? `#/portfolio/${lens}`
     : `#/${subject.type}/${encodeURIComponent(subject.id)}/${lens}`;
-  return context ? `${base}?in=${encodeURIComponent(ctxKey(context))}` : base;
+  const q = [];
+  if (context) q.push(`in=${encodeURIComponent(ctxKey(context))}`);
+  if (from) q.push(`from=${encodeURIComponent(from)}`);
+  return q.length ? `${base}?${q.join('&')}` : base;
 }
 
 function fromHash(h) {
   const [path, query] = (h || '').replace(/^#\/?/, '').split('?');
   const p = path.split('/').filter(Boolean);
   if (!p.length) return null;
-  const context = parseCtx(new URLSearchParams(query || '').get('in'));
+  const params = new URLSearchParams(query || '');
+  const context = parseCtx(params.get('in'));
+  const from = params.get('from') || null;
   if (p[0] === 'portfolio') {
     return { subject: { type: 'portfolio', id: 'portfolio' },
-             lens: p[1] || 'control', context };
+             lens: p[1] || 'control', context, from };
   }
   if (p.length >= 2) {
     return { subject: { type: p[0], id: decodeURIComponent(p[1]) },
-             lens: p[2] || null, context };
+             lens: p[2] || null, context, from };
   }
   return null;
 }
@@ -117,6 +130,13 @@ async function navigate(next = {}, opts = {}) {
 
   SHELL.subject = subject;
   SHELL.notice = null;
+
+  /* The blocker a case came from survives everything except leaving the
+   * settlement it scoped. `from` is carried through lens changes and context
+   * opens by default; passing `from: null` explicitly drops it. Returning to
+   * the portfolio drops it too, because the blocker IS the portfolio view. */
+  if ('from' in next) SHELL.from = next.from || null;
+  if (subject.type === 'portfolio') SHELL.from = null;
 
   const rec = await api(`/api/subject?run=${SHELL.run}`
     + `&type=${encodeURIComponent(subject.type)}&id=${encodeURIComponent(subject.id)}`);
@@ -150,7 +170,7 @@ async function navigate(next = {}, opts = {}) {
   }
   SHELL.context = context;
 
-  const hash = toHash({ subject, lens, context });
+  const hash = toHash({ subject, lens, context, from: SHELL.from });
   if (location.hash !== hash) {
     opts.replace ? history.replaceState(null, '', hash)
                  : history.pushState(null, '', hash);
@@ -249,6 +269,27 @@ const CASE = new Map();
  * happened to be open it would become a summary of the instrument, and the
  * whole point is that the case does not change when the room does.
  */
+/* The blocker's own facts, so any room can render the contextual parent
+ * without every lens fetching /api/actions for itself. */
+const BLOCKERS = new Map();
+async function blockerFor(reason) {
+  if (!reason) return null;
+  const key = `${SHELL.run}/${reason}`;
+  if (!BLOCKERS.has(key)) {
+    BLOCKERS.set(key, api(`/api/actions?run=${SHELL.run}`).then(d => {
+      const a = (d.actions || []).find(x => x.reason === reason);
+      if (!a) return null;
+      const scope = { systemic: 'SYSTEMIC', rerun: 'ENGINE DEFAULT',
+                      per_item: 'PER ITEM' }[a.kind] || a.kind;
+      return { reason: a.reason, scope, kind: a.kind,
+               what: a.what.split(';')[0],
+               value: window.C.rupees(a.leverage_paise || a.value_paise),
+               affected: window.C.plural(a.settlements, 'settlement') };
+    }).catch(() => null));
+  }
+  return BLOCKERS.get(key);
+}
+
 async function caseFor(subject) {
   const key = `${SHELL.run}/${subject.type}/${subject.id}`;
   if (!CASE.has(key)) {
@@ -303,14 +344,15 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   if (move) host.classList.add(`x-out-${move}`);
 
   const t = token();
-  let main, spine, kase;
+  let main, spine, kase, blocker;
   try {
-    [main, spine, kase] = await Promise.all([
+    [main, spine, kase, blocker] = await Promise.all([
       mode === 'master-detail'
         ? lens.master(SHELL.subject, SHELL)
         : lens.render(SHELL.subject, SHELL),
       spineFor(SHELL.subject),
       caseFor(SHELL.subject),
+      blockerFor(SHELL.from),
     ]);
   } catch (err) {
     main = window.C.ErrorState(String((err && err.message) || err));
@@ -321,7 +363,8 @@ async function render({ changedSubject = false, changedLens = false } = {}) {
   host.classList.remove('x-out-turn', 'x-out-slide');
   host.innerHTML = `
     ${SHELL.notice ? `<div class=c-notice role=status>${window.C.esc(SHELL.notice)}</div>` : ''}
-    <div class=w-main id=w-main>${main}</div>
+    <div class=w-main id=w-main>${window.C.FromBlocker
+      ? window.C.FromBlocker(blocker) : ''}${main}</div>
     <aside class=w-ctx id=w-ctx hidden aria-live=polite></aside>`;
   // The rail IS the case: identity, amount, verdict, financial state, what is
   // agreed, what is disputed, what to do next. Written from subject-level data
@@ -470,7 +513,12 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-subject]');
   if (b) {
     const [type, ...rest] = b.dataset.subject.split(':');
-    navigate({ subject: { type, id: rest.join(':') } });
+    // A row promoted out of a blocker's population carries the blocker with
+    // it, so three instruments later the operator can still see WHY this case
+    // is on screen. `data-from=""` clears it deliberately.
+    const from = b.dataset.from !== undefined ? (b.dataset.from || null)
+                                              : SHELL.from;
+    navigate({ subject: { type, id: rest.join(':') }, from });
   }
 });
 
@@ -481,6 +529,7 @@ document.addEventListener('keydown', e => {
 window.addEventListener('popstate', () => {
   const s = fromHash(location.hash);
   if (!s) return;
+  SHELL.from = s.from || null;
   const sameSubject = s.subject.type === SHELL.subject.type
                    && s.subject.id === SHELL.subject.id;
   const sameLens = (s.lens || SHELL.lens) === SHELL.lens;
@@ -504,6 +553,7 @@ async function boot() {
   GUARD.invalidateAll();
   SPINE.clear();
   CASE.clear();
+  BLOCKERS.clear();
   const start = fromHash(location.hash)
              || { subject: { type: 'portfolio', id: 'portfolio' }, lens: 'control' };
   await navigate(start, { replace: true });

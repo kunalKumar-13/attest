@@ -336,6 +336,25 @@ class LensStrip {
   }
 }
 
+/* THE BLOCKER A CASE CAME FROM.
+ *
+ * Compact and contextual, never another header. An operator who walked a
+ * systemic blocker into one of its 197 settlements should still be able to
+ * see WHY this case is on screen, three instruments later — and the rail
+ * cannot say it, because the rail is the case, and the blocker is not.
+ */
+function FromBlocker(from) {
+  if (!from || !from.reason) return '';
+  return `<div class=c-from>
+    <span>${esc(from.scope || 'blocker')}</span>
+    <b>${esc(from.what || from.reason)}</b>
+    <span class=c-from-x>→</span>
+    <span class=v>${esc(from.value || '')}</span>
+    <span>${esc(from.affected || '')}</span>
+    <button class=c-from-b data-subject="portfolio:portfolio">back to the work</button>
+  </div>`;
+}
+
 /* THE ROOM'S ANSWER.
  *
  * Every lens asks one question, and the autopsy found that on six of seven the
@@ -360,7 +379,7 @@ function Conclusion({ fact, figure, figureLabel, because, tone }) {
    and called by nothing, so they are gone — a component with no caller is a
    guess about the future, and it will be the wrong guess. */
 window.C = {
-  esc, rupees, plural, Conclusion,
+  esc, rupees, plural, Conclusion, FromBlocker,
   Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
   DataTable, EmptyState, LoadingState, ErrorState, StateSpine,
   SubjectHeader, LensStrip,

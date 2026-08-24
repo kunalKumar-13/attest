@@ -186,7 +186,7 @@ Room redundancy 0%, worst pair 9%, max scroll 1.37 screens, zero overflow at
 **The product does not have an information problem. It has a framing problem**
 — and one honesty problem, in the words "free re-run".
 
-## 13 · Implementation plan
+## 13 · Implementation plan — DELIVERED
 
 Small, because the audit says most of this already exists.
 
@@ -201,3 +201,87 @@ Small, because the audit says most of this already exists.
 
 Steps 1–3 together; 4–6 independently. No engine change, no new endpoint, no
 new lens.
+
+
+---
+
+# Implemented
+
+## The blocker, as an operator reads it
+
+```
+1   ₹47,96,811.78     Systemic · 197 settlements
+
+    BLOCKED AT      verification
+    WHY             several disjoint sets of orders satisfy the amount exactly
+    WOULD UNBLOCK   Supply an order-level reference on the settlement report
+
+    REQUIRES EXTERNAL EVIDENCE
+```
+
+Three blockers, three capability labels, none of them executable by ATTEST:
+`REQUIRES EXTERNAL EVIDENCE` · `REQUIRES ENGINE CHANGE` · `REQUIRES HUMAN
+SEARCH`. **`FREE RE-RUN` is gone**, and a contract fails if it returns.
+
+## Blocker context
+
+`from=<reason>` is a fourth piece of addressable state — not a fourth axis.
+Subject, lens and context are what you are looking at; `from` is *why*. It
+survives lens changes, context opens, Back and reload, because a pasted link
+has to carry the reason as much as the destination.
+
+Measured: blocker → case → evidence is **3 clicks**, and the blocker's value
+and root cause stay on screen through all seven instruments.
+
+## The one lever ATTEST holds
+
+Every blocker needs something outside the engine. Re-pricing a review does not:
+
+```
+CURRENT     ₹150.00     1 post without a person    ₹353.73        0 wrong
+IF IT WERE  ₹250.00    26 would post              ₹1,01,665.87    0 wrong
+```
+
+Stated at the point where work is chosen, with the recorded costing named and
+untouched. The frontier and the slider stay in Policy.
+
+## The contradicted case
+
+`setl_000109` is reachable in **3 clicks with no id**, through the per-item
+blocker's population. Implementing that exposed a real defect: Control reported
+**"Every check passed"** over a CONTRADICTED settlement, because its conclusion
+read the check list rather than the verdict — and a settlement can pass every
+check it was given while having no explanation at all. It now reads:
+
+```
+No combination explains this credit
+₹447.05  UNRESOLVED
+no subset of any window satisfies the amount constraint.
+4 orders explain 586898 paise of 631603 — the closest explanation leaves a
+residual with no matching record
+```
+
+## Measurements — after
+
+All ten product questions answerable; **eight at cold open** (was six).
+
+| | before | after |
+|---|---|---|
+| can it safely post | 1 click | **0** |
+| blocker → case → evidence | not possible | **3 clicks** |
+| contradicted case | id only | **3 clicks** |
+| room redundancy | 0% | **0%** (worst pair 9%) |
+| overflow 360–1512 | 0 | **0** |
+| tests / contracts / gates | 251 / 94 / 6 | **259 / 102 / 6** |
+
+Eight contracts added, all behavioural: capability labels, the absent
+`FREE RE-RUN`, blocker scoping, blocker retention across seven instruments and
+a reload, contradicted discovery, contradicted not reported as passing, the
+lever not editing recorded policy, and the blocker's value staying visible.
+
+## What is still not possible, and stays that way
+
+The systemic blocker cannot be resolved inside ATTEST. ₹47,96,811.78 across 197
+settlements waits on a field that does not exist in the settlement report. The
+product says so and offers no button, because the honest end state is
+**waiting for external evidence**, not a fake success.

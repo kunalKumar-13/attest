@@ -1279,3 +1279,147 @@ def test_closing_the_palette_never_drops_focus_to_the_document(page):
     page.wait_for_timeout(400)
     tag = page.evaluate("() => document.activeElement.tagName")
     assert tag != "BODY", "focus was returned to the document"
+
+
+# --------------------------------------------------------------------------
+# Phase 11 — the operational workflow. A blocker is the smallest missing fact
+# preventing money from progressing, and the product's job is to say what it
+# is, what it holds, and whether ATTEST can do anything about it.
+# --------------------------------------------------------------------------
+
+def test_no_action_label_claims_a_capability_attest_does_not_have(page):
+    """§3, §16, §18. The one rule that makes the rest of it honest.
+
+    Every blocker carries a capability label, and every one of the three is
+    something ATTEST cannot perform: an external change at the source, a
+    decision about the engine's own defaults, or a human searching a record.
+    A label that implies otherwise is the product lying about itself.
+    """
+    _ev(page, "#/portfolio/control")
+    caps = page.eval_on_selector_all(
+        ".c-blk-c", "x => x.map(n => n.textContent.trim().toUpperCase())")
+    assert len(caps) >= 3, "blockers do not state what ATTEST can do about them"
+
+    PERMITTED = {"REQUIRES EXTERNAL EVIDENCE", "REQUIRES ENGINE CHANGE",
+                 "REQUIRES HUMAN SEARCH", "ENGINE ACTION", "POLICY SIMULATION"}
+    for c in caps:
+        assert c in PERMITTED, f"unrecognised capability label: {c!r}"
+
+    # An executable label may only appear where the engine can genuinely act.
+    # Nothing in this list can be executed today, so nothing may claim it.
+    body = page.inner_text("#w-main").upper()
+    for lie in ("FREE RE-RUN", "ONE CLICK", "RESOLVE NOW", "FIX AUTOMATICALLY"):
+        assert lie not in body, f"{lie!r} promises an operation that cannot run"
+
+
+def test_the_free_re_run_label_is_gone(page):
+    """§3. It was never free and it was never available.
+
+    The pipeline already escalates through every rung on each run, so widening
+    the window means widening beyond the lag ladder — a constant in protected
+    blocking.py that the blocking study explicitly decided to keep. Calling it
+    a free re-run invited an operator to look for a button that cannot exist.
+    """
+    for h in ("#/portfolio/control", "#/portfolio/journal"):
+        _ev(page, h)
+        assert "free re-run" not in page.inner_text("#w-main").lower()
+
+
+def test_selecting_a_blocker_scopes_its_population(page):
+    """§4. A blocker is work, and work has a population."""
+    _ev(page, "#/portfolio/control")
+    page.click(".c-blk")
+    page.wait_for_timeout(1200)
+    subject, lens, context = _state(page)
+    assert subject == "portfolio:portfolio", "selecting a blocker navigated away"
+    assert lens == "control", "selecting a blocker changed the instrument"
+    assert context and context.startswith("action:")
+    rows = page.eval_on_selector_all(".c-pop-r", "x => x.length")
+    assert rows >= 1, "the blocker does not show the settlements it holds"
+
+
+def test_a_case_remembers_the_blocker_it_came_from(page):
+    """§5, §10. Three instruments later, an operator should still know why
+    this case is on screen — and it must survive reload, because the reason
+    belongs in the URL exactly as the other state does."""
+    _ev(page, "#/portfolio/control")
+    page.click(".c-blk")
+    page.wait_for_timeout(1200)
+    page.click(".c-pop-r")
+    page.wait_for_timeout(1400)
+
+    assert page.evaluate("() => SHELL.subject.type") == "settlement"
+    origin = page.evaluate("() => SHELL.from")
+    assert origin, "the case forgot the blocker it was opened from"
+    assert "from=" in page.evaluate("() => location.hash")
+    assert page.query_selector(".c-from"), "the blocker is not shown on the case"
+
+    for lens in ("evidence", "investigate", "policy", "journal", "activity"):
+        page.evaluate(f"() => navigate({{lens:'{lens}'}})")
+        page.wait_for_timeout(700)
+        assert page.evaluate("() => SHELL.from") == origin, \
+            f"the blocker was lost switching to {lens}"
+        assert page.query_selector(".c-from"), f"blocker not shown on {lens}"
+
+    page.reload(wait_until="networkidle")
+    page.wait_for_function("() => SHELL && SHELL.record", timeout=90000)
+    page.wait_for_timeout(900)
+    assert page.evaluate("() => SHELL.from") == origin, \
+        "the blocker did not survive a reload"
+
+
+def test_the_contradicted_case_is_reachable_without_knowing_its_id(page):
+    """§6. It was only findable by typing setl_000109 into the URL."""
+    _ev(page, "#/portfolio/control")
+    blockers = page.query_selector_all(".c-blk")
+    assert len(blockers) >= 3
+    blockers[-1].click()          # the per-item blocker holds the contradiction
+    page.wait_for_timeout(1200)
+    ids = page.eval_on_selector_all(".c-pop-id", "x => x.map(n => n.textContent.trim())")
+    assert ids, "the per-item blocker shows no settlements"
+    page.click(".c-pop-r")
+    page.wait_for_timeout(1400)
+    assert page.evaluate("() => SHELL.record.status") == "CONTRADICTED"
+
+
+def test_a_contradicted_case_is_not_reported_as_passing(page):
+    """A settlement can pass every check it was given and still have no
+    explanation at all — the contradiction lives in the unsat core. Control
+    reported 'every check passed' over exactly that."""
+    _ev(page, "#/settlement/setl_000109/control")
+    concl = page.inner_text(".c-concl").lower()
+    assert "every check passed" not in concl
+    assert "no combination explains" in concl
+    assert "447.05" in concl, "the unresolved residual is not stated"
+
+
+def test_the_review_cost_lever_never_edits_the_recorded_policy(page):
+    """§8. Looking at what a review is worth must not change what was decided."""
+    _ev(page, "#/portfolio/control")
+    lever = page.inner_text(".c-lever")
+    assert "post without a person" in lever
+    assert "not modified" in lever.lower(), \
+        "the lever does not say the recorded policy is untouched"
+
+    before = page.evaluate("""() => fetch(
+        `/api/decision?run=${SHELL.run}&type=portfolio`)
+        .then(r => r.json()).then(d => d.recorded_version)""")
+    page.evaluate("() => navigate({lens:'policy'})")
+    page.wait_for_timeout(900)
+    after = page.evaluate("""() => fetch(
+        `/api/decision?run=${SHELL.run}&type=portfolio`)
+        .then(r => r.json()).then(d => d.recorded_version)""")
+    assert before == after, "the recorded policy version moved"
+
+
+def test_the_blocker_value_stays_visible_while_inspecting_a_case(page):
+    """§5. The value is why the work was chosen; losing it loses the reason."""
+    _ev(page, "#/portfolio/control")
+    page.click(".c-blk")
+    page.wait_for_timeout(1200)
+    page.click(".c-pop-r")
+    page.wait_for_timeout(1400)
+    page.evaluate("() => navigate({lens:'evidence'})")
+    page.wait_for_timeout(800)
+    from_text = page.inner_text(".c-from")
+    assert "₹" in from_text, "the blocker's value is not carried onto the case"

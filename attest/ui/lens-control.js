@@ -20,18 +20,57 @@
   const { StateSpine, Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
           DataTable, rupees, plural, esc } = window.C;
 
+  /* THE CAPABILITY MODEL.
+   *
+   * Every blocker declares what kind of work it is AND whether ATTEST can
+   * perform it. The second half is the one that matters: none of the three
+   * can be executed by the engine, and a label that implies otherwise is the
+   * only dishonest thing left in the product.
+   *
+   * `rerun` was labelled FREE RE-RUN. It is neither. The pipeline already
+   * escalates through every rung on every run — the lag ladder is 2, 3, 4
+   * days — so "widen the window" means widening BEYOND it. That constant
+   * lives in protected blocking.py, and attest/eval/BLOCKING.md records the
+   * study that chose it and concluded to keep it. It is an engine default
+   * that has already been argued, not a button nobody has pressed.
+   */
   const KIND = {
-    systemic: ['Systemic', 'proven'],
-    rerun: ['Free re-run', 'investigate'],
-    per_item: ['Per item', 'ambiguous'],
+    systemic: {
+      scope: 'Systemic', tone: 'proven',
+      capability: 'REQUIRES EXTERNAL EVIDENCE',
+      effort: 'one change at the source',
+      can: false,
+      why: 'The field does not exist in the settlement report. Supplying it is '
+         + 'a change at the source, not an operation ATTEST can perform.',
+    },
+    rerun: {
+      scope: 'Engine default', tone: 'insufficient',
+      capability: 'REQUIRES ENGINE CHANGE',
+      effort: 'a decision about the engine, already argued',
+      can: false,
+      why: 'The search window is exhausted. ATTEST does not widen it '
+         + 'automatically, and the blocking study that chose the current '
+         + 'ladder concluded it should not be widened. Changing it is a change '
+         + 'to the engine\'s defaults, not a re-run.',
+    },
+    per_item: {
+      scope: 'Per item', tone: 'ambiguous',
+      capability: 'REQUIRES HUMAN SEARCH',
+      effort: 'one record, found by a person',
+      can: false,
+      why: 'Someone has to locate a specific record. It is real work and it '
+         + 'does not amortise across other settlements.',
+    },
   };
 
   async function portfolio(S) {
     const api = window.shellApi;
-    const [spine, acts, att] = await Promise.all([
+    const [spine, acts, att, dec] = await Promise.all([
       api(`/api/spine?run=${S.run}&type=portfolio&review=${S.review}&exposure=${S.exposure}`),
       api(`/api/actions?run=${S.run}`),
       api(`/api/attention?run=${S.run}`),
+      api(`/api/decision?run=${S.run}&type=portfolio`
+        + `&review=${S.review}&exposure=${S.exposure}`),
     ]);
 
     // The spine is rendered by the shell, above every lens. Drawing it again
@@ -52,24 +91,31 @@
       fact: `One change unlocks ${plural(top.settlements, 'settlement')}`,
       tone: 'hold',
       figure: rupees(top.leverage_paise || top.value_paise),
-      figureLabel: `${(KIND[top.kind] || ['', ''])[0].toLowerCase()} · `
+      figureLabel: `${(KIND[top.kind] || KIND.per_item).scope.toLowerCase()} · `
         + `${plural(top.steps, 'step')}`,
       because: top.rationale || top.why || '',
     }) : '';
 
+    /* A BLOCKER, not an action row. The hierarchy is value, then scope, then
+     * where it is blocked, then why, then what would unblock it — because the
+     * financial consequence is what decides whether this work is worth ten
+     * minutes, and a row that leads with a verb makes the reader hunt for it. */
     const actionBlock = Section({
-      title: 'What unlocks the most',
-      aside: `<span class=c-muted>${plural(acts.total_steps, 'piece')} of work</span>`,
-      body: acts.actions.map(a => {
-        const [label, tone] = KIND[a.kind] || ['', 'insufficient'];
-        return `<button class="c-act ${esc(a.kind)}" data-context="action:${esc(a.reason)}">
-          <span class=c-act-h>
-            <b>${esc(a.what.split(';')[0].replace(/^./, c => c.toUpperCase()))}</b>
-            <i class="c-status s-${tone.toUpperCase()} sm">${esc(label)}</i></span>
-          <span class=c-act-m>
-            <em>${esc(rupees(a.value_paise, { whole: true }))}</em>
-            <span>${plural(a.settlements, 'settlement')}</span>
-            <span>${plural(a.steps, 'step')}</span></span>
+      title: 'What blocks the most value',
+      aside: `<span class=c-muted>ranked by value unlocked, not by amount</span>`,
+      body: acts.actions.map((a, i) => {
+        const k = KIND[a.kind] || KIND.per_item;
+        return `<button class="c-blk ${esc(a.kind)}" data-context="action:${esc(a.reason)}">
+          <span class=c-blk-i>${i + 1}</span>
+          <span class=c-blk-v>${esc(rupees(a.leverage_paise || a.value_paise))}</span>
+          <span class=c-blk-s>
+            <i class="c-status s-${k.tone.toUpperCase()} sm">${esc(k.scope)}</i>
+            <em>${plural(a.settlements, 'settlement')}</em></span>
+          <span class=c-blk-b><i>blocked at</i>verification</span>
+          <span class=c-blk-w><i>why</i>${esc(a.why)}</span>
+          <span class=c-blk-n><i>would unblock</i>${
+            esc(a.what.split(';')[0].replace(/^./, c => c.toUpperCase()))}</span>
+          <span class="c-blk-c ${k.can ? 'can' : 'cannot'}">${esc(k.capability)}</span>
         </button>`;
       }).join('') + Disclosure({
         summary: 'Why rank by leverage rather than by amount',
@@ -97,7 +143,52 @@
       </div>`).join(''),
     });
 
-    return answer + spineBlock + actionBlock + queue;
+    /* THE ONE LEVER ATTEST ACTUALLY HOLDS.
+     *
+     * Every blocker above needs something ATTEST cannot do. This is the
+     * exception: what a review is worth is a policy input, it is real, and
+     * moving it changes how much can post without a person. It belongs where
+     * work is chosen rather than three clicks inside Policy.
+     *
+     * Compact on purpose — the frontier and the slider live in Policy. This
+     * says the lever exists, what it currently yields, and what the next step
+     * would yield, and it states that the recorded policy is untouched. */
+    const front = (dec.frontier || []);
+    const here = front.find(f => f.review_paise === S.review) || {
+      review_paise: S.review, auto_post: dec.auto_post,
+      posted_paise: dec.posted_paise, wrong_posts: dec.wrong_posts };
+    const next = front.filter(f => f.review_paise > S.review)
+                      .sort((a, b) => a.review_paise - b.review_paise)[0];
+    const lever = Section({
+      title: 'What a review is worth',
+      aside: dec.simulated
+        ? '<span class=c-sim-tag>simulated · recorded policy unchanged</span>'
+        : '<span class=c-muted>the recorded policy</span>',
+      body: `<div class=c-lever>
+        <div class=c-lever-r>
+          <span class=c-lever-k>${dec.simulated ? 'simulated' : 'current'}</span>
+          <span class=c-lever-c>${esc(rupees(here.review_paise))}</span>
+          <span class=c-lever-n><b>${here.auto_post}</b> post without a person</span>
+          <span class=c-lever-v>${esc(rupees(here.posted_paise || 0))}</span>
+          <span class=c-lever-w>${here.wrong_posts
+            ? `<b class=bad>${here.wrong_posts} wrong</b>` : '0 wrong'}</span>
+        </div>
+        ${next ? `<div class="c-lever-r alt">
+          <span class=c-lever-k>if it were</span>
+          <span class=c-lever-c>${esc(rupees(next.review_paise))}</span>
+          <span class=c-lever-n><b>${next.auto_post}</b> would post</span>
+          <span class=c-lever-v>${esc(rupees(next.posted_paise || 0))}</span>
+          <span class=c-lever-w>${next.wrong_posts
+            ? `<b class=bad>${next.wrong_posts} wrong</b>` : '0 wrong'}</span>
+        </div>` : ''}
+        <p class=c-lever-p>This is the only lever in this list ATTEST holds
+          itself. Changing it is a policy decision, not a re-run, and the
+          recorded costing <b>${esc(dec.recorded_version || dec.policy_version || '')}</b>
+          is not modified by looking. Work it in Policy.</p>
+      </div>`,
+    });
+
+    return answer + spineBlock + actionBlock + lever + queue;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the
@@ -238,16 +329,36 @@
     // here would be the redundancy the autopsy measured, moved rather than
     // removed. Control's own question is "what is happening", and its answer
     // is which gate the settlement is standing at and why.
+    /* The conclusion follows the VERDICT, not the check list. A contradicted
+     * settlement can pass every check it was given and still have no
+     * explanation at all — the contradiction lives in the unsat core, and
+     * reporting "every check passed" over it was the room saying the opposite
+     * of what the engine found. */
     const failed = (d.checks || []).filter(c => !c.ok);
+    const exc = d.exception || {};
     const answer = Conclusion({
-      fact: failed.length
-        ? `${plural(failed.length, 'check')} did not pass`
-        : 'Every check passed',
-      tone: failed.length ? 'stop' : 'go',
-      because: failed.length
-        ? failed[0].detail
-        : 'A unique candidate set satisfies every constraint, and the '
-          + 'independent kernel re-derived it from source records.',
+      fact: d.verdict === 'CONTRADICTED'
+              ? 'No combination explains this credit'
+          : d.verdict === 'AMBIGUOUS'
+              ? `${plural((d.proofs || []).length, 'explanation')} satisfy it exactly`
+          : d.verdict === 'INSUFFICIENT'
+              ? 'Outside the solver envelope'
+          : failed.length ? `${plural(failed.length, 'check')} did not pass`
+              : 'Proven, and the kernel agrees',
+      tone: d.verdict === 'PROVEN' && !failed.length ? 'go'
+          : d.verdict === 'AMBIGUOUS' ? 'hold' : 'stop',
+      figure: d.verdict === 'CONTRADICTED' && exc.unexplained_paise != null
+              ? rupees(exc.unexplained_paise) : null,
+      figureLabel: d.verdict === 'CONTRADICTED' ? 'unresolved' : null,
+      because: d.verdict === 'CONTRADICTED'
+              ? `${esc((d.unsat_core || [])[0] || 'no subset satisfies the amount')}. `
+                + `${esc((exc.established || [])[0] || '')}${
+                    exc.missing ? ` — ${esc(exc.missing)}` : ''}`
+          : failed.length ? failed[0].detail
+          : d.verdict === 'AMBIGUOUS'
+              ? 'Arithmetic cannot choose between them, so the engine does not.'
+              : 'A unique candidate set satisfies every constraint, and the '
+                + 'independent kernel re-derived it from source records.',
     });
 
     return answer + Section({ title: 'What we know', body: known })
@@ -306,7 +417,7 @@
     const a = (d.actions || []).find(x => x.reason === reason);
     if (!a) return { kind: 'Action', title: 'Unknown',
                      body: EmptyState('Unknown action') };
-    const [label] = KIND[a.kind] || [''];
+    const label = (KIND[a.kind] || KIND.per_item).scope;
     return { kind: label, title: rupees(a.value_paise, { whole: true }),
       promote: { type: 'action', id: a.reason },
       body: Section({ title: 'What to do', body: `<p class=c-lead>${
@@ -318,10 +429,15 @@
       + Section({
           title: `Unlocks ${plural(a.settlements, 'settlement')}`,
           aside: `<span class=c-muted>${plural(a.steps, 'step')}</span>`,
-          body: a.examples.map(x => Row({
-            id: x.replace('setl_', ''),
-            context: { type: 'settlement', id: x },
-          })).join('')
+          body: `<div class=c-pop>${a.examples.map(x =>
+            `<button class=c-pop-r data-subject="settlement:${esc(x)}"
+               data-from="${esc(a.reason)}">
+              <span class=c-pop-go>▸</span>
+              <span class=c-pop-id>${esc(x)}</span>
+              <span class=c-pop-a></span>
+              <span class=c-pop-n>open this case inside the blocker</span>
+              <span></span>
+            </button>`).join('')}</div>`
             + (a.settlements > a.examples.length
               ? `<div class=c-more>+ ${a.settlements - a.examples.length} more</div>` : ''),
         }) };

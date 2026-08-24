@@ -308,6 +308,91 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .t-prov-n{font-size:var(--type-micro);color:var(--dim2);padding-top:var(--sp-3);
   max-width:70ch;line-height:1.5}
 
+.c-lever{display:flex;flex-direction:column}
+.c-lever-r{display:grid;grid-template-columns:84px 104px minmax(0,1fr) 132px 96px;
+  gap:var(--sp-4);align-items:baseline;padding:var(--sp-2) 0;
+  border-top:1px solid var(--line)}
+.c-lever-k{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
+.c-lever-c{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-data)}
+.c-lever-n{font-size:var(--type-micro);color:var(--dim)}
+.c-lever-n b{font-family:var(--m);font-size:var(--type-body);color:var(--ink)}
+.c-lever-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-micro);text-align:right;color:var(--dim2)}
+.c-lever-w{font-size:9px;letter-spacing:.1em;color:var(--dim3);text-align:right}
+.c-lever-w .bad{color:var(--st-CONTRADICTED)}
+.c-lever-r.alt .c-lever-c,.c-lever-r.alt .c-lever-n b{color:var(--dim2)}
+.c-lever-p{font-size:var(--type-micro);color:var(--dim2);line-height:1.5;
+  padding-top:var(--sp-3);max-width:76ch}
+.c-lever-p b{font-family:var(--m);font-size:9px;color:var(--dim)}
+.c-sim-tag{font-size:9px;letter-spacing:.11em;color:var(--st-AMBIGUOUS);
+  border:1px dashed var(--st-AMBIGUOUS);border-radius:var(--r-sm);padding:1px 5px}
+
+/* ================================================ CONTROL · THE BLOCKERS
+   Not action rows. A blocker states the value it holds, its scope, where it
+   is stuck, why, what would move it, and — the part that matters — whether
+   ATTEST can do that itself. Value leads because value is what decides
+   whether the work is worth the next ten minutes. */
+.c-blk{display:grid;
+  grid-template-columns:26px minmax(150px,auto) 132px minmax(0,1fr);
+  grid-template-areas:"i v s b" "i v s w" "i v s n" ". . . c";
+  gap:2px var(--sp-4);width:100%;text-align:left;align-items:baseline;
+  padding:var(--sp-4) var(--sp-2);border-top:1px solid var(--line);
+  border-radius:var(--r-sm);transition:background var(--micro)}
+.c-blk:hover{background:var(--sur2)}
+.c-blk.sel{background:var(--sur2);box-shadow:inset 3px 0 0 var(--acc)}
+.c-blk-i{grid-area:i;font-family:var(--m);font-size:var(--type-micro);
+  color:var(--dim3);align-self:start;padding-top:6px}
+.c-blk-v{grid-area:v;font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-title);letter-spacing:-.025em;align-self:start}
+.c-blk-s{grid-area:s;display:flex;flex-direction:column;gap:3px;align-self:start}
+.c-blk-s em{font-style:normal;font-size:var(--type-micro);color:var(--dim3)}
+.c-blk-b,.c-blk-w,.c-blk-n{font-size:var(--type-micro);color:var(--dim);
+  line-height:1.45}
+.c-blk-b i,.c-blk-w i,.c-blk-n i{display:inline-block;width:96px;font-style:normal;
+  font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
+.c-blk-b{grid-area:b} .c-blk-w{grid-area:w} .c-blk-n{grid-area:n}
+.c-blk-n{color:var(--ink)}
+/* capability: what ATTEST can and cannot do, in words, never colour alone */
+.c-blk-c{grid-area:c;justify-self:start;font-size:9px;letter-spacing:.13em;
+  padding:2px 6px;border-radius:var(--r-sm);margin-top:var(--sp-2)}
+.c-blk-c.cannot{color:var(--st-AMBIGUOUS);border:1px dashed var(--st-AMBIGUOUS)}
+.c-blk-c.can{color:var(--st-PROVEN);border:1px solid var(--st-PROVEN)}
+
+/* the working population a blocker scopes to */
+.c-pop-h{display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;
+  padding-bottom:var(--sp-3)}
+.c-pop-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-title)}
+.c-pop-w{font-size:var(--type-micro);color:var(--dim2);max-width:72ch;
+  line-height:1.5;padding-bottom:var(--sp-4)}
+.c-pop{display:flex;flex-direction:column}
+.c-pop-r{display:grid;grid-template-columns:18px 116px 132px minmax(0,1fr) 16px;
+  gap:var(--sp-3);align-items:baseline;width:100%;text-align:left;
+  padding:var(--sp-2);border-top:1px solid var(--line);border-radius:var(--r-sm)}
+.c-pop-r:hover{background:var(--sur2)}
+.c-pop-id{font-family:var(--m);font-size:var(--type-micro)}
+.c-pop-a{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-body);text-align:right}
+.c-pop-n{font-size:9px;color:var(--dim3)}
+.c-pop-go{color:var(--dim3);text-align:right}
+
+/* the blocker a case came from, carried as a contextual parent */
+.c-from{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap;
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim3);
+  padding-bottom:var(--sp-3)}
+.c-from b{font-family:var(--m);font-size:var(--type-micro);letter-spacing:0;
+  text-transform:none;color:var(--dim)}
+.c-from .v{font-family:var(--m);color:var(--ink);letter-spacing:-.02em}
+.c-from-x{color:var(--dim3)}
+
+@media (max-width:1023px){
+  .c-blk{grid-template-columns:24px minmax(0,1fr);
+    grid-template-areas:"i v" "i s" ". b" ". w" ". n" ". c"}
+  .c-pop-r{grid-template-columns:16px minmax(0,1fr) auto}
+  .c-pop-n{display:none}
+}
+
 /* ============================================== JOURNAL · ACCOUNTING ROOM
    A vertical chain of financial movement, then what the books actually did.
    Accounting columns and hairlines — no cards. The zeroes are the point. */
