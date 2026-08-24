@@ -1060,20 +1060,35 @@ LENS_MATRIX: dict[str, tuple[str, ...]] = {
     "trust":       ("portfolio", "settlement"),
 }
 
+# The order IS the product loop, and the dock renders in this order: where did
+# the money stop, can the explanation be proved, what would separate the
+# explanations, what may we do about it, what entered the books, what actually
+# happened, what can I believe. Journal sat second, which asked what entered the
+# ledger before asking whether posting was permitted at all.
+#
+# The questions are the operator's, not the system's. "What is happening?" is
+# something a dashboard asks; "Where did the money stop?" is something a person
+# reconciling a settlement run asks.
 LENS_LABELS: dict[str, tuple[str, str]] = {
-    "control":     ("Control", "What is happening?"),
-    "journal":     ("Journal", "Where did the money go?"),
-    "evidence":    ("Evidence", "Why do we believe this?"),
-    "investigate": ("Investigate", "Why can't we resolve this?"),
-    "policy":      ("Policy", "What are we allowed to do?"),
-    "activity":    ("Activity", "What changed?"),
-    "trust":       ("Trust", "Can I trust this system?"),
+    "control":     ("Control", "Where did the money stop?"),
+    "evidence":    ("Evidence", "Can the explanation be proved?"),
+    "investigate": ("Investigate", "What would separate them?"),
+    "policy":      ("Policy", "What is safe to automate?"),
+    "journal":     ("Journal", "What entered the books?"),
+    "activity":    ("Activity", "What actually happened?"),
+    "trust":       ("Trust", "What can I believe?"),
 }
 
 
 def lenses_for(subject_type: str) -> list[dict[str, str]]:
+    """Ordered by LENS_LABELS, which is the product loop.
+
+    This used to iterate LENS_MATRIX — a table about which subjects a lens can
+    answer for, carrying the dock's reading order by accident. Two tables, one
+    of them ordered by meaning and the other consulted for it.
+    """
     return [{"key": k, "label": LENS_LABELS[k][0], "question": LENS_LABELS[k][1]}
-            for k, types in LENS_MATRIX.items() if subject_type in types]
+            for k in LENS_LABELS if subject_type in LENS_MATRIX.get(k, ())]
 
 
 def subject_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:

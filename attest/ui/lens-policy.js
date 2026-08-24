@@ -28,11 +28,12 @@
 
   /* §7, §32. One axis, two comparable numbers, and a line between them. A
      reader should see which side a settlement is on before reading a word. */
+  /* The statement leads the room as the conclusion. It used to be repeated
+     here word for word — and on an unpriced case this section contained
+     nothing else, so it was a heading over a repeat. §13 asks for no marker
+     when nothing was priced; the honest form of that is no boundary at all. */
   function Boundary(b) {
-    if (!b.priced) {
-      return `<div class="p-bound unpriced">
-        <div class=p-bound-s>${esc(b.statement)}</div></div>`;
-    }
+    if (!b.priced) return '';
     const loss = b.expected_loss_paise, rev = b.review_paise;
     const span = Math.max(loss, rev) * 2;
     const pos = v => Math.min(v / span * 100, 96);
@@ -48,7 +49,6 @@
         <span class=lo><b>${esc(rupees(loss))}</b> expected loss</span>
         <span class=rv><b>${esc(rupees(rev))}</b> to check</span>
       </div>
-      <div class=p-bound-s>${esc(b.statement)}</div>
     </div>`;
   }
 
@@ -95,7 +95,9 @@
           <b class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</b>
           — policy reads it and does not change it</div>
       </div>`
-      + Section({ title: 'The boundary', body: Boundary(d.boundary) })
+      + (b.priced
+          ? Section({ title: 'The boundary', body: Boundary(d.boundary) })
+          : '')
       + Section({
           title: 'What had to hold',
           aside: `<span class=c-muted>${d.gates.filter(g => g.ok).length}/${d.gates.length} passed</span>`,

@@ -85,7 +85,14 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:var(--type-body)/1.55 var(--s);
 -webkit-font-smoothing:antialiased;overflow:hidden}
-button{font:inherit;color:inherit}
+/* Type and colour were reset here; background and border were not, so every
+   control that did not paint its own surface inherited Chromium's buttonface
+   grey and a 2px outset border. The instrument dock's own stylesheet describes
+   'a seated indent against the rail edge rather than a filled chip' — that
+   design had never once rendered. A control in this product is a surface it
+   chose, or no surface at all. */
+button{font:inherit;color:inherit;background:transparent;border:0;
+  border-radius:0;padding:0;text-align:inherit}
 
 /* --------------------------------------------------------------- app shell */
 /* ============================================================== THE FRAME
@@ -171,28 +178,68 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 /* 4/5/6 — the state, what is agreed, what to do */
 .c-slot{border-top:1px solid var(--line);padding-top:var(--sp-3)}
 .c-slot[hidden],.c-slot:empty{display:none}
+/* Agreed and disputed are one fact in two halves — what every explanation
+   settles, and what they argue over. Stacking them pushed the disputed amount
+   and the next action off the bottom of the rail on a 900px screen. */
+.c-now{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)}
 .c-fact{display:grid;grid-template-columns:1fr;gap:1px;padding-bottom:var(--sp-3)}
+.c-now .c-fact{padding-bottom:0}
 .c-fact:last-child{padding-bottom:0}
-.c-fk{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim3)}
+.c-fk{font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim3)}
 .c-fv{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-data);font-weight:500}
 .c-fact.hot .c-fv{color:var(--st-CONTRADICTED)}
-.c-fact em{font-style:normal;font-size:9px;color:var(--dim3)}
+.c-fact em{font-style:normal;font-size:var(--type-micro);color:var(--dim3)}
 .c-nx-w{font-size:var(--type-body);line-height:1.4;padding-top:2px}
 .c-nx-v{padding-top:var(--sp-2)}
 .c-nx-v b{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-data);color:var(--st-PROVEN)}
-.c-nx-v em{display:block;font-style:normal;font-size:9px;color:var(--dim3)}
+.c-nx-v em{display:block;font-style:normal;font-size:var(--type-micro);color:var(--dim3)}
 
-/* the spine, in the rail, as part of the case's identity */
+/* the spine, in the rail, as part of the case's identity
+   ------------------------------------------------------------------
+   §6. Money is the subject of this product and had been rendering as
+   annotation: the stage names, the continuing value and the held value all
+   sat at 9-10px, so ₹48,03,127.81 stopped at verification was painted the
+   same size as the word beside it and two sizes below a ₹6,316 blocker.
+
+   The three amounts in a spine row are three different facts and now read as
+   three different roles:
+
+     MONEY THAT CONTINUES   the stage value          13px  mono
+     MONEY THAT STOPPED     the held value           15px  mono, stop colour
+     the stage it stopped at  label                  10px  small caps
+
+   Nothing was added. The row is the same three spans it always was. */
 .c-state .c-flow{gap:0}
-.c-state .c-flow-r{grid-template-columns:64px minmax(0,1fr);
-  gap:2px var(--sp-2);padding:var(--sp-1) 0;align-items:center}
-.c-state .c-flow-n{grid-column:1;grid-row:1;font-size:9px}
-.c-state .c-flow-track{grid-column:2;grid-row:1;height:9px;max-width:none}
-.c-state .c-flow-v{grid-column:2;grid-row:2;text-align:left;
-  font-size:var(--type-micro);padding-bottom:2px}
-.c-state .c-flow-x{grid-column:1/3;grid-row:3;font-size:9px;padding-bottom:var(--sp-1)}
+.c-state .c-flow-r{grid-template-columns:78px minmax(24px,1fr) auto;
+  gap:var(--sp-1) var(--sp-2);padding:var(--sp-1) 0;align-items:center}
+.c-state .c-flow-n{grid-column:1;grid-row:1;font-size:var(--type-micro)}
+.c-state .c-flow-track{grid-column:2;grid-row:1;height:8px;max-width:none}
+/* the money that CONTINUES sits on the stage's own line, not under it — three
+   stacked lines per stage left the rail with no room for the next action */
+.c-state .c-flow-v{grid-column:3;grid-row:1;text-align:right;
+  font-size:var(--type-body);padding-bottom:0;white-space:nowrap}
+.c-state .c-flow-x{grid-column:1/4;grid-row:2;font-size:var(--type-micro);
+  padding-bottom:var(--sp-1)}
+/* a stage that held nothing has nothing to annotate — three of five rows were
+   reserving a line for an empty span */
+.c-state .c-flow-x:empty,.c-state .c-flow-v:empty{display:none}
+/* The held amount is the money that STOPPED — the answer to the one question
+   the landing exists to answer. §10 asks the first viewport to say
+
+       MONEY STOPPED AT
+       VERIFICATION
+       ₹48,03,127.81 HELD
+
+   which the spine already says: a stage name, in the stop colour, carrying the
+   amount. It was saying it at 9px. Rather than repeat the sentence in a second
+   block — the duplication this phase found in Policy — the row that already
+   states it is given the weight of a statement. */
+.c-state .c-flow-h{font-size:var(--type-title);letter-spacing:-.02em;
+  font-weight:500}
+.c-state .c-flow-r.stopped .c-flow-n{color:var(--ink);font-weight:500}
 .c-state .c-flow-d{display:none}
 
 
@@ -234,10 +281,10 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
     gap:var(--sp-2);padding:2px 0;align-items:center}
   .c-state .c-flow-n{grid-column:1;grid-row:1}
   .c-state .c-flow-track{grid-column:2;grid-row:1;height:7px}
-  .c-state .c-flow-v{grid-column:3;grid-row:1;font-size:9px;text-align:right}
+  .c-state .c-flow-v{grid-column:3;grid-row:1;font-size:var(--type-micro);text-align:right}
   .c-state .c-flow-x{display:none}
   .c-state .c-flow-r.stopped .c-flow-x{display:block;grid-column:1/4;grid-row:2;
-    font-size:9px;padding-bottom:2px}
+    font-size:var(--type-micro);padding-bottom:2px}
   .c-now,.c-next{display:flex;gap:var(--sp-5);flex-wrap:wrap}
   .c-fact{padding-bottom:0}
   .c-lenses{grid-area:inst;grid-template-columns:repeat(4,1fr)}
@@ -254,7 +301,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
   gap:var(--sp-4);align-items:baseline;padding:var(--sp-2) 0;
   border-top:1px solid var(--line)}
 .t-bound:first-child{border-top:0}
-.t-bound-s{font-size:9px;letter-spacing:.14em;color:var(--st-CONTRADICTED);
+.t-bound-s{font-size:var(--type-micro);letter-spacing:.14em;color:var(--st-CONTRADICTED);
   border:1px solid var(--st-CONTRADICTED);border-radius:var(--r-sm);
   padding:2px 5px;text-align:center}
 .t-bound-w{font-size:var(--type-body);font-weight:600}
@@ -280,14 +327,14 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
   color:var(--dim3)}
 .t-trace-h b{font-size:var(--type-body);font-weight:600}
 .t-life{list-style:none;display:flex;flex-wrap:wrap;gap:0;margin:0;padding:0 0 var(--sp-2)}
-.t-life li{font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+.t-life li{font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;
   color:var(--dim3);padding:2px var(--sp-3) 2px 0;position:relative}
 .t-life li:not(:last-child)::after{content:"→";padding-left:var(--sp-2);opacity:.5}
 .t-life li.on{color:var(--st-PROVEN)}
 .t-life li:not(.on){color:var(--st-AMBIGUOUS)}
 .t-trace-w{font-size:var(--type-micro);color:var(--dim);line-height:1.55;
   max-width:78ch}
-.t-trace-r{font-family:var(--m);font-size:9px;color:var(--dim3);padding-top:var(--sp-2)}
+.t-trace-r{font-family:var(--m);font-size:var(--type-micro);color:var(--dim3);padding-top:var(--sp-2)}
 
 /* provenance — a vertical chain, versions on the right */
 .t-prov{list-style:none;display:flex;flex-direction:column;margin:0;padding:0}
@@ -312,20 +359,20 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-lever-r{display:grid;grid-template-columns:84px 104px minmax(0,1fr) 132px 96px;
   gap:var(--sp-4);align-items:baseline;padding:var(--sp-2) 0;
   border-top:1px solid var(--line)}
-.c-lever-k{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
+.c-lever-k{font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
 .c-lever-c{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-data)}
 .c-lever-n{font-size:var(--type-micro);color:var(--dim)}
 .c-lever-n b{font-family:var(--m);font-size:var(--type-body);color:var(--ink)}
 .c-lever-v{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-micro);text-align:right;color:var(--dim2)}
-.c-lever-w{font-size:9px;letter-spacing:.1em;color:var(--dim3);text-align:right}
+.c-lever-w{font-size:var(--type-micro);letter-spacing:.1em;color:var(--dim3);text-align:right}
 .c-lever-w .bad{color:var(--st-CONTRADICTED)}
 .c-lever-r.alt .c-lever-c,.c-lever-r.alt .c-lever-n b{color:var(--dim2)}
 .c-lever-p{font-size:var(--type-micro);color:var(--dim2);line-height:1.5;
   padding-top:var(--sp-3);max-width:76ch}
-.c-lever-p b{font-family:var(--m);font-size:9px;color:var(--dim)}
-.c-sim-tag{font-size:9px;letter-spacing:.11em;color:var(--st-AMBIGUOUS);
+.c-lever-p b{font-family:var(--m);font-size:var(--type-micro);color:var(--dim)}
+.c-sim-tag{font-size:var(--type-micro);letter-spacing:.11em;color:var(--st-AMBIGUOUS);
   border:1px dashed var(--st-AMBIGUOUS);border-radius:var(--r-sm);padding:1px 5px}
 
 /* ================================================ CONTROL · THE BLOCKERS
@@ -350,11 +397,11 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-blk-b,.c-blk-w,.c-blk-n{font-size:var(--type-micro);color:var(--dim);
   line-height:1.45}
 .c-blk-b i,.c-blk-w i,.c-blk-n i{display:inline-block;width:96px;font-style:normal;
-  font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
+  font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
 .c-blk-b{grid-area:b} .c-blk-w{grid-area:w} .c-blk-n{grid-area:n}
 .c-blk-n{color:var(--ink)}
 /* capability: what ATTEST can and cannot do, in words, never colour alone */
-.c-blk-c{grid-area:c;justify-self:start;font-size:9px;letter-spacing:.13em;
+.c-blk-c{grid-area:c;justify-self:start;font-size:var(--type-micro);letter-spacing:.13em;
   padding:2px 6px;border-radius:var(--r-sm);margin-top:var(--sp-2)}
 .c-blk-c.cannot{color:var(--st-AMBIGUOUS);border:1px dashed var(--st-AMBIGUOUS)}
 .c-blk-c.can{color:var(--st-PROVEN);border:1px solid var(--st-PROVEN)}
@@ -374,12 +421,12 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-pop-id{font-family:var(--m);font-size:var(--type-micro)}
 .c-pop-a{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-body);text-align:right}
-.c-pop-n{font-size:9px;color:var(--dim3)}
+.c-pop-n{font-size:var(--type-micro);color:var(--dim3)}
 .c-pop-go{color:var(--dim3);text-align:right}
 
 /* the blocker a case came from, carried as a contextual parent */
 .c-from{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap;
-  font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim3);
+  font-size:var(--type-micro);letter-spacing:.1em;text-transform:uppercase;color:var(--dim3);
   padding-bottom:var(--sp-3)}
 .c-from b{font-family:var(--m);font-size:var(--type-micro);letter-spacing:0;
   text-transform:none;color:var(--dim)}
@@ -492,14 +539,18 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
   transition:color var(--micro),border-color var(--micro),background var(--micro)}
 .c-lens-n{display:block;font-size:var(--type-micro);letter-spacing:.13em;
   text-transform:uppercase;color:var(--dim3)}
-.c-lens-q{display:none;font-size:var(--type-micro);color:var(--dim2);
+/* Every instrument states what it asks. Hiding the question on all but the
+   held one left six bare nouns — the menu convention this dock was built to
+   avoid. The held one is distinguished by seating and weight, not by being
+   the only one that says anything. */
+.c-lens-q{display:block;font-size:var(--type-micro);color:var(--dim3);
   line-height:1.35;padding-top:1px}
 /* the held instrument: seated against the rail's edge, and it is the only one
    that says what it asks */
 .c-lenses button.on{border-left-color:var(--ink);background:var(--sur);
   padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
+.c-lenses button.on .c-lens-q{color:var(--dim)}
 .c-lenses button.on .c-lens-n{color:var(--ink);font-weight:600}
-.c-lenses button.on .c-lens-q{display:block}
 .c-lenses button:hover{background:var(--sur)}
 .c-lenses button:hover .c-lens-n{color:var(--dim)}
 

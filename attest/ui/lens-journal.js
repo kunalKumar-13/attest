@@ -125,7 +125,7 @@
               + 'entry that happens to net to zero.',
         }) + EntryStatus([
           ['entry', 'Not written', 'stop'],
-          ['reason', why],
+          // the reason leads the room as the conclusion; it was stated again here
           ['impact', 'No ledger mutation. Receivables unchanged.'],
           ['reversibility', 'Not applicable — nothing to reverse'],
           ['what would change it', det.exception ? det.exception.next_step

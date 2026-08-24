@@ -176,20 +176,24 @@
                 })
             : EmptyState('Nothing has been delivered since this run decided.'),
         })
-      + Section({
-          title: 'Decided before evidence that names them',
-          aside: `<span class=c-muted>${plural((d.unrevised || []).length, 'settlement')}</span>`,
-          body: (d.unrevised || []).length
-            ? (d.unrevised || []).map(o => Row({
+      /* Only when something IS unrevised. With nothing to list, the section
+         was a heading, a "0 settlements" count and a note repeating the
+         conclusion word for word — the empty-heading shape this phase removed
+         from the rail. "Nothing is unrevised" is already the room's headline. */
+      + ((d.unrevised || []).length
+        ? Section({
+            title: 'Decided before evidence that names them',
+            aside: `<span class=c-muted>${plural(d.unrevised.length, 'settlement')}</span>`,
+            body: d.unrevised.map(o => Row({
                 id: o.id.replace('setl_', ''), amount: o.amount_paise,
                 detail: `<span class=c-muted>named by ${esc(o.because)}</span>`,
                 aside: 'unrevised',
                 subject: { type: 'settlement', id: o.id },
               })).join('')
-              + `<p class=c-lead style="font-size:var(--t-label);margin-top:9px"
-                  >${esc(d.unrevised_note)}</p>`
-            : `<p class=c-lead style="font-size:var(--t-label)">${esc(d.unrevised_note)}</p>`,
-        })
+              + `<p class=c-lead style="font-size:var(--t-label);margin-top:var(--sp-2)"
+                  >${esc(d.unrevised_note)}</p>`,
+          })
+        : '')
       + Section({
           title: 'Reproduce this run',
           body: `<div class=a-replay>

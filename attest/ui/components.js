@@ -130,19 +130,27 @@ function StateSpine(spine, opts = {}) {
   return `<div class="c-flow${per ? ' portfolio' : ''}${opts.rail ? ' rail' : ''}"
     role="img" aria-label="Money flow${spine.stopped_at
       ? `, stopped at ${esc(spine.stopped_at)}` : ''}">
-    ${spine.stages.map(s => {
+    ${spine.stages.map((s, i) => {
       const w = known
         ? Math.max(s.continues_paise / top * 100, s.continues_paise > 0 ? MIN : 0)
         : (s.state === 'not_reached' ? 0 : 100);
       const held = per && s.held;
+      // The value is stated where the money CHANGES. Four of five stages
+      // repeated the figure above them — source and matching both read
+      // ₹53,02,701.96, policy and action both read ₹353.73 — so the column
+      // was mostly the same number written twice, in a rail that then had no
+      // room left for the next action. The bar carries magnitude at every
+      // stage; the figure marks each collapse.
+      const same = opts.rail && i > 0
+        && spine.stages[i - 1].value === s.value;
       return `<div class="c-flow-r ${esc(s.state)}">
         <span class=c-flow-n>${esc(s.label)}</span>
         <span class=c-flow-track>
           <i class=c-flow-bar style="width:${w.toFixed(2)}%"></i>
         </span>
-        <span class=c-flow-v>${esc(s.value)}</span>
+        <span class=c-flow-v>${same ? '' : esc(s.value)}</span>
         <span class=c-flow-x>${held
-          ? `<b>${esc(s.held_value || '')}</b> held · ${Number(s.held).toLocaleString()}`
+          ? `<b class=c-flow-h>${esc(s.held_value || '')}</b> held · ${Number(s.held).toLocaleString()}`
           : s.state === 'stopped' ? `<b>stopped here</b>`
           : s.state === 'not_reached' ? 'not reached' : ''}</span>
       </div>
@@ -240,7 +248,13 @@ class SubjectHeader {
     amt.hidden = s.amount_paise === null || s.amount_paise === undefined;
     set('.c-case-amt .v', rupees(s.amount_paise));
     set('.c-case-amt .k', s.type === 'portfolio' ? (s.amount_label || '') : '');
+    /* §14. The rail is financial state, and its first viewport on a phone is
+       the most contested space in the product. `seed` is run provenance — it
+       is stated in Evidence, which explains what the portfolio is, and in
+       Trust, which owns what produced a result. It does not outrank the
+       conclusion, so it does not sit above it. */
     const meta = (s.meta || [])
+      .filter(m => m.k !== 'seed')
       .map(m => `<span><i>${esc(m.k)}</i>${esc(m.v)}</span>`).join('');
     const box = this.q('.c-case-meta');
     if (box.innerHTML !== meta) box.innerHTML = meta;

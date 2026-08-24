@@ -698,9 +698,14 @@ def test_an_unproven_settlement_is_never_priced(page):
     so there is no expected loss to compare — and the UI must say that rather
     than show a number it does not have."""
     _ev(page, "#/settlement/setl_000089/policy")
-    bound = page.inner_text(".p-bound")
-    assert "nothing was priced" in bound.lower()
+    # Phase 13 §16: this used to read `.p-bound`, a box whose entire content was
+    # the sentence the conclusion already leads with. The guarantee did not
+    # move — "nothing was priced" is still stated, and the absence of a marker
+    # is now absolute rather than a marker-less box.
+    assert "nothing was priced" in page.inner_text("#workspace").lower()
     assert page.eval_on_selector_all(".p-bound-mark", "x => x.length") == 0
+    assert page.eval_on_selector_all(".p-bound", "x => x.length") == 0, \
+        "an unpriced settlement drew a decision boundary"
     # every proof gate failed, so no policy gate could pass
     ok = page.eval_on_selector_all(".p-gate.ok", "x => x.length")
     assert ok == 0, "a policy gate passed without proof"
@@ -1479,3 +1484,222 @@ def test_activity_does_not_count_refused_events_as_delivered(page):
     unrev = len(d.get("unrevised") or [])
     assert page.inner_text(".c-concl-n b").strip() == f"{total - unrev} of {total}", \
         "the headline figure is not the count of settlements whose verdicts stand"
+
+
+def _money_sizes(page, root):
+    """Every painted ₹ amount under `root`, with its computed type size."""
+    return page.evaluate("""(sel) => {
+      const r = document.querySelector(sel); if (!r) return [];
+      const out = [];
+      const vis = e => { const s = getComputedStyle(e);
+        return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0'; };
+      const walk = el => { for (const n of el.childNodes) {
+        if (n.nodeType === 3 && n.textContent.includes('\\u20b9')) {
+          const g = document.createRange(); g.selectNodeContents(n);
+          const b = g.getBoundingClientRect();
+          if (b.height && b.width) out.push({
+            t: n.textContent.trim(),
+            px: parseFloat(getComputedStyle(n.parentElement).fontSize)});
+        } else if (n.nodeType === 1 && vis(n)) walk(n); } };
+      walk(r); return out; }""", root)
+
+
+def test_money_never_renders_at_annotation_size(page):
+    """Phase 13 §6. '₹ amounts must never visually look like metadata.'
+
+    The State Spine painted ₹48,03,127.81 — the money held at verification, and
+    the answer to 'where did my money stop' — at 9px, the same size as the word
+    'Source' beside it. The 10px and 11px tiers are for provenance, timestamps
+    and counts. Money is the subject of this product, not an annotation."""
+    BODY = 13
+    for route in ("#/portfolio/control", "#/settlement/setl_000089/evidence",
+                  "#/settlement/setl_000109/control"):
+        _ev(page, route)
+        small = [m for m in _money_sizes(page, ".c-case") if m["px"] < BODY]
+        assert not small, (
+            f"{route}: money at annotation size in the case rail: "
+            + ", ".join(f"{m['t']} at {m['px']:.0f}px" for m in small[:6]))
+
+
+def test_the_money_that_stopped_outranks_any_single_blocker(page):
+    """Phase 13 §6. Establish visual roles: money that stopped is not smaller
+    than one item of work.
+
+    ₹6,316.03 — the smallest blocker in the list — rendered at 20px while
+    ₹48,03,127.81 held at verification rendered at 9px. A ₹6,316 problem was
+    painted 2.2x larger than ₹48 lakh of stuck money."""
+    _ev(page, "#/portfolio/control")
+    held = [m for m in _money_sizes(page, ".c-state") if m["px"]]
+    assert held, "no money in the state spine"
+    stopped = max(m["px"] for m in held)
+    # an individual work item, not the room's headline conclusion — that
+    # figure is the leverage of the top blocker and leads the room by design
+    rows = page.query_selector_all(".c-blk-v")
+    assert rows, "no blocker rows on the landing"
+    biggest_blocker = max(
+        page.evaluate("e => parseFloat(getComputedStyle(e).fontSize)", r)
+        for r in rows)
+    assert stopped >= biggest_blocker, (
+        f"a single blocker is painted at {biggest_blocker:.0f}px while the money "
+        f"that stopped is at {stopped:.0f}px")
+
+
+def test_no_control_renders_with_browser_default_chrome(page):
+    """Phase 13 §17. 'No card-grid-everything.'
+
+    `button { font: inherit; color: inherit }` resets the type and nothing
+    else, so every button that did not set its own background inherited
+    Chromium's `buttonface` grey and a 2px outset border. 111 of ~190 visible
+    controls were rendering as raw OS buttons — including all seven instrument
+    dock items, whose stylesheet comment describes 'a seated indent against the
+    rail edge rather than a filled chip', and the three blocker rows, which
+    read as the SaaS cards the brief warns against.
+
+    Nothing about that was a design decision. It was a missing reset."""
+    seen = []
+    for subject in ("portfolio", "settlement/setl_000089"):
+        for lens in ("control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            seen += page.evaluate("""() =>
+              [...document.querySelectorAll('button')]
+                .filter(e => e.offsetParent)
+                .map(e => { const s = getComputedStyle(e);
+                  return {cls: e.className || '(no class)',
+                          bg: s.backgroundColor, bd: s.borderTopStyle}; })
+                .filter(r => r.bd === 'outset' || r.bg === 'rgb(239, 239, 239)')""")
+    assert not seen, (
+        f"{len(seen)} controls render with browser default chrome: "
+        + ", ".join(sorted({r["cls"] for r in seen})[:8]))
+
+
+def test_every_instrument_states_its_question(page):
+    """Phase 13 §9. 'It is an instrument index, not a navigation bar.'
+
+    The dock's own stylesheet says an item should state what it asks — and
+    `.c-lens-q { display: none }` hid the question on every instrument except
+    the selected one, so six of seven read as bare nouns. A menu names places."""
+    _ev(page, "#/portfolio/control")
+    items = page.query_selector_all(".c-lenses button")
+    assert len(items) == 7, f"expected seven instruments, saw {len(items)}"
+    for it in items:
+        q = it.query_selector(".c-lens-q")
+        assert q and q.is_visible(), \
+            f"{it.inner_text().strip()[:20]} states no question"
+        assert q.inner_text().strip().endswith("?"), \
+            f"not a question: {q.inner_text()!r}"
+
+
+def test_the_dock_reads_as_the_product_loop(page):
+    """Phase 13 §1, §9. The instruments are ordered by the operator's
+    sequence — where did it stop, can it be proved, what would separate them,
+    what may we do, what entered the books, what happened, what can I believe.
+
+    Journal sat second, which put 'what entered the books' before 'may we post
+    at all'."""
+    _ev(page, "#/portfolio/control")
+    order = [b.get_attribute("data-lens")
+             for b in page.query_selector_all(".c-lenses button")]
+    assert order == ["control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"], order
+
+
+def test_no_type_size_outside_the_declared_scale(page):
+    """Phase 13 §5. Six steps: 10, 11, 13, 15, 20, 34.
+
+    An undeclared 9px tier had grown to 14 rules and 50 painted elements, and
+    it was not carrying decoration — it carried the stage names, the held
+    amounts and the capability labels. That is how ₹48,03,127.81 came to be
+    painted smaller than the word beside it. A scale with an escape hatch is
+    not a scale.
+
+    `<html>` is excluded: it carries the browser's 16px root default and never
+    paints text of its own."""
+    SCALE = {10, 11, 13, 15, 20, 34}
+    off = {}
+    for subject in ("portfolio", "settlement/setl_000089"):
+        for lens in ("control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            for size, n in page.evaluate("""() => {
+                const fs = {};
+                const vis = e => { const s = getComputedStyle(e);
+                  return s.display !== 'none' && s.visibility !== 'hidden'
+                      && s.opacity !== '0'; };
+                document.querySelectorAll('*').forEach(e => {
+                  if (e.tagName === 'HTML' || !vis(e)) return;
+                  const f = Math.round(parseFloat(getComputedStyle(e).fontSize));
+                  if (f) fs[f] = (fs[f] || 0) + 1; });
+                return fs; }""").items():
+                if int(size) not in SCALE:
+                    off[int(size)] = off.get(int(size), 0) + n
+    assert not off, f"type sizes outside the declared scale: {dict(sorted(off.items()))}"
+
+
+def test_no_room_paints_the_same_sentence_twice(page):
+    """Phase 13 §16. 'Delete prose that merely explains.'
+
+    Policy stated its boundary sentence as the conclusion and then again,
+    word for word, under THE BOUNDARY — and on an unpriced case that section
+    contained nothing else, so it was a heading over a repeat. A sentence
+    painted twice halves the signal of everything around it."""
+    import re as _re
+
+    def sentences(text):
+        out = set()
+        for raw in _re.split(r"[\n.;]+", text):
+            t = " ".join(raw.split()).lower().strip(" —·")
+            if len(t.split()) >= 6:
+                out.add(t)
+        return out
+
+    # Scoped to the conclusion against the rest of the room. A justification
+    # repeated down the rows of a list is data — 250 settlements share one
+    # reduction reason and each row is entitled to state it. Saying the room's
+    # headline a second time further down is not.
+    dupes = []
+    for subject in ("portfolio", "settlement/setl_000089",
+                    "settlement/setl_000020"):
+        for lens in ("control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            concl = page.query_selector(".c-concl")
+            if not concl:
+                continue
+            # counted in the live room: a detached clone's innerText degrades
+            # to textContent and would pick up collapsed disclosure bodies that
+            # nobody can see
+            room = " ".join(
+                page.eval_on_selector("#workspace", "n => n.innerText").split()
+            ).lower()
+            for t in sentences(concl.inner_text()):
+                if room.count(t) > 1:
+                    dupes.append((f"{subject}/{lens}", t[:66]))
+    assert not dupes, "the room's conclusion is repeated verbatim below it:\n" \
+        + "\n".join(f"  {w}: {s}" for w, s in dupes[:8])
+
+
+def test_no_section_is_a_heading_over_nothing(page):
+    """Phase 13 §5, §16. A titled block with no body is a promise the room
+    does not keep — the reader looks for content that is not there.
+
+    Three appeared while removing repeated copy: Policy's boundary on an
+    unpriced case, Activity's unrevised list when nothing is unrevised, and
+    the rail's NEXT once the spine grew tall enough to push it out."""
+    empty = []
+    for subject in ("portfolio", "settlement/setl_000089",
+                    "settlement/setl_000020"):
+        for lens in ("control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            empty += [f"{subject}/{lens}: {t}" for t in page.evaluate("""() =>
+              [...document.querySelectorAll('#workspace .c-section')]
+                .filter(s => s.offsetParent)
+                .filter(s => {
+                  const b = s.querySelector('.c-section-b, .c-sec-b') || s;
+                  const head = s.querySelector('h2, h3, .c-section-t, .c-sec-t');
+                  const bodyText = (b.innerText || '')
+                    .replace(head ? head.innerText : '', '').trim();
+                  return bodyText.length === 0; })
+                .map(s => (s.innerText || '').split('\\n')[0].slice(0, 40))""")]
+    assert not empty, "sections with a heading and no body:\n  " + "\n  ".join(empty[:6])
