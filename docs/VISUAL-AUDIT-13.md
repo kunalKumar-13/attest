@@ -480,3 +480,56 @@ Blur everything but the amounts, the verdicts and the stages, and the hierarchy
 now matches the story: what came in, what to do about it, what stopped, what
 continues. Before, the first two lines were identical and everything explaining
 where the money stopped sat at the bottom of the visual order.
+
+---
+
+## §21 — the finish line, walked
+
+A Razorpay engineer opening ATTEST, measured end to end:
+
+```
+0 clicks   ₹53,02,701.96 processed · 250 settlements · 2,368 orders
+           SOURCE       ████████████  ₹53,02,701.96
+           MATCHING     ████████████
+           VERIFICATION ▮             ₹4,99,574.15
+           ₹48,03,127.81 held · 198
+           POLICY       |             ₹353.73
+           ₹4,99,220.42 held · 51
+           ACTION       |
+
+           1  ₹47,96,811.78  Systemic · 197 settlements
+              blocked at verification
+              REQUIRES EXTERNAL EVIDENCE
+
+2 clicks   a settlement affected by that blocker, with the blocker
+           carried into it
+
++1 each    EVIDENCE      No unique proof · ₹15,750.00 in dispute
+           INVESTIGATE   Engine abstained · Verdict unchanged
+           POLICY        Unpriced · REVIEW
+           JOURNAL       No entry is written · not posted
+           TRUST         (portfolio) Live Razorpay validation · NOT VERIFIED
+```
+
+**7 clicks, 8.2 seconds**, no ID typed, no search, no tour.
+
+## What was not changed
+
+Every item on §18's preserve list is untouched: the reconciliation engine, the
+proof kernel, the search-space model, the solver hierarchy, the AI hypothesis
+separation, the policy engine, integer paise arithmetic, journal semantics,
+activity causality, Trust's limitations, the Razorpay boundaries, the
+subject/lens/context model, blocker continuity, stale-fetch protection,
+context-origin motion, keyboard access, the responsive guarantees, and every
+pre-existing contract.
+
+One contract was re-pointed rather than deleted.
+`test_an_unproven_settlement_is_never_priced` read `.p-bound`, a box whose whole
+content was the sentence the conclusion already leads with. Its guarantee did not
+move — *"nothing was priced"* is still asserted, and the absence of a marker is
+now **absolute** (`.p-bound` count is zero) rather than a marker-less box. That
+is strictly stronger than what it replaced, which is the only acceptable form of
+re-pointing a contract.
+
+**275 tests · 112 browser contracts · six gates at +0.0000 · zero overflow at
+360/393/430/768/1024/1512 · no type size outside the declared scale.**
