@@ -254,8 +254,12 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
   border-left:2px solid transparent;padding-left:var(--sp-2);
   margin-left:calc(var(--sp-2) * -1);
   transition:background var(--micro),border-color var(--micro)}
-.c-state button.c-flow-r{cursor:pointer}
-.c-state button.c-flow-r:hover{background:var(--sur2)}
+/* A lit stage carries a solid rule; a stage you can open carries the same rule
+   at a quarter weight. The affordance and the state share one language, so the
+   spine needs no icon and no chevron to say it is navigable. */
+.c-state button.c-flow-r{cursor:pointer;border-left-color:var(--line)}
+.c-state button.c-flow-r:hover{background:var(--sur2);
+  border-left-color:var(--dim2)}
 .c-state button.c-flow-r:hover .c-flow-n{color:var(--ink)}
 .c-state button.c-flow-r:focus-visible{outline:2px solid var(--acc);
   outline-offset:-2px}
@@ -400,8 +404,12 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
    is stuck, why, what would move it, and — the part that matters — whether
    ATTEST can do that itself. Value leads because value is what decides
    whether the work is worth the next ten minutes. */
+/* Each blocker is its own grid, so minmax(150px,auto) resolved column two
+   from that row's own amount — three rows, three widths, and the register's
+   labels never shared an edge. A fixed column is what makes three rows read as
+   one ledger: 160px holds ₹47,96,811.78 at the value's own type size. */
 .c-blk{display:grid;
-  grid-template-columns:26px minmax(150px,auto) 132px minmax(0,1fr);
+  grid-template-columns:26px 160px 132px minmax(0,1fr);
   grid-template-areas:"i v s b" "i v s w" "i v s n" ". . . c";
   gap:2px var(--sp-4);width:100%;text-align:left;align-items:baseline;
   padding:var(--sp-4) var(--sp-2);border-top:1px solid var(--line);
@@ -416,8 +424,13 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-blk-s em{font-style:normal;font-size:var(--type-micro);color:var(--dim3)}
 .c-blk-b,.c-blk-w,.c-blk-n{font-size:var(--type-micro);color:var(--dim);
   line-height:1.45}
-.c-blk-b i,.c-blk-w i,.c-blk-n i{display:inline-block;width:96px;font-style:normal;
-  font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;color:var(--dim3)}
+/* 112px, not 96: the labels moved off an undeclared 9px tier onto the scale's
+   10px in Phase 13 and WOULD UNBLOCK stopped fitting, wrapping on all three
+   rows of the register that answers what to do first. */
+.c-blk-b i,.c-blk-w i,.c-blk-n i{display:inline-block;width:112px;
+  flex:0 0 112px;font-style:normal;
+  font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;
+  color:var(--dim3);white-space:nowrap}
 .c-blk-b{grid-area:b} .c-blk-w{grid-area:w} .c-blk-n{grid-area:n}
 .c-blk-n{color:var(--ink)}
 /* capability: what ATTEST can and cannot do, in words, never colour alone */

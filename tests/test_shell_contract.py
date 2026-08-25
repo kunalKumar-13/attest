@@ -668,12 +668,18 @@ def test_portfolio_policy_groups_by_what_is_permitted(page):
 
 
 def test_settlement_policy_states_the_decision_and_the_verdict_apart(page):
-    """§4, §8. A settlement can be AMBIGUOUS and REVIEW; those are two facts."""
+    """§4, §8. A settlement can be AMBIGUOUS and REVIEW; those are two facts.
+
+    Phase 13B: the decision left `.p-head`, which was painting it a second time
+    below the conclusion that already leads with it. Both facts are still
+    stated and still apart — the decision above, the verdict and what policy
+    does with it below — so this reads the room rather than the one block."""
     _ev(page, "#/settlement/setl_000089/policy")
+    assert "REVIEW" in page.inner_text(".c-concl")
     head = page.inner_text(".p-head")
-    assert "REVIEW" in head
     assert "AMBIGUOUS" in head
     assert "does not change it" in head
+    assert "REVIEW" not in head, "the decision is stated twice again"
 
 
 def test_the_decision_is_expressed_as_a_cost_comparison(page):
@@ -736,14 +742,30 @@ def test_the_policy_version_is_visible_and_derived_from_the_costing(page):
 
 
 def test_the_ui_decision_matches_the_engine(page):
-    """§5, §30.8. The UI represents the engine; it does not re-derive it."""
+    """§5, §30.8. The UI represents the engine; it does not re-derive it.
+
+    Phase 13B: `.p-head-d` was the second painting of the decision and is gone.
+    Re-pointed at the conclusion that leads the room — and strengthened, because
+    the old form checked one element while the room could still have contained a
+    contradicting decision elsewhere. Now the engine's decision must be stated
+    AND no other decision word may appear anywhere in the room."""
     _ev(page, "#/settlement/setl_000020/policy")
-    shown = page.inner_text(".p-head-d").strip()
     from_api = page.evaluate("""(async () => {
       const d = await (await fetch(`/api/decision?run=${SHELL.run}`
         + `&type=settlement&id=setl_000020&review=${SHELL.review}`)).json();
       return d.decision; })()""")
-    assert shown.replace("-", "_") == from_api
+    shown = from_api.replace("_", "-")
+    assert shown in page.inner_text(".c-concl"), \
+        f"the room does not state the engine's decision {shown}"
+    # whole lines, not substrings: "COST OF A REVIEW" is a label for what a
+    # person's time is worth, not a decision, and a naive `in` check reads it
+    # as the engine having been contradicted
+    lines = {l.strip().upper()
+             for l in page.inner_text("#w-main").splitlines()}
+    for other in ("AUTO-POST", "REVIEW", "BLOCK"):
+        if other != shown:
+            assert other not in lines, \
+                f"engine says {shown} but the room also states {other}"
 
 
 def test_simulating_a_costing_does_not_change_the_recorded_decision(page):
@@ -1896,3 +1918,78 @@ def test_trust_on_a_case_offers_the_way_to_the_system(page):
     page.wait_for_timeout(900)
     assert page.evaluate("() => location.hash") == "#/portfolio/trust"
     assert "NOT VERIFIED" in page.inner_text("#w-main")
+
+
+def test_no_label_in_a_repeated_row_wraps(page):
+    """Phase 13B §12, §19. 'The interface should feel expensive because it is
+    precise.'
+
+    Phase 13 promoted these labels off an undeclared 9px tier onto the scale's
+    10px, and WOULD UNBLOCK stopped fitting its 96px column — it wrapped on all
+    three rows of the blocker register, pushing each value down and leaving the
+    label column 3px ragged. That register is the first list on the landing and
+    the answer to what to do first."""
+    _ev(page, "#/portfolio/control")
+    bad = page.evaluate("""() =>
+      [...document.querySelectorAll('.c-blk-b i, .c-blk-w i, .c-blk-n i')]
+        .filter(e => e.offsetParent)
+        .filter(e => e.getBoundingClientRect().height > 18)
+        .map(e => e.innerText.trim() + ' @ '
+             + Math.round(e.getBoundingClientRect().height) + 'px')""")
+    assert not bad, f"labels wrapping in the blocker register: {bad}"
+    edges = page.evaluate("""() =>
+      [...document.querySelectorAll('.c-blk-n i')].filter(e => e.offsetParent)
+        .map(e => Math.round(e.getBoundingClientRect().right))""")
+    assert len(set(edges)) == 1, f"label column is ragged: {sorted(set(edges))}"
+
+
+def test_policy_does_not_state_its_decision_twice(page):
+    """Phase 13B §8. 'If there are two competing heroes, remove hierarchy from
+    one.'
+
+    REVIEW was painted at 34px as the conclusion and again at 20px a hundred
+    pixels below it. The block's unique content is the sentence that policy
+    reads the verdict and does not change it — one of the product's core
+    claims, and it appeared nowhere else."""
+    for sid, word in (("setl_000089", "REVIEW"), ("setl_000020", "AUTO-POST")):
+        _ev(page, f"#/settlement/{sid}/policy")
+        big = page.evaluate("""(w) => {
+          const out = [];
+          const vis = e => { const s = getComputedStyle(e);
+            return s.display !== 'none' && s.visibility !== 'hidden'; };
+          const walk = el => { for (const n of el.childNodes) {
+            if (n.nodeType === 3 && n.textContent.trim().toUpperCase() === w) {
+              const px = parseFloat(getComputedStyle(n.parentElement).fontSize);
+              if (px >= 20) out.push(px);
+            } else if (n.nodeType === 1 && vis(n)) walk(n); } };
+          walk(document.querySelector('#w-main')); return out; }""", word)
+        assert len(big) <= 1, \
+            f"{sid}: {word} painted {len(big)} times at hero weight ({big})"
+    # and the claim that only appeared inside that block survives
+    assert "does not change it" in page.inner_text("#w-main")
+
+
+def test_a_spine_stage_shows_it_is_a_way_in_before_you_touch_it(page):
+    """Phase 13B §14, §2. The interaction existed with no resting state — a
+    pointer cursor and a hover tint, both of which require already hovering.
+
+    A lit stage carries a solid left rule. A stage you can open carries the
+    same rule, faintly. The affordance and the state share one language rather
+    than adding an icon."""
+    _ev(page, "#/settlement/setl_000089/journal")
+    rules = page.evaluate("""() =>
+      [...document.querySelectorAll('.c-state .c-flow-r')].map(e => {
+        const s = getComputedStyle(e);
+        return {stage: e.dataset.stage, lit: e.classList.contains('lit'),
+                colour: s.borderLeftColor, width: s.borderLeftWidth};
+      })""")
+    assert rules, "no spine stages"
+    unlit = [r for r in rules if not r["lit"]]
+    assert unlit, "every stage is lit; nothing to distinguish"
+    for r in unlit:
+        assert r["colour"] != "rgba(0, 0, 0, 0)", \
+            f"stage {r['stage']} gives no sign it can be opened"
+    lit = [r for r in rules if r["lit"]]
+    assert lit, "journal lights no stage"
+    assert lit[0]["colour"] != unlit[0]["colour"], \
+        "an open-able stage and the stage this room is about look identical"

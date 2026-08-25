@@ -86,12 +86,15 @@
       because: b.statement || '',
     });
 
+    /* The decision leads the room as the conclusion. This block used to paint
+       it a second time at 20px a hundred pixels below — the same word twice in
+       one viewport, and the thing that made it worth having buried underneath.
+       What is unique here is the relationship: policy READS the verdict. That
+       is one of the product's core claims and it appears nowhere else. */
     return answer + `<div class="p-head ${esc(d.decision)}">
         ${d.simulated ? '<div class=p-sim>Simulated costing — no action will be executed</div>' : ''}
-        <span class=p-head-k>what policy permits</span>
-        <div class=p-head-d>
-          <i aria-hidden=true></i>${esc(d.decision.replace(/_/g, '-'))}</div>
-        <div class=p-head-s>the verdict is
+        <span class=p-head-k>policy and the verdict</span>
+        <div class=p-head-s><i aria-hidden=true></i>the verdict is
           <b class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</b>
           — policy reads it and does not change it</div>
       </div>`
