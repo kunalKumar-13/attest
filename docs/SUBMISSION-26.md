@@ -99,7 +99,7 @@ narrative reads left-to-right on a desktop.
 
 | | |
 |---|---|
-| **commit** | `134df46` · tag `attest-submission` |
+| **submitted revision** | tag **`attest-submission`** — a commit cannot contain its own hash, so the tag is the identifier. `git rev-parse --short attest-submission` resolves it. |
 | **tests** | **297 passed** (full stack: Playwright, server running, `ortools`) |
 | **browser contracts** | **133**, counted by `ci/verify.sh` from the source |
 | **safety gates** | **6 / 6 PASS**. `money wrongly auto-posted` and `false proof rate` at **+0.0000** in both environments |
