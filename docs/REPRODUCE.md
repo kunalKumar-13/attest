@@ -11,7 +11,7 @@ by this exercise and fixed. Nothing here is written from memory.
 |---|---|
 | **Python 3.11+** | 3.13 is what CI pins and what these numbers were measured on |
 | **git** | |
-| *optional* — Node + Playwright | only for the 90 browser contracts |
+| *optional* — Node + Playwright | only for the 133 browser contracts |
 | *optional* — a Rust toolchain | only to build the native kernel; **the engine runs without it**, and the numbers differ — see "Two execution paths" |
 
 **Do not use `python3` on macOS.** It is 3.9, and this project needs 3.11+.
@@ -54,15 +54,16 @@ Three outcomes, all measured on a fresh clone:
 
 | environment | result |
 |---|---|
-| Playwright and `ortools` installed, `attest.web` running | **251 passed** |
-| Playwright installed, server not running | **157 passed, 94 skipped** |
-| Playwright not installed | **157 passed, 1 skipped** |
-| neither Playwright nor `ortools` | **131 passed, 2 skipped** |
+| Playwright and `ortools` installed, `attest.web` running | **297 passed** |
+| Playwright installed, server not running, no `ortools` | **138 passed, 134 skipped** |
 
-The 90 are the browser contracts, which skip themselves when nothing is
-listening on `:8420`. Without Playwright the whole module skips as one, so the
-count of what did not run is *invisible* — which is why `ci/verify.sh` asserts
-the number 90 rather than trusting a green exit code.
+Measured on a fresh extraction, not remembered. The 133 browser contracts skip
+themselves when nothing is listening on `:8420`. Without Playwright the whole
+module skips as one, so the count of what did not run is *invisible* — which is
+why `ci/verify.sh` asserts that the number which RAN equals the number DEFINED
+in the file rather than trusting a green exit code. It counts them from the
+source; a literal there went stale the first time a contract was added, and a
+stale literal fails a green suite.
 
 `tests/test_partition.py` needs `ortools`, which is not a dependency of the
 package because the engine does not require it. Without it that module skips
@@ -135,7 +136,7 @@ Needs the server from step 6 already running, in another terminal:
 ./.venv/bin/python -m pytest tests/test_shell_contract.py -q
 ```
 
-Expect **90 passed**. If you see `90 skipped`, the server is not running — and a
+Expect **133 passed**. If you see them skipped, the server is not running — and a
 skip is not a pass, which is why `ci/verify.sh` asserts the count rather than
 the exit code.
 

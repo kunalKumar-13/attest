@@ -16,7 +16,6 @@ should not fail a build for the wrong reason.
 
 from __future__ import annotations
 
-import re
 import urllib.error
 import urllib.request
 
@@ -2142,8 +2141,6 @@ def test_ambiguous_control_leads_with_the_disputed_money(page):
     assert truth, "no settled part in the engine payload"
     assert truth["disputed"] > 0 and truth["agreed"] > truth["disputed"], \
         f"fixture no longer exercises the case: {truth}"
-    rup = lambda p: f"₹{p // 100:,}".replace(",", "@") + f".{p % 100:02d}"
-
     fig = page.inner_text(".c-concl-n b").strip()
     lab = page.inner_text(".c-concl-n em").strip().lower()
     sec = page.inner_text(".c-concl-2").strip()

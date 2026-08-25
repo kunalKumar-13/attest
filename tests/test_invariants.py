@@ -19,7 +19,6 @@ search space — which is exactly what D3 and D8 measured, and exactly what
 
 from __future__ import annotations
 
-import pytest
 
 import sys
 from pathlib import Path
@@ -730,7 +729,6 @@ def test_no_percentage_in_the_readme_is_unaccounted_for() -> None:
 
 def test_the_readme_blocks_match_the_artifacts() -> None:
     """Regenerating must be a no-op. If it is not, the prose has drifted."""
-    import pathlib
 
     from attest.eval.claims import MARK_BASELINES, MARK_RESULTS, ROOT, \
         render_baselines, render_results

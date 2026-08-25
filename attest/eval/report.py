@@ -22,6 +22,7 @@ from __future__ import annotations
 import html
 from collections import Counter
 
+from attest.money import rupees as _rs
 from attest.eval.harness import Report
 from attest.model import Order, Settlement
 from attest.verdict import Finding, Verdict
@@ -90,22 +91,6 @@ color:var(--dim);font-size:13px}
 _COLOUR = {Verdict.PROVEN: "var(--proven)",
            Verdict.AMBIGUOUS: "var(--ambiguous)",
            Verdict.CONTRADICTED: "var(--contradicted)"}
-
-
-def _rs(paise: int) -> str:
-    """Indian digit grouping. A finance page that renders 4738219 as 4,738,219
-    is telling an Indian reader the wrong number at a glance."""
-    neg, n = paise < 0, abs(paise)
-    r, p = divmod(n, 100)
-    s = str(r)
-    if len(s) > 3:
-        head, tail = s[:-3], s[-3:]
-        parts = []
-        while len(head) > 2:
-            parts.insert(0, head[-2:])
-            head = head[:-2]
-        s = ",".join(([head] if head else []) + parts + [tail])
-    return f"{'-' if neg else ''}₹{s}.{p:02d}"
 
 
 def _proof_table(finding: Finding, orders: dict[str, Order]) -> str:

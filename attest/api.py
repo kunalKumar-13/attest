@@ -24,6 +24,7 @@ from attest.eval.harness import Timer, evaluate
 from attest.exceptions import classify
 from attest.graph import build as build_graph
 from attest.generate.generator import build
+from attest.money import rupees as _rs
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
 from attest.policy import Costs, RiskModel, calibrate, decide, simulate
@@ -443,20 +444,6 @@ def _attention_line(r: Run, f: Finding, s: Settlement) -> str:
     if f.verdict is Verdict.AMBIGUOUS:
         return f"{len(f.proofs)} valid explanations remain"
     return e.missing if e else ""
-
-
-def _rs(paise: int) -> str:
-    neg, n = paise < 0, abs(paise)
-    r, p = divmod(n, 100)
-    t = str(r)
-    if len(t) > 3:
-        head, tail = t[:-3], t[-3:]
-        parts = []
-        while len(head) > 2:
-            parts.insert(0, head[-2:])
-            head = head[:-2]
-        t = ",".join(([head] if head else []) + parts + [tail])
-    return f"{'-' if neg else ''}₹{t}.{p:02d}"
 
 
 def observatory() -> dict[str, Any]:
@@ -1221,7 +1208,6 @@ def spine_view(r: Run | None, stype: str, sid: str,
         # `continues_paise` is what is still moving after this stage. The flow
         # renders width from it, so it has to be a number rather than a
         # formatted string, and it has to be 0 once the subject has stopped.
-        stopped_i = (2 if not proven else (3 if not posts else 5))
         stages = [
             {"key": "source", "label": "Source", "state": "passed",
              "continues_paise": s.net_paise,
@@ -1554,14 +1540,16 @@ def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
     if pool and any(s["input"] == "capture-batch" for s in steps
                     if s["actor"] == "model"):
         share = None
+        # A display statistic. Absent means the line is omitted, never that a
+        # number is invented for it.
         try:
             import json as _json
             import pathlib as _pl
             share = _json.loads((_pl.Path(__file__).resolve().parent.parent
                                  / "benchmark" / "anchoring.json").read_text()
                                 )["single_date_share"]
-        except Exception:
-            pass
+        except (OSError, ValueError, KeyError):
+            share = None
         signal = {
             "lens": "capture-batch", "pool": len(pool),
             "capture_dates": len(dates),
@@ -2039,10 +2027,15 @@ def replay_view(r: Run | None) -> dict[str, Any]:
 def _artifact(name: str) -> dict[str, Any]:
     import json as _json
     import pathlib as _pl
+    # An absent or unreadable artifact means NOT MEASURED, which Trust then
+    # reports as such — never as a passing claim. The empty dict is the
+    # fail-closed answer, so the handler names exactly the failures a file read
+    # and a JSON parse can produce rather than swallowing programming errors
+    # from the caller's own expression.
     try:
         return _json.loads((_pl.Path(__file__).resolve().parent.parent
                             / "benchmark" / name).read_text())
-    except Exception:
+    except (OSError, ValueError):
         return {}
 
 

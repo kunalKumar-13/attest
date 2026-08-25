@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -52,7 +51,7 @@ from attest.eval.harness import Prediction, Report, Timer, evaluate
 from attest.evidence import to_fixed_point
 from attest.generate.generator import Dataset, build
 from attest.layers import match_single_order
-from attest.model import Order, Settlement, TrueMatch, tolerance_paise
+from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import _proof
 from attest.pipeline import run as pipeline_run
 from attest.subsetsum import OutOfEnvelope, solve

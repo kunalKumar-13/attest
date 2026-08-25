@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from attest.exceptions import classify
 from attest.generate.generator import build as build_dataset
@@ -102,3 +103,43 @@ def test_tolerance_stays_in_paise(demo):
             if "tolerance" in line or "±" in line]
     assert any(re.search(r"±\d+ paise", s) for s in seen), \
         f"tolerance should still be expressed in paise, saw: {seen[:4]}"
+
+
+def test_there_is_exactly_one_money_formatter():
+    """Phase 25 §C. One obvious representation, and one way to render it.
+
+    Phase 12 moved rendering into attest/money.py and routed exceptions, graph,
+    searchspace and policy through it. Two copies survived that sweep — one in
+    api.py and one in eval/claims.py — and they had drifted apart: the claims
+    copy used Western grouping and dropped the paise entirely, so ₹353.73 was
+    published to the README as ₹353 and ₹47,96,811.78 as ₹4,796,811.
+
+    In a system whose whole argument is exact integer paise, a report that
+    silently truncates them is not a style difference.
+    """
+    import ast
+
+    # Walked from the filesystem, not `git ls-files`: a clean-room extraction
+    # is not a git working tree, so a contract that asks git gets an empty list
+    # there and passes for the wrong reason. The clean room caught this one.
+    sources = sorted((ROOT / "attest").rglob("*.py"))
+    assert sources, "no package sources found"
+    defs = []
+    for path in sources:
+        f = path.relative_to(ROOT).as_posix()
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.FunctionDef) and node.name in ("_rs", "rupees"):
+                defs.append(f"{f}:{node.lineno} {node.name}")
+    # the file, not the line: pinning a line number tests the fixture
+    assert sorted({d.split(":")[0] for d in defs}) == ["attest/money.py"], (
+        "money is rendered in more than one place:\n  " + "\n  ".join(defs))
+
+
+def test_every_money_renderer_agrees_on_paise_and_grouping():
+    """Whatever renders an amount renders all of it, in Indian grouping."""
+    from attest.money import rupees
+    assert rupees(35373) == "₹353.73"
+    assert rupees(479681178) == "₹47,96,811.78"
+    assert rupees(9775984) == "₹97,759.84"
+    assert rupees(0) == "₹0.00"
+    assert rupees(-450) == "-₹4.50"

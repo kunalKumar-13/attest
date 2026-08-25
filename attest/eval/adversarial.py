@@ -28,7 +28,7 @@ from attest.adapters.money import AmountError, Unit, parse_amount
 from attest.adapters.razorpay import RazorpayAdapter
 from attest.agents import Capability, Pipeline
 from attest.ledger import Unbalanced, JournalEntry, Line, post
-from attest.model import BankCredit, Order, Settlement, Method
+from attest.model import Order, Settlement, Method
 from attest.searchspace import Integrity, Reduction, SearchSpace
 from attest.verdict import Finding, Proof, Verdict, check
 

@@ -120,15 +120,15 @@ SAFETY
   false proof rate             0.80%   ← the number that moves money
 
 ACCOUNTED FOR
-  settled (undisputed)    ₹6,766,131   agreed by every explanation
-  disputed                ₹7,573,097
+  settled (undisputed)     ₹67,66,131.23   agreed by every explanation
+  disputed                 ₹75,73,097.75
   accounted for                66.7%   of all processed value
 
 MONEY
-  processed              ₹10,204,411
-  auto-posted                ₹40,464
-  protected              ₹10,163,947   refused, deliberately
-  wrongly auto-posted             ₹0
+  processed              ₹1,02,04,411.89
+  auto-posted                 ₹40,464.20
+  protected              ₹1,01,63,947.69   refused, deliberately
+  wrongly auto-posted              ₹0.00
 
 NORTH STAR
   safe resolution rate          2.2%   resolved without a human
@@ -170,7 +170,7 @@ guess, so `declined` is a feature and `WRONG` is the only real failure.
 
 <!-- generated: baselines -->
 ```
-  matcher      coverage   decided   wrong   false proof   pair prec
+  matcher      coverage   decided   wrong   false proof       pair prec
 ------------------------------------------------------------------
   attest          16.0%        84       4          4.8%        95.9%
   exact_only       4.4%        22       0          0.0%       100.0%

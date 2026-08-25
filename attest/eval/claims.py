@@ -15,6 +15,8 @@ while the code around it changed.
 from __future__ import annotations
 
 import json
+
+from attest.money import rupees as _rs
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,9 +48,10 @@ class Claim:
 
 
 def _load(name: str) -> dict:
+    """An absent artifact is NOT MEASURED, never a passing claim."""
     try:
         return json.loads((BENCH / name).read_text())
-    except Exception:
+    except (OSError, ValueError):
         return {}
 
 
@@ -294,10 +297,6 @@ MARK_RESULTS = ("<!-- generated: results -->", "<!-- /generated -->")
 MARK_BASELINES = ("<!-- generated: baselines -->", "<!-- /generated -->")
 
 
-def _rs(paise: int) -> str:
-    return f"₹{paise // 100:,}"
-
-
 def render_results() -> str:
     d = _load("results.json")
     p = d.get("pooled", {})
@@ -320,15 +319,15 @@ SAFETY
   false proof rate         {p['false_proof_rate'] * 100:>8.2f}%   ← the number that moves money
 
 ACCOUNTED FOR
-  settled (undisputed)  {_rs(p['settled_paise']):>12s}   agreed by every explanation
-  disputed              {_rs(p['disputed_paise']):>12s}
+  settled (undisputed)  {_rs(p['settled_paise']):>16s}   agreed by every explanation
+  disputed              {_rs(p['disputed_paise']):>16s}
   accounted for            {p['accounted_rate'] * 100:>8.1f}%   of all processed value
 
 MONEY
-  processed             {_rs(p['processed_paise']):>12s}
-  auto-posted           {_rs(p['auto_posted_paise']):>12s}
-  protected             {_rs(p['protected_paise']):>12s}   refused, deliberately
-  wrongly auto-posted   {_rs(p['incorrectly_auto_posted_paise']):>12s}
+  processed             {_rs(p['processed_paise']):>16s}
+  auto-posted           {_rs(p['auto_posted_paise']):>16s}
+  protected             {_rs(p['protected_paise']):>16s}   refused, deliberately
+  wrongly auto-posted   {_rs(p['incorrectly_auto_posted_paise']):>16s}
 
 NORTH STAR
   safe resolution rate     {p['safe_resolution_rate'] * 100:>8.1f}%   resolved without a human
@@ -352,7 +351,7 @@ def render_baselines() -> str:
             f"{x['pair_precision'] * 100:>12.1f}%")
     return ("```\n"
             f"  {'matcher':<12s}{'coverage':>9s}{'decided':>10s}{'wrong':>8s}"
-            f"{'false proof':>14s}{'pair prec':>12s}\n"
+            f"{'false proof':>14s}{'pair prec':>16s}\n"
             + "-" * 66 + "\n" + "\n".join(rows) + "\n\n"
             f"  {d.get('settlements', 0)} settlements over seeds {d.get('seeds', [])}, "
             f"identical datasets and identical scoring\n```")

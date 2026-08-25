@@ -59,7 +59,6 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from attest.model import BankCredit, Order, Settlement, tolerance_paise
-from attest.subsetsum import OutOfEnvelope, solve
 from attest.verdict import Finding, Proof, Verdict, check
 
 

@@ -9,8 +9,12 @@
 # Two stages exist because the obvious check is superficial:
 #
 #   BROWSER CONTRACTS silently SKIP when attest.web is not listening, and a
-#   skip is reported as a pass. This starts the server and then asserts the
-#   exact contract count, so a suite that quietly ran nothing fails.
+#   skip is reported as a pass. This starts the server and then asserts that the
+#   number that RAN equals the number DEFINED in the file, so a suite that
+#   quietly ran nothing fails. The expected number is counted from the source
+#   rather than written here: a literal goes stale the first time a contract is
+#   added, and a stale literal fails a green suite, which teaches whoever sees
+#   it to stop believing this stage.
 #
 #   CLAIM REGISTER regenerates the README blocks from the artifacts. Running it
 #   is not the check — the check is that running it changed nothing, which is
@@ -19,7 +23,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 PY=${PY:-./.venv/bin/python}
-CONTRACTS=90
+CONTRACTS=$(grep -c "^def test_" tests/test_shell_contract.py)
 fail=0; n=0
 STAGES=10
 
