@@ -2059,3 +2059,137 @@ def test_every_money_role_declares_tabular_figures(page):
     off = [r for r in rows if "tabular-nums" not in r["tab"]]
     assert not off, "money roles not declaring tabular figures: " + ", ".join(
         f"{r['cls']} ({r['t']})" for r in off)
+
+
+def test_the_dock_does_not_dominate_a_phone(page):
+    """Phase 24 §1. The dock was laid out as four columns — a grid chosen when
+    an instrument was a single label. Phase 13 gave every instrument its
+    question, which is what turned the dock into an index, and never re-checked
+    the phone: at 360x780 the dock measured 263px against a 216px room holding
+    2,323px of content.
+
+    Everything that made it an index is preserved — seven instruments, every
+    question, the order, the seating of the held one. Only the shape changes."""
+    page.set_viewport_size({"width": 360, "height": 780})
+    try:
+        _ev(page, "#/portfolio/control")
+        m = page.evaluate("""() => {
+          const d = document.querySelector('.c-lenses');
+          const items = [...document.querySelectorAll('.c-lenses button')];
+          const room = document.getElementById('w-main');
+          return {dock: Math.round(d.getBoundingClientRect().height),
+                  room: room ? Math.round(room.getBoundingClientRect().height) : 0,
+                  n: items.length,
+                  questions: items.filter(b => {
+                    const q = b.querySelector('.c-lens-q');
+                    return q && q.offsetParent
+                        && q.getBoundingClientRect().height > 0; }).length,
+                  order: items.map(b => b.dataset.lens),
+                  reachable: items.filter(b => b.offsetParent).length}; }""")
+        assert m["dock"] <= 150, f"dock is {m['dock']}px on a phone"
+        assert m["room"] > m["dock"], \
+            f"room {m['room']}px does not dominate the dock {m['dock']}px"
+        assert m["n"] == 7 and m["reachable"] == 7, \
+            f"only {m['reachable']} of {m['n']} instruments are reachable"
+        assert m["questions"] == 7, \
+            f"only {m['questions']} instruments still state their question"
+        assert m["order"] == ["control", "evidence", "investigate", "policy",
+                             "journal", "activity", "trust"], m["order"]
+    finally:
+        page.set_viewport_size({"width": 1280, "height": 900})
+
+
+def test_the_held_instrument_is_still_seated_on_a_phone(page):
+    """The selected-instrument affordance survives the phone composition: a
+    rule on the leading edge and a surface, not a filled chip."""
+    page.set_viewport_size({"width": 360, "height": 780})
+    try:
+        _ev(page, "#/portfolio/journal")
+        m = page.evaluate("""() => {
+          const on = document.querySelector('.c-lenses button.on');
+          const off = document.querySelector('.c-lenses button:not(.on)');
+          if (!on || !off) return null;
+          const a = getComputedStyle(on), b = getComputedStyle(off);
+          return {lens: on.dataset.lens,
+                  edge: a.borderLeftColor !== b.borderLeftColor
+                     || a.borderLeftWidth !== b.borderLeftWidth,
+                  surface: a.backgroundColor !== b.backgroundColor}; }""")
+        assert m, "no held instrument"
+        assert m["lens"] == "journal"
+        assert m["edge"] or m["surface"], "the held instrument is not distinguished"
+    finally:
+        page.set_viewport_size({"width": 1280, "height": 900})
+
+
+def test_ambiguous_control_leads_with_the_disputed_money(page):
+    """Phase 24 §2. Of 28 room-states, Control on an ambiguous settlement was
+    the only one with no figure at display size — and it is the room a case
+    opens into.
+
+    Control asks what needs attention. What needs attention is the money whose
+    allocation cannot be distinguished, so that is the headline, and the money
+    that is settled whichever explanation is right is subordinate to it.
+
+    Both figures are checked against the engine payload rather than pinned to
+    a literal, so a change in the data cannot leave the room stating a number
+    the engine no longer produces."""
+    _ev(page, "#/settlement/setl_000089/control")
+    truth = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/settlement?run=${SHELL.run}`
+        + `&id=setl_000089`)).json();
+      const st = d.exception && d.exception.settled;
+      return st ? {disputed: st.disputed_paise, agreed: st.net_paise} : null; }""")
+    assert truth, "no settled part in the engine payload"
+    assert truth["disputed"] > 0 and truth["agreed"] > truth["disputed"], \
+        f"fixture no longer exercises the case: {truth}"
+    rup = lambda p: f"₹{p // 100:,}".replace(",", "@") + f".{p % 100:02d}"
+
+    fig = page.inner_text(".c-concl-n b").strip()
+    lab = page.inner_text(".c-concl-n em").strip().lower()
+    sec = page.inner_text(".c-concl-2").strip()
+
+    # the headline is the disputed amount, and it is the engine's
+    disputed_digits = "".join(c for c in fig if c.isdigit())
+    agreed_digits = "".join(c for c in sec if c.isdigit())
+    assert disputed_digits == str(truth["disputed"]), \
+        f"headline {fig} is not the engine's disputed {truth['disputed']}"
+    assert "disput" in lab, f"headline is not labelled disputed: {lab!r}"
+    # ...and the agreed amount is present but subordinate, not reversed
+    assert agreed_digits == str(truth["agreed"]), \
+        f"secondary {sec} is not the engine's agreed {truth['agreed']}"
+    sizes = page.evaluate("""() => ({
+      primary: parseFloat(getComputedStyle(
+        document.querySelector('.c-concl-n b')).fontSize),
+      secondary: parseFloat(getComputedStyle(
+        document.querySelector('.c-concl-2 b')).fontSize)})""")
+    assert sizes["primary"] > sizes["secondary"], \
+        f"the disputed money is not dominant: {sizes}"
+
+
+def test_control_and_evidence_do_not_share_a_conclusion(page):
+    """Phase 24 §2. Control asks what needs attention; Evidence asks why it
+    cannot be uniquely proved. They may reach the same case, never the same
+    headline sentence."""
+    _ev(page, "#/settlement/setl_000089/control")
+    control = page.inner_text(".c-concl-f").strip().lower()
+    _ev(page, "#/settlement/setl_000089/evidence")
+    evidence = page.inner_text(".c-concl-f").strip().lower()
+    assert control != evidence, f"both rooms conclude {control!r}"
+
+
+def test_ambiguous_control_does_not_restate_its_conclusion(page):
+    """The conclusion carries the money. What we know carries the composition —
+    how many orders are agreed, how many turn on which explanation is right.
+    Stating the same two amounts twice was the shape this phase removed."""
+    _ev(page, "#/settlement/setl_000089/control")
+    concl = page.inner_text(".c-concl")
+    rest = page.evaluate("""() => {
+      const w = document.querySelector('#w-main');
+      const c = w.querySelector('.c-concl');
+      return [...w.querySelectorAll('.c-section')]
+        .filter(s => !c.contains(s)).map(s => s.innerText).join('\\n'); }""")
+    import re as _re
+    amounts = set(_re.findall(r"₹[\d,]+\.\d{2}", concl))
+    assert amounts, "the conclusion carries no money"
+    repeated = {a for a in amounts if a in rest}
+    assert not repeated, f"the conclusion's money is restated below it: {repeated}"

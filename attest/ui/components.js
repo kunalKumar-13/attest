@@ -416,11 +416,18 @@ function FromBlocker(from) {
  * turns on, when there is one. `because` is one sentence of why — prose is
  * allowed to say WHY, never WHAT.
  */
-function Conclusion({ fact, figure, figureLabel, because, tone }) {
+/* `second` is one subordinate figure, for a room whose answer is a RELATION
+   between two amounts — what is unresolved against what is already settled.
+   It is deliberately a single optional pair and not a list: a conclusion with
+   three figures is a metric row wearing a conclusion's clothes, and the room
+   would then have no headline at all. */
+function Conclusion({ fact, figure, figureLabel, because, tone, second }) {
   return `<div class="c-concl${tone ? ` t-${esc(tone)}` : ''}">
     <div class=c-concl-f>${esc(fact)}</div>
     ${figure ? `<div class=c-concl-n><b>${esc(figure)}</b>${
       figureLabel ? `<em>${esc(figureLabel)}</em>` : ''}</div>` : ''}
+    ${second ? `<div class=c-concl-2><b>${esc(second.value)}</b>${
+      second.label ? `<em>${esc(second.label)}</em>` : ''}</div>` : ''}
     ${because ? `<p class=c-concl-w>${esc(because)}</p>` : ''}
   </div>`;
 }

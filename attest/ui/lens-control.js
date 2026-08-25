@@ -258,12 +258,17 @@
 
     // Level 1: what we know, as figures. The sentences that used to carry these
     // are in the disclosure below.
+    /* The conclusion above carries the two amounts. This row carries what it
+       does not: how the orders divide, and how large the space they were
+       chosen from was. Restating the money here would be the conclusion
+       painted twice. */
     const known = st && st.order_ids.length ? MetricRow([
       { label: 'agreed by every explanation', value: `${st.order_ids.length} orders`,
-        note: 'settled whichever is right' },
-      { label: 'accounted for', value: rupees(st.net_paise), tone: 'proven' },
-      { label: 'turns on which is right', value: rupees(st.disputed_paise),
-        tone: 'ambiguous', note: `across ${st.differing_orders} orders` },
+        note: 'settled whichever is right', tone: 'proven' },
+      { label: 'turns on which is right', value: `${st.differing_orders} orders`,
+        tone: 'ambiguous' },
+      { label: 'candidates considered', value: String(d.space ? d.space.candidates : 0),
+        note: 'the space the explanations came from' },
     ]) : p ? MetricRow([
       { label: 'orders', value: String(p.orders.length), note: 'explain this exactly' },
       { label: 'accounted for', value: rupees(p.net), tone: 'proven' },
@@ -336,6 +341,8 @@
      * of what the engine found. */
     const failed = (d.checks || []).filter(c => !c.ok);
     const exc = d.exception || {};
+    const settled = exc.settled && exc.settled.order_ids
+                 && exc.settled.order_ids.length ? exc.settled : null;
     const answer = Conclusion({
       fact: d.verdict === 'CONTRADICTED'
               ? 'No combination explains this credit'
@@ -347,16 +354,35 @@
               : 'Proven, and the kernel agrees',
       tone: d.verdict === 'PROVEN' && !failed.length ? 'go'
           : d.verdict === 'AMBIGUOUS' ? 'hold' : 'stop',
+      /* Control asks what needs ATTENTION. On an ambiguous settlement that is
+         the money whose allocation cannot be distinguished — so it is the
+         headline, and the part that is settled whichever explanation is right
+         is subordinate to it. Evidence asks a different question and reaches a
+         different conclusion; neither borrows the other's.
+
+         Both amounts come from the engine's settled part. */
       figure: d.verdict === 'CONTRADICTED' && exc.unexplained_paise != null
-              ? rupees(exc.unexplained_paise) : null,
-      figureLabel: d.verdict === 'CONTRADICTED' ? 'unresolved' : null,
+              ? rupees(exc.unexplained_paise)
+          : d.verdict === 'AMBIGUOUS' && settled
+              ? rupees(settled.disputed_paise) : null,
+      figureLabel: d.verdict === 'CONTRADICTED' ? 'unresolved'
+          : d.verdict === 'AMBIGUOUS' && settled ? 'disputed' : null,
+      second: d.verdict === 'AMBIGUOUS' && settled
+              ? { value: rupees(settled.net_paise), label: 'agreed' } : null,
       because: d.verdict === 'CONTRADICTED'
               ? `${esc((d.unsat_core || [])[0] || 'no subset satisfies the amount')}. `
                 + `${esc((exc.established || [])[0] || '')}${
                     exc.missing ? ` — ${esc(exc.missing)}` : ''}`
-          : failed.length ? failed[0].detail
+          /* AMBIGUOUS is tested before the failed-check fallback. It used to
+             sit after it, so the uniqueness check — which fails by definition
+             when several explanations survive — supplied the line, and the
+             room said "4 subsets satisfy every constraint" directly beneath
+             "4 explanations satisfy it exactly". */
           : d.verdict === 'AMBIGUOUS'
-              ? 'Arithmetic cannot choose between them, so the engine does not.'
+              ? `${plural((d.proofs || []).length, 'explanation')} survive the `
+                + 'constraints. Arithmetic cannot say which of them holds the '
+                + 'disputed orders, so the engine does not guess.'
+          : failed.length ? failed[0].detail
               : 'A unique candidate set satisfies every constraint, and the '
                 + 'independent kernel re-derived it from source records.',
     });

@@ -313,7 +313,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
     font-size:var(--type-micro);padding-bottom:2px}
   .c-now,.c-next{display:flex;gap:var(--sp-5);flex-wrap:wrap}
   .c-fact{padding-bottom:0}
-  .c-lenses{grid-area:inst;grid-template-columns:repeat(4,1fr)}
+  .c-lenses{grid-area:inst}
   #bar{grid-area:bar}
 }
 
@@ -545,6 +545,13 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-concl-f{font-size:var(--type-title);font-weight:600;letter-spacing:-.02em;
   line-height:1.2}
 .c-concl-n{display:flex;align-items:baseline;gap:var(--sp-3);padding-top:var(--sp-2)}
+/* the subordinate figure sits at the agreed/disputed tier the type audit
+   assigned it — present, aligned under the headline, never competing with it */
+.c-concl-2{display:flex;align-items:baseline;gap:var(--sp-3);padding-top:var(--sp-1)}
+.c-concl-2 b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-data);font-weight:500;color:var(--dim)}
+.c-concl-2 em{font-style:normal;font-size:var(--type-micro);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dim3)}
 .c-concl-n b{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-size:var(--type-display);font-weight:500;letter-spacing:-.035em;line-height:1}
 .c-concl-n em{font-style:normal;font-size:var(--type-micro);color:var(--dim3);
@@ -609,6 +616,28 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-lenses button.on .c-lens-n{color:var(--ink);font-weight:600}
 .c-lenses button:hover{background:var(--sur)}
 .c-lenses button:hover .c-lens-n{color:var(--dim)}
+
+/* --------------------------------------------------- THE DOCK ON A PHONE
+   Four columns was chosen when an instrument was a single label. Once every
+   instrument states its question each item is two lines, so seven across four
+   columns is two rows of ~130px — measured at 360x780 as a 263px dock against
+   a 216px room holding 2,323px of content.
+
+   Nothing is hidden and nothing moves behind a menu. The item stops stacking:
+   the label and its question sit on one line, in a fixed label column so the
+   questions align down the dock, and seven single lines are ~140px. The held
+   instrument is still seated by its leading rule and its surface rather than by
+   extra padding, which keeps every row the same height and the dock's height
+   predictable whichever instrument is held. */
+@media (max-width:767px){
+  .c-lenses{display:flex;flex-direction:column;padding:0}
+  .c-lenses button{display:flex;align-items:baseline;gap:var(--sp-2);
+    padding:3px var(--sp-4)}
+  .c-lens-n{flex:0 0 92px;line-height:1.35}
+  .c-lens-q{flex:1 1 auto;padding-top:0;line-height:1.35;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .c-lenses button.on{padding-top:3px;padding-bottom:3px}
+}
 
 
 /* ------------------------------------------------------------- palette

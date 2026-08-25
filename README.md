@@ -1,9 +1,34 @@
 # ATTEST
 
-**Settlement reconciliation as constrained optimization.**
+**Financial reconciliation that refuses to invent certainty.**
 
-An LLM proposes hypotheses. A deterministic solver falsifies them. Nothing posts
-unless it is proven.
+```
+₹53,02,701.96   processed
+₹48,03,127.81   stopped at verification
+197             settlements blocked by one missing piece of evidence
+```
+
+```
+MODEL     proposes.
+SOLVER    tests.
+ENGINE    decides.
+POLICY    permits.
+LEDGER    records.
+```
+
+ATTEST treats settlement reconciliation as a **constrained proof problem**, not
+as fuzzy matching. A bank credit is the net of some subset of the orders a
+merchant captured — after per-transaction fees, GST on those fees, refunds, and
+the T+2 settlement calendar. Finding that subset is subset-sum: NP-complete.
+Approximate matchers reach roughly 70% and cannot tell you that the remainder is
+a different problem class rather than a harder instance of the same one.
+
+So a model may propose an explanation, and only a deterministic solver may
+establish it. An explanation that several disjoint order sets satisfy equally is
+**ambiguous**, and an ambiguous proof is never allowed to become a financial
+action: policy will not price what has not been proved, and the ledger does not
+move on an explanation nobody can defend. Where the records cannot decide,
+ATTEST abstains and says what evidence would resolve it.
 
 > A merchant's bank statement shows one credit: **₹47,382.19**. It is the net of
 > some subset of the 400 orders they captured that week — minus per-transaction
@@ -12,8 +37,6 @@ unless it is proven.
 >
 > **Which orders?**
 
-Matching one credit to N orders is subset-sum: NP-complete. Fuzzy matchers reach
-roughly 70% and never diagnose that the residue is a different problem class.
 This is resolved by hand, in Excel, daily, at effectively every merchant in India.
 
 ---
