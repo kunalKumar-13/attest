@@ -99,7 +99,7 @@ narrative reads left-to-right on a desktop.
 
 | | |
 |---|---|
-| **commit** | `bb5e010` |
+| **commit** | `134df46` · tag `attest-submission` |
 | **tests** | **297 passed** (full stack: Playwright, server running, `ortools`) |
 | **browser contracts** | **133**, counted by `ci/verify.sh` from the source |
 | **safety gates** | **6 / 6 PASS**. `money wrongly auto-posted` and `false proof rate` at **+0.0000** in both environments |
