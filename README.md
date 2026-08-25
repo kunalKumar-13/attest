@@ -223,7 +223,8 @@ See [FAILURES.md](FAILURES.md), D4.
 ```bash
 python3.13 -m venv .venv && ./.venv/bin/pip install -e .
 
-./.venv/bin/python -m attest.web        # local UI on :8420, opens a browser
+./run-demo                              # the demo: engine + UI on :8420
+./.venv/bin/python -m attest.web        # the same server, without the wrapper
 ./.venv/bin/python -m attest 250 --sweep   # the five-seed panel — report THIS
 ./.venv/bin/python -m attest 250        # a single seed
 ./.venv/bin/python -m attest 250 --html # emit report.html
@@ -239,44 +240,47 @@ money is accounted for, and what happened to the rest.**
 Navigation is four verbs, and depth lives inside a mode rather than beside it:
 
 ```
-SUBJECT  ×  LENS
+SUBJECT  ×  LENS  ×  CONTEXT
 
-CONTROL      What is happening?              JOURNAL   Where did the money go?
-EVIDENCE     Why should I believe this?      INVESTIGATE  What should I check?
-POLICY       What am I allowed to do?        ACTIVITY  What actually happened?
-TRUST        Can I believe the system itself?
+CONTROL      Where did the money stop?       JOURNAL      What entered the books?
+EVIDENCE     Can the explanation be proved?  ACTIVITY     What actually happened?
+INVESTIGATE  What would separate them?       TRUST        What can I believe?
+POLICY       What is safe to automate?
 ```
 
-CONTROL opens on what needs a person, ordered by value at stake rather than by
-count, and every item opens **Financial State**: what we know, why, what would
-resolve it, what ATTEST will do — in that order, refusing to open with a status.
+A **subject** is what you are looking at — the portfolio, or one settlement. A
+**lens** is the question you are asking about it. A **context** is something
+inspected *inside* that state without leaving it. All three live in the URL, so
+every view is addressable and Back means what it says.
 
-Four of these screens demonstrate rather than assert. *Live events* sends four
-webhook deliveries through the same verify/de-duplicate/scope path the HTTP
-endpoint uses and prints what came back. *Agents* runs the permission pipeline
-against the current run's findings, so `post_accounting_entry` being refused at
-the capability stage is something the code did. *Accuracy* reads the same two
-benchmark files the build reads, so the screen cannot report a pass CI would
-fail. *AI trail* runs the disabled hypothesis loop, throws its verdict away, and
+The case rail carries the subject through every lens: amount, verdict, where it
+stopped, what is agreed against what is disputed, and what to do next. Changing
+lens does not change the case, and opening a context moves neither.
+
+CONTROL opens on the work, ranked by what each item **unlocks** rather than by
+what is stuck — 197 ambiguous settlements are one action, not 197, because they
+are ambiguous for the same missing field. Each row states where it is blocked,
+why, what would unblock it, and whether ATTEST can do that itself. Three of them
+say it cannot.
+
+The state spine runs down the rail on every lens — `SOURCE → MATCHING →
+VERIFICATION → POLICY → ACTION` — drawn as the proportion that survives each
+stage, so the collapse is legible before any number is read. Clicking a stage
+opens the instrument that owns it.
+
+Four screens demonstrate rather than assert. **Activity** sends webhook
+deliveries through the same verify/de-duplicate/scope path the HTTP endpoint
+uses and reports what came back. **Policy** runs the permission pipeline against
+the current run, so a refused capability is something the code did. **Trust**
+reads the same benchmark files the build reads, so it cannot report a pass CI
+would fail. **Investigate** runs the hypothesis loop, discards its verdict, and
 shows the measurement that disabled it — read from `benchmark/anchoring.json`
 rather than transcribed.
 
-**Act** ranks the work by what each piece of it unlocks rather than by what is
-stuck: 197 ambiguous settlements is one action, not 197, because they are all
-ambiguous for the same missing field. **Journal** is the double-entry accounting
-a proof implies, balanced to the paisa. `⌘K` reaches any screen, any saved view,
-and any settlement in the attention queue.
+`⌘K` reaches any lens and any settlement in the attention queue.
 
-See `docs/UX-AUDIT.md` for what the audit found, what was chosen, and the eight
-defects that reading the screens turned up.
-
-```
-processed         ₹53,02,702.35
-auto-reconciled    ₹4,99,574.15     proven — arithmetic you can check by hand
-needs review      ₹47,96,812.17     more than one explanation fits; both shown
-unexplained           ₹6,316.03     no subset satisfies the constraint
-false proofs                   0
-```
+See `docs/UX-AUDIT.md` for what the audit found and the defects that reading the
+screens turned up.
 
 Optional: build the Rust kernel for the wider envelope and the 52× DP.
 

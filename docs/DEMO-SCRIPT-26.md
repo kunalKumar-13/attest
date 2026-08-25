@@ -13,6 +13,13 @@ Two settlements carry the story:
 
 Neither is reached by typing an ID.
 
+**Do not substitute another ambiguous settlement.** `setl_000004`, the first
+example under blocker 1, reports ₹15,750.00 disputed against a ₹13,907.11
+credit. That is arithmetically right — orders that differ *between* explanations
+overlap, so the disputed figure is a union and not a share of the credit — but
+it reads as an error on stage and costs thirty seconds to explain. `setl_000089`
+divides cleanly: ₹97,759.84 agreed plus ₹7,292.03 disputed against ₹1,00,036.83.
+
 ---
 
 ## 0:00 — cold open, nothing clicked
@@ -151,7 +158,13 @@ that happens to net to zero.
 
 ## 2:35 — the other failure mode · 2 clicks
 
-Back to the work, then blocker 3 → its single case. No ID typed.
+**Press Back three times** to return to the landing, then blocker 3 → its single
+case. No ID typed.
+
+> Rehearsal note. `back to the work` is not on screen here, and that is correct:
+> the banner exists only when a case was *entered through a blocker*, and this
+> one was entered from the landing's case list. Back and `⌘K` both return. Do
+> not look for a button that the state model has no reason to draw.
 
 ```
 ₹6,316.03   CONTRADICTED
