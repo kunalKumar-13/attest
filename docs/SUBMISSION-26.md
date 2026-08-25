@@ -99,13 +99,21 @@ narrative reads left-to-right on a desktop.
 
 | | |
 |---|---|
-| **commit** | `f4f2d7f` |
-| **tests** | **297 passed** |
-| **browser contracts** | **133** |
-| **safety gates** | **6 / 6, all +0.0000** |
-| **adversarial** | **34 attacks · 34 defended · 0 breached · 0 harness errors** |
-| **clean checkout** | installs, imports, runs gates, serves the demo |
-| **demo startup** | `./run-demo` → `http://localhost:8420` |
+| **commit** | `bb5e010` |
+| **tests** | **297 passed** (full stack: Playwright, server running, `ortools`) |
+| **browser contracts** | **133**, counted by `ci/verify.sh` from the source |
+| **safety gates** | **6 / 6 PASS**. `money wrongly auto-posted` and `false proof rate` at **+0.0000** in both environments |
+| **adversarial** | **34 attacks · 34 defended · 0 breached · 0 harness errors**, re-run in the clean room |
+| **clean checkout** | `python3.13 -m venv` → `pip install -e .` → import, gates, adversarial, demo — all pass |
+| **demo startup** | `./run-demo` → `http://localhost:8420`, verified from the clean checkout |
+
+A clean room without `ortools` and without the optional Rust kernel runs the
+numpy path, and the three **coverage** gates read slightly lower there
+(`proof precision` 0.9506, `safe resolution` 0.0160, `exact set recovery`
+0.1540). `docs/REPRODUCE.md` states this — *"the engine runs without it, and the
+numbers differ"* — and the gate reports it as an allowed trade. The two
+**safety** gates are identical to four decimal places in both environments,
+which is the property that matters.
 
 ### Known limitations, stated plainly
 
