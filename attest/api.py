@@ -1078,7 +1078,48 @@ def lenses_for(subject_type: str) -> list[dict[str, str]]:
             for k in LENS_LABELS if subject_type in LENS_MATRIX.get(k, ())]
 
 
+def source_mode(r: Run | None) -> dict[str, Any]:
+    """Which source produced the records on screen, read from the adapter.
+
+    Phase A: the mode was stated only on the Trust lens, one click away, so a
+    reader who never opened it saw a portfolio of money with nothing on screen
+    saying where it came from. ATTEST was not claiming Razorpay — the word did
+    not appear — but silence is not a label, and the difference between
+    generated data and a live account is the difference between a demonstration
+    and a claim.
+
+    Derived, never asserted. `live` is true only when an adapter that actually
+    holds credentials produced the snapshot, so an environment without
+    `RAZORPAY_KEY_ID` cannot render as anything but generated.
+    """
+    src = integrations(r)
+    active = src.get("active", {})
+    provider = str(active.get("provider") or "synthetic")
+    live = bool(active.get("live"))
+    return {
+        "provider": provider,
+        "live": live,
+        "label": "Razorpay" if live else "Generated",
+        "detail": ("a live Razorpay account" if live else
+                   "a frozen generator — no live account has been contacted"),
+    }
+
+
 def subject_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
+    """The canonical record for one subject, with the source that produced it.
+
+    The source rides on the subject record rather than on an endpoint of its
+    own, because the shell already fetches this on every navigation and the
+    mode has to be true on every screen — not on a screen someone remembers to
+    open.
+    """
+    rec = _subject_record(r, stype, sid)
+    if isinstance(rec, dict) and "error" not in rec:
+        rec["source"] = source_mode(r)
+    return rec
+
+
+def _subject_record(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
     """The canonical record for one subject, whatever kind it is.
 
     One shape for portfolio, settlement, action and source, because the header

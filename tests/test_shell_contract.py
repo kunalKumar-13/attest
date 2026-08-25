@@ -2190,3 +2190,51 @@ def test_ambiguous_control_does_not_restate_its_conclusion(page):
     assert amounts, "the conclusion carries no money"
     repeated = {a for a in amounts if a in rest}
     assert not repeated, f"the conclusion's money is restated below it: {repeated}"
+
+
+def test_the_data_source_is_named_on_every_screen(page):
+    """Phase A. 'The UI and Trust lens must always make the mode explicit.
+    Never silently pretend synthetic data came from Razorpay.'
+
+    The mode was stated only on Trust, one click away. A judge who never opened
+    that lens saw ₹53,02,701.96 of 'Financial control' with nothing on screen
+    saying where it came from. The product was not claiming Razorpay — the word
+    did not appear — but silence is not the same as a label.
+
+    The mode is read from the adapter, never asserted: it says GENERATED when
+    the synthetic source is active and would say RAZORPAY only when a live
+    adapter actually produced the records."""
+    for subject in ("portfolio", "settlement/setl_000089"):
+        for lens in ("control", "evidence", "policy", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            el = page.query_selector("#source-mode")
+            assert el and el.is_visible(), f"no source mode on {subject}/{lens}"
+            text = el.inner_text().strip().upper()
+            assert "GENERATED" in text, f"unexpected mode: {text!r}"
+
+
+def test_the_source_mode_comes_from_the_adapter_not_a_constant(page):
+    """Rule 12: every displayed number must derive from payload. The mode is
+    a claim about provenance, so it derives from the adapter's own status."""
+    _ev(page, "#/portfolio/control")
+    truth = page.evaluate("""async () => {
+      const r = await fetch(`/api/subject?run=${SHELL.run}`
+        + `&type=portfolio&id=portfolio`);
+      const d = await r.json();
+      return d.source || null; }""")
+    assert truth, "the subject record carries no source block"
+    assert truth["live"] is False, "a generated run must not report live"
+    assert truth["provider"] == "synthetic"
+    shown = page.inner_text("#source-mode").strip().lower()
+    assert truth["label"].lower() in shown, \
+        f"screen says {shown!r}, adapter says {truth['label']!r}"
+
+
+def test_razorpay_is_never_named_as_the_source_without_credentials(page):
+    """The strongest rule in this phase. No credentials are configured in this
+    environment, so nothing may present Razorpay as the origin of a record."""
+    for lens in ("control", "evidence", "journal", "activity"):
+        _ev(page, f"#/portfolio/{lens}")
+        mode = page.inner_text("#source-mode").lower()
+        assert "razorpay" not in mode, \
+            f"{lens} names Razorpay as the source: {mode!r}"

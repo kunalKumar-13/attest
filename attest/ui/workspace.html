@@ -584,6 +584,19 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-onward:hover .c-onward-x{transform:translateX(3px);color:var(--ink)}
 .c-onward:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
+/* --------------------------------------------------- THE SOURCE MODE
+   On every screen, at the lowest weight that is still readable. It says where
+   the records came from, and it is read from the adapter rather than written
+   here — an environment without credentials cannot render anything but
+   GENERATED. Silence is not a label, and the difference between generated data
+   and a live account is the difference between a demonstration and a claim. */
+#source-mode{font-size:var(--type-micro);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3);white-space:nowrap;
+  padding-left:var(--sp-3);border-left:1px solid var(--line);
+  margin-left:var(--sp-1)}
+#source-mode.live{color:var(--st-PROVEN)}
+#source-mode:empty{display:none}
+
 /* -------------------------------------------------- THE INSTRUMENT DOCK
    Measured diagnosis of why the old one read as navigation: seven items of
    IDENTICAL width in a uniform grid, labelled with nouns and nothing else,
@@ -1635,6 +1648,7 @@ border-radius:var(--r-0)}
   <div id=lenses></div>
   <div id=bar>
     <span class=wm>ATTEST</span>
+    <span id=source-mode title="Where the records on screen came from"></span>
     <span id=hint></span>
     <span class=sp></span>
     <button class=btn id=theme aria-label="Toggle theme">◐</button>

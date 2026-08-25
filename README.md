@@ -16,19 +16,60 @@ POLICY    permits.
 LEDGER    records.
 ```
 
+### The problem
+
+Reconciliation systems are measured on how many cases they resolve, so they are
+built to resolve more. But a **wrong** financial explanation is worse than no
+explanation: candidate order sets discharge receivables against different
+customers, so posting the wrong one moves money against the wrong account while
+the books still balance.
+
+Measured on this repository's benchmark, over 500 settlements:
+
+```
+                decided   wrong    false-proof rate
+exact_only         22       0            0.0%     safe, and nearly useless
+ATTEST             84       4            4.8%
+greedy            462     439           95.0%     useful, and catastrophic
+```
+
+`exact_only` beats ATTEST on precision and we say so. The claim is not *most
+accurate* — it is four times the coverage of the safe baseline at a twentieth of
+the error rate of the useful one, **and it says which of its answers it could
+not establish.**
+
+### The insight
+
+AI should investigate. Deterministic systems should prove. Policy should control
+action.
+
+### One case
+
+```
+₹1,00,036.83     a bank credit
+73 candidates    after the reductions, two of which are conventions
+4 explanations   satisfy the amount exactly
+
+₹97,759.84       settled whichever one is right
+₹7,292.03        turns on which one is, across 12 orders
+```
+
+The model proposed an anchor — three orders captured together on the densest day
+in the window. The solver found it in **all four** explanations, so it separates
+nothing. The engine abstained.
+
+```
+AMBIGUOUS  →  UNPRICED  →  REVIEW  →  LEDGER UNCHANGED
+```
+
+An AI system could have picked one of those four. ATTEST refuses to.
+
+---
+
 ATTEST treats settlement reconciliation as a **constrained proof problem**, not
 as fuzzy matching. A bank credit is the net of some subset of the orders a
 merchant captured — after per-transaction fees, GST on those fees, refunds, and
 the T+2 settlement calendar. Finding that subset is subset-sum: NP-complete.
-Approximate matchers reach roughly 70% and cannot tell you that the remainder is
-a different problem class rather than a harder instance of the same one.
-
-So a model may propose an explanation, and only a deterministic solver may
-establish it. An explanation that several disjoint order sets satisfy equally is
-**ambiguous**, and an ambiguous proof is never allowed to become a financial
-action: policy will not price what has not been proved, and the ledger does not
-move on an explanation nobody can defend. Where the records cannot decide,
-ATTEST abstains and says what evidence would resolve it.
 
 > A merchant's bank statement shows one credit: **₹47,382.19**. It is the net of
 > some subset of the 400 orders they captured that week — minus per-transaction
@@ -371,6 +412,7 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md)** — capability matrix with an evidence column, and the frozen boundaries
 - **[docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md)** — IMPLEMENTED / SIMULATED / NOT VERIFIED, capability by capability
 - **[docs/GOLDEN-DATASET.md](docs/GOLDEN-DATASET.md)** — the canonical dataset and the eleven states it produces
+- **[docs/WINNING-SUBMISSION.md](docs/WINNING-SUBMISSION.md)** — fifteen questions a reviewer would ask, answered from artifacts
 - **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 34 attacks from source to ledger, and the defect they found
 - **[docs/REPRODUCE.md](docs/REPRODUCE.md)** — clone to running, with the three things that did not work
 - **[docs/MONEY-MODEL.md](docs/MONEY-MODEL.md)** — integer paise, tolerance, rounding direction

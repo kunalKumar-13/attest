@@ -144,6 +144,7 @@ async function navigate(next = {}, opts = {}) {
   if (rec.error) { paintError(rec.error); return; }
 
   SHELL.record = rec;
+  paintSourceMode(rec.source);
   SHELL.lenses = rec.lenses || [];
   const keys = SHELL.lenses.map(l => l.key);
 
@@ -422,6 +423,22 @@ function paintOnward(host) {
     <span class=c-onward-l>${window.C.esc(meta.label)}</span>
     <span class=c-onward-x aria-hidden=true>→</span>`;
   host.appendChild(n);
+}
+
+/* Where the records on screen came from, on every screen.
+ *
+ * The mode was stated only on the Trust lens, so a reader who never opened it
+ * saw a portfolio of money with nothing saying where it came from. ATTEST was
+ * not claiming Razorpay — the word did not appear anywhere — but silence is not
+ * a label. Read from the adapter via the subject record; an environment with no
+ * credentials cannot paint anything but GENERATED. */
+function paintSourceMode(src) {
+  const n = el('source-mode');
+  if (!n) return;
+  if (!src) { n.textContent = ''; return; }
+  n.textContent = src.label;
+  n.title = src.detail || '';
+  n.classList.toggle('live', !!src.live);
 }
 
 /* Only this runs when context changes. The workspace above it is untouched. */
