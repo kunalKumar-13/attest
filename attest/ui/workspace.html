@@ -237,8 +237,10 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
    amount. It was saying it at 9px. Rather than repeat the sentence in a second
    block — the duplication this phase found in Policy — the row that already
    states it is given the weight of a statement. */
+/* Every ₹ role declares tabular figures so digits hold their column. This one
+   did not, and it carries the answer to where the money stopped. */
 .c-state .c-flow-h{font-size:var(--type-title);letter-spacing:-.02em;
-  font-weight:500}
+  font-weight:500;font-variant-numeric:tabular-nums}
 .c-state .c-flow-r.stopped .c-flow-n{color:var(--ink);font-weight:500}
 .c-state .c-flow-d{display:none}
 /* ------------------------------------------------- §22.10 THE PROOF CHAIN
@@ -1074,9 +1076,10 @@ margin:0 0 var(--s-6)}
 .i-abs-n{display:flex;gap:var(--s-5);font-size:var(--t-label);color:var(--dim3);
 margin-bottom:7px}
 .i-abs-n b{font-family:var(--m);font-size:var(--t-body);color:var(--ink)}
-.i-abs-v{font-size:var(--t-h3);font-weight:600;letter-spacing:-.02em;
-margin-bottom:7px}
-.i-abs-d{font-size:var(--t-label);color:var(--dim2);line-height:1.65;max-width:82ch}
+/* .i-abs-v held a second 'Engine abstained' beneath the one that leads the
+   room. A rule with no element is a guess about the future, so it goes too. */
+.i-abs-d{font-size:var(--t-label);color:var(--dim2);line-height:1.65;max-width:82ch;
+padding-top:var(--sp-1)}
 
 .i-res{display:flex;flex-direction:column;gap:1px}
 .i-res-r{display:grid;grid-template-columns:106px 1fr 1fr;gap:var(--s-4);

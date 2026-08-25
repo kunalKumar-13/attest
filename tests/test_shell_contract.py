@@ -564,10 +564,16 @@ def test_the_solver_result_is_a_named_state_not_a_confidence(page):
 
 
 def test_abstention_is_shown_as_restraint_and_changes_no_verdict(page):
-    """§8, §9, §25. The investigation ran; the verdict did not move."""
+    """§8, §9, §25. The investigation ran; the verdict did not move.
+
+    Phase 23: the word `abstained` left `.i-abs`, which was painting the room's
+    own conclusion a second time at the same size. It is still stated — it
+    leads the room — so this reads the room for the abstention and `.i-abs`
+    for what that block actually owns: that nothing moved as a result."""
     _ev(page, "#/settlement/setl_000089/investigate")
+    room = page.inner_text("#w-main")
+    assert "abstained" in room.lower()
     abs_ = page.inner_text(".i-abs")
-    assert "abstained" in abs_.lower()
     assert "no financial action" in abs_.lower()
     assert "AMBIGUOUS" in abs_
     # the subject header still carries the same verdict
@@ -1993,3 +1999,63 @@ def test_a_spine_stage_shows_it_is_a_way_in_before_you_touch_it(page):
     assert lit, "journal lights no stage"
     assert lit[0]["colour"] != unlit[0]["colour"], \
         "an open-able stage and the stage this room is about look identical"
+
+
+def test_no_room_states_its_own_conclusion_twice_at_emphasis(page):
+    """Phase 23 §8. Generalised from the Policy fix, which was scoped to one
+    room and left the same defect standing next door: Investigate painted
+    'Engine abstained' at 20px as its conclusion and again at 20px in the
+    summary below it.
+
+    Repeated FIGURES are not covered and must not be — ₹0.00 three times is
+    the balanced-by-absence point, and a credit that equals the amount
+    reconciled is two facts that happen to agree. This is about the room
+    saying its own headline a second time."""
+    bad = []
+    for subject in ("portfolio", "settlement/setl_000089",
+                    "settlement/setl_000020", "settlement/setl_000109"):
+        for lens in ("control", "evidence", "investigate", "policy",
+                     "journal", "activity", "trust"):
+            _ev(page, f"#/{subject}/{lens}")
+            concl = page.query_selector(".c-concl-f")
+            if not concl:
+                continue
+            head = concl.inner_text().strip()
+            if not head or head.startswith("₹"):
+                continue
+            n = page.evaluate("""(h) => {
+                let n = 0;
+                const vis = e => { const s = getComputedStyle(e);
+                  return s.display !== 'none' && s.visibility !== 'hidden'; };
+                const walk = el => { for (const q of el.childNodes) {
+                  if (q.nodeType === 3
+                      && q.textContent.trim().toLowerCase() === h.toLowerCase()) {
+                    const px = parseFloat(
+                      getComputedStyle(q.parentElement).fontSize);
+                    if (px >= 15) n++;
+                  } else if (q.nodeType === 1 && vis(q)) walk(q); } };
+                walk(document.querySelector('#w-main')); return n; }""", head)
+            if n > 1:
+                bad.append(f"{subject}/{lens}: '{head}' painted {n}x at emphasis")
+    assert not bad, "\n  ".join([""] + bad)
+
+
+def test_every_money_role_declares_tabular_figures(page):
+    """Phase 23 §6, §7. Nine financial categories, one of them declaring
+    something different.
+
+    Every ₹ role — entered, continues, agreed, disputed, value blocked, the run
+    ladder — declares tabular-nums so digits hold their column. HELD did not,
+    and HELD carries ₹48,03,127.81: the answer to where the money stopped."""
+    _ev(page, "#/portfolio/control")
+    rows = page.evaluate("""() =>
+      [...document.querySelectorAll('.c-case-amt .v, .c-flow-v, .c-flow-h,'
+        + ' .c-fv, .c-blk-v')]
+        .filter(e => e.offsetParent && e.innerText.includes('\\u20b9'))
+        .map(e => ({cls: e.className || '(amount)',
+                    t: e.innerText.trim().slice(0, 16),
+                    tab: getComputedStyle(e).fontVariantNumeric}))""")
+    assert rows, "no money in the rail"
+    off = [r for r in rows if "tabular-nums" not in r["tab"]]
+    assert not off, "money roles not declaring tabular figures: " + ", ".join(
+        f"{r['cls']} ({r['t']})" for r in off)

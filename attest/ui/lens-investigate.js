@@ -55,7 +55,6 @@
         <span><b>${d.tested}</b> ${d.tested === 1 ? 'hypothesis' : 'hypotheses'} tested</span>
         <span><b>${d.discriminative}</b> discriminative</span>
       </div>
-      <div class=i-abs-v>Engine abstained</div>
       <div class=i-abs-d>The verdict stands at
         <b class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</b>
         and no financial action was taken. Nothing the model proposed could
