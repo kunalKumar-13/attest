@@ -2319,3 +2319,26 @@ def test_a_model_conclusion_cannot_make_a_settlement_postable(page):
     _ev(page, "#/settlement/setl_000089/journal")
     j = page.inner_text("#w-main").lower()
     assert "no entry is written" in j
+
+
+def test_the_execution_path_is_named_beside_the_source(page):
+    """Phase 28 P0. Two installs of the same commit produce different figures:
+    the optional Rust kernel widens the solver envelope from ₹30,000 to
+    ₹2,00,000, so 37 settlements that the portable reference reports as
+    INSUFFICIENT are decided when it is present.
+
+    Both answers are honest. What was missing was the product saying which one
+    the reader is looking at, so a figure that differs from a recording had no
+    explanation on screen. It is read from the module, never asserted."""
+    _ev(page, "#/portfolio/control")
+    el = page.query_selector("#exec-path")
+    assert el and el.is_visible(), "the execution path is not named"
+    shown = el.inner_text().strip().upper()
+    truth = page.evaluate("""async () => {
+      const r = await fetch(`/api/subject?run=${SHELL.run}`
+        + `&type=portfolio&id=portfolio`);
+      return (await r.json()).source; }""")
+    assert truth and "engine" in truth, "the subject record carries no engine block"
+    assert truth["engine"]["label"].upper() == shown, \
+        f"screen says {shown!r}, the module says {truth['engine']['label']!r}"
+    assert shown in ("PORTABLE", "NATIVE KERNEL"), shown

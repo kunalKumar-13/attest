@@ -3,6 +3,13 @@
 For a submission platform with a hard limit. Same product, same clicks, no new
 screens. Four beats.
 
+
+> **Canonical case: `setl_000225`.** It sits below the portable solver envelope,
+> so it is AMBIGUOUS with four surviving explanations whether or not the
+> optional Rust kernel is installed. `setl_000089` was canonical until Phase 28
+> measured that it comes back INSUFFICIENT on a default install — see
+> `docs/JUDGE-STRATEGY-28.md`.
+
 ---
 
 ## 0:00 — cold open · 0 clicks
@@ -22,8 +29,8 @@ are hairlines.
 Click `000089` in *Needs a person*, then **Open ↗**.
 
 ```
-₹7,292.03   DISPUTED
-₹97,759.84  AGREED
+₹5,603.30   DISPUTED
+₹25,330.46  AGREED
 ```
 
 > *"Ninety-seven thousand is settled whichever explanation is right. Seven

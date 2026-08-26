@@ -23,7 +23,7 @@ The single case is evidence *for* a claim already made, not the claim itself.
 | **00:35** | the benchmark table *(README or a held slide)* | *"Three ways to do this over 500 settlements. Exact-only: 22 decided, zero wrong — safe and nearly useless. Greedy: 462 decided, 439 wrong. ATTEST: 84 decided, 4 wrong."* — **measured accuracy** |
 | **00:55** | the blocker register | *"Every one of the 250 settlements is on this list with a named reason. Not 197 problems — one missing field, 197 times."* — **honest exception list** |
 | **01:20** | one case, 2 clicks | *"Now one of them, so you can see why."* — the anecdote, **after** the population |
-| **01:40** | Evidence: 2,368 → 73 → 4 | *"Two of the three cuts that got us here are conventions, not facts. A proof can be perfect inside a space that already excluded the truth."* |
+| **01:40** | Evidence: 2,368 → 164 → 4 | *"Two of the three cuts that got us here are conventions, not facts. A proof can be perfect inside a space that already excluded the truth."* |
 | **02:05** | **the AI boundary** | *"An AI system can suggest a plausible explanation. That is not enough to move money."* |
 | **02:20** | MODEL → SOLVER → ENGINE | *"ATTEST asks a deterministic question: does the evidence distinguish one explanation from the others? Here it doesn't. So the model's answer is discarded, the verdict stays ambiguous, and no financial action occurs."* |
 | **02:45** | the measurement, in place | *"We measured letting it decide: 27 correct of 63. Below a coin flip. That measurement is why the model has no authority — it investigates, it doesn't decide."* |

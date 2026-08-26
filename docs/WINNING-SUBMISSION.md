@@ -79,9 +79,9 @@ Integer paise throughout. Zero `float()` and zero `round()` on any amount path;
 ## 6 · What happens when evidence is ambiguous?
 
 ```
-₹1,00,036.83     4 explanations satisfy the amount exactly
-₹97,759.84       agreed by every one of them
-₹7,292.03        turns on which one is right, across 12 orders
+₹27,208.12     4 explanations satisfy the amount exactly
+₹25,330.46       agreed by every one of them
+₹5,603.30        turns on which one is right, across 11 orders
 ```
 
 The engine reports `AMBIGUOUS`, names what is settled regardless, and states the

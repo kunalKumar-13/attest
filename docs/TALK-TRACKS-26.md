@@ -62,7 +62,7 @@ The test for all three: can the judge repeat this afterwards?
 **1:00 · one case** — *[2 clicks]*
 
 > A hundred thousand rupees. Four explanations satisfy the amount exactly.
-> ₹97,759.84 settled either way, ₹7,292.03 in dispute across 12 orders.
+> ₹25,330.46 settled either way, ₹5,603.30 in dispute across 11 orders.
 
 **1:20 · the search space** — *[Evidence]*
 

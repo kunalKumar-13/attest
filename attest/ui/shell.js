@@ -439,6 +439,12 @@ function paintSourceMode(src) {
   n.textContent = src.label;
   n.title = src.detail || '';
   n.classList.toggle('live', !!src.live);
+
+  const e = el('exec-path');
+  if (!e) return;
+  const eng = src.engine;
+  e.textContent = eng ? eng.label : '';
+  e.title = eng ? eng.detail : '';
 }
 
 /* Only this runs when context changes. The workspace above it is untouched. */

@@ -39,12 +39,12 @@ case list.** That is correct — the banner exists only when a case was entered
 *through a blocker* — but the script had assumed it. It now says *press Back
 three times*, with a note explaining why no button is drawn.
 
-**`setl_000004` must not be substituted for `setl_000089`.** It is the first
+**`setl_000004` must not be substituted for `setl_000225`.** It is the first
 example under blocker 1, and it reports **₹15,750.00 disputed against a
 ₹13,907.11 credit**. That is arithmetically correct — orders differing *between*
 explanations overlap, so the disputed figure is a union, not a share — but on
-stage it reads as an error. `setl_000089` divides cleanly: ₹97,759.84 agreed
-plus ₹7,292.03 disputed against ₹1,00,036.83.
+stage it reads as an error. `setl_000225` divides cleanly: ₹25,330.46 agreed
+plus ₹5,603.30 disputed against ₹27,208.12.
 
 ## 3 · Talk track
 
@@ -69,8 +69,8 @@ scale 2, taken from the running product.
 | | screen | route | the idea |
 |---|---|---|---|
 | 1 | Landing | `/` | money stopped at a named stage; work ranked by what it unlocks |
-| 2 | Evidence | `#/settlement/setl_000089/evidence` | `2,368 → 73 → 4`, and which cuts were only conventions |
-| 3 | Investigate | `#/settlement/setl_000089/investigate` | model proposes, solver rejects, engine abstains |
+| 2 | Evidence | `#/settlement/setl_000225/evidence` | `2,368 → 73 → 4`, and which cuts were only conventions |
+| 3 | Investigate | `#/settlement/setl_000225/investigate` | model proposes, solver rejects, engine abstains |
 | 4 | Policy | `#/settlement/setl_000020/policy` | an inequality, not a confidence score |
 | 5 | Trust | `#/portfolio/trust` | what the system refuses to claim |
 

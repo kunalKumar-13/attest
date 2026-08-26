@@ -47,7 +47,7 @@ action.
 
 ```
 ₹1,00,036.83     a bank credit
-73 candidates    after the reductions, two of which are conventions
+164 candidates    after the reductions, two of which are conventions
 4 explanations   satisfy the amount exactly
 
 ₹97,759.84       settled whichever one is right

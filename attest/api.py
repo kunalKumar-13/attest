@@ -1125,12 +1125,32 @@ def source_mode(r: Run | None) -> dict[str, Any]:
     active = src.get("active", {})
     provider = str(active.get("provider") or "synthetic")
     live = bool(active.get("live"))
+
+    # Which solver envelope produced these figures. The optional Rust extension
+    # widens MAX_TARGET_PAISE from ₹30,000 to ₹2,00,000, so 37 settlements of
+    # this portfolio are decided with it and reported INSUFFICIENT without it.
+    # Both are honest; a reader comparing a screen against a recording needs to
+    # know which one they have. Read from the module, never asserted.
+    from attest.subsetsum import MAX_TARGET_PAISE, _native_reachable
+    native = _native_reachable is not None
     return {
         "provider": provider,
         "live": live,
         "label": "Razorpay" if live else "Generated",
         "detail": ("a live Razorpay account" if live else
                    "a frozen generator — no live account has been contacted"),
+        "engine": {
+            "native": native,
+            "label": "Native kernel" if native else "Portable",
+            "envelope_paise": MAX_TARGET_PAISE,
+            "detail": (
+                "the optional Rust kernel is installed, so the solver envelope "
+                "reaches ₹2,00,000"
+                if native else
+                "the portable reference — the solver envelope reaches ₹30,000, "
+                "and larger settlements are reported INSUFFICIENT rather than "
+                "guessed at"),
+        },
     }
 
 

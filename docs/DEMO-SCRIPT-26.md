@@ -8,7 +8,7 @@ Two settlements carry the story:
 
 | | | why it is in the demo |
 |---|---|---|
-| `setl_000089` | ₹1,00,036.83 · **AMBIGUOUS** | four explanations survive — the restraint case |
+| `setl_000225` | ₹27,208.12 · **AMBIGUOUS** | four explanations survive — the restraint case |
 | `setl_000109` | ₹6,316.03 · **CONTRADICTED** | nothing reaches the credit — the other failure mode |
 
 Neither is reached by typing an ID.
@@ -17,8 +17,15 @@ Neither is reached by typing an ID.
 example under blocker 1, reports ₹15,750.00 disputed against a ₹13,907.11
 credit. That is arithmetically right — orders that differ *between* explanations
 overlap, so the disputed figure is a union and not a share of the credit — but
-it reads as an error on stage and costs thirty seconds to explain. `setl_000089`
-divides cleanly: ₹97,759.84 agreed plus ₹7,292.03 disputed against ₹1,00,036.83.
+it reads as an error on stage and costs thirty seconds to explain. `setl_000225`
+divides cleanly: ₹25,330.46 agreed plus ₹5,603.30 disputed against ₹27,208.12.
+
+
+> **Canonical case: `setl_000225`.** It sits below the portable solver envelope,
+> so it is AMBIGUOUS with four surviving explanations whether or not the
+> optional Rust kernel is installed. `setl_000089` was canonical until Phase 28
+> measured that it comes back INSUFFICIENT on a default install — see
+> `docs/JUDGE-STRATEGY-28.md`.
 
 ---
 
@@ -66,8 +73,8 @@ Click `000089` in *Needs a person*, then **Open ↗**.
 > matter which explanation is right. Seven thousand turns on which one is."*
 
 ```
-₹7,292.03   DISPUTED
-₹97,759.84  AGREED
+₹5,603.30   DISPUTED
+₹25,330.46  AGREED
 ```
 
 The rail keeps the case from here on: amount, verdict, where it stopped, what
@@ -79,10 +86,10 @@ to do next — through every instrument that follows.
 
 ```
 2,368  ████████████████████  orders in the book
-−2,295 settlement calendar (rung 0)   CONVENTION
+−2,204 settlement calendar (rung 0)   CONVENTION
     −0 already claimed                CONVENTION
     −0 amount ceiling                 DETERMINISTIC
-    73 ▍                          could belong to this credit
+   164 ▍                          could belong to this credit
 ─────────────────────────────────────────────────────
      4                            surviving explanations,
                                   and arithmetic cannot choose
@@ -145,7 +152,7 @@ automating is cheaper          ●     │      checking is cheaper
 ## 2:20 — Journal · 1 click
 
 ```
-No entry is written        ₹1,00,036.83 not posted
+No entry is written        ₹27,208.12 not posted
 
 DEBIT   ₹0.00
 CREDIT  ₹0.00
