@@ -2807,3 +2807,89 @@ def test_the_investigation_scrolls_like_a_page(inv):
 
 def test_the_investigation_raises_no_console_errors(inv):
     assert not inv.errors, "console/page errors: " + "; ".join(inv.errors[:5])
+
+
+
+def test_the_investigations_furniture_stays_put(inv):
+    """The nav and the provenance strip are fixed, and the seven instruments
+    plus the lifecycle are in them.
+
+    Deleting the decorative background traces took the nav's and the strip's
+    entire CSS with it — the cut ran from the traces' first rule to the next
+    rule after them, and both blocks sat in between. Horizontal overflow stayed
+    zero and the console stayed clean; the navigation had simply stopped being
+    fixed and scrolled away with the page. Nothing measured that, so this
+    does."""
+    inv.evaluate("() => window.scrollTo(0, 4000)")
+    inv.wait_for_timeout(400)
+    m = inv.evaluate("""() => {
+      const g = s => { const e = document.querySelector(s); if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return {pos: getComputedStyle(e).position, top: Math.round(r.top),
+                h: Math.round(r.height)}; };
+      return {nav: g('#nav'), strip: g('#strip'),
+              instruments: document.querySelectorAll('#index a').length,
+              lifecycle: document.querySelectorAll('#loop span').length,
+              lit: document.querySelectorAll('#loop span.on').length}; }""")
+    inv.evaluate("() => window.scrollTo(0, 0)")
+    assert m["nav"] and m["nav"]["pos"] == "fixed", f"the nav is {m['nav']}"
+    assert m["nav"]["top"] == 0, f"the nav scrolled to {m['nav']['top']}"
+    assert m["strip"] and m["strip"]["pos"] == "fixed", f"the strip is {m['strip']}"
+    assert m["instruments"] == 7, f"{m['instruments']} instruments in the index"
+    assert m["lifecycle"] == 6, f"{m['lifecycle']} lifecycle stations"
+    assert m["lit"] == 1, \
+        f"{m['lit']} stations lit — exactly one stage is current at a time"
+
+
+def test_every_shape_on_the_investigation_names_a_job(inv):
+    """Phase 32 §1. A shape that represents nothing is decoration.
+
+    Each painted, textless element must be one of: a quantity, a state, a
+    transition, evidence, a boundary, an actor, navigation, or the specimen's
+    physical structure. The class name is the claim, and this pins the roster —
+    so adding a new decorative mark fails until it is either given a job or
+    removed."""
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(300)
+    shapes = set(inv.evaluate("""() => {
+      const vis = e => { const s = getComputedStyle(e);
+        return s.display !== 'none' && s.visibility !== 'hidden'
+            && parseFloat(s.opacity) > 0 && e.getBoundingClientRect().height > 0; };
+      // The whole document, not just `main`. Scoping the scan to the content
+      // column let a decorative mark added anywhere else slip past — verified
+      // by adding one and watching this pass.
+      return [...document.querySelectorAll('body *')].filter(e => {
+        if (!vis(e) || e.textContent.trim()) return false;
+        const s = getComputedStyle(e);
+        return s.backgroundColor !== 'rgba(0, 0, 0, 0)'
+            || (s.backgroundImage && s.backgroundImage !== 'none')
+            || ['Top','Right','Bottom','Left'].some(k =>
+                 parseFloat(s['border' + k + 'Width']) > 0
+                 && s['border' + k + 'Style'] !== 'none')
+            || e.tagName === 'CANVAS';
+      }).map(e => {
+        // identity, in the order a reader would name it: class, then id.
+        // Falling straight to the tag name made three legitimate shapes —
+        // the field, the lifecycle dots, the disposition bars — unnameable,
+        // which is a hole in the roster rather than a finding.
+        const c = (e.className || '').toString().trim().split(' ')[0];
+        return c || e.id || e.tagName; }); }"""))
+    JOBS = {
+        "fall-m", "bench-t", "spec-disp-r",             # quantity
+        "canvas", "CANVAS",                              # population / evidence
+        "bound-m", "e", "m", "s", "g",                   # actors
+        "thr-line", "thr-mark", "ad-b",                  # boundaries
+        "spec-c", "spec-punch",                          # specimen structure
+        "rule", "hr",                                    # transitions
+        "field",                                         # the measured ground
+        "st", "q",                                       # lifecycle state, quantity
+        "nav", "strip", "index", "loop", "main", "keys", # navigation furniture
+        "spec", "spec-h", "spec-pipe", "spec-disp", "sheet", "thr-s",
+        "bound", "act", "safe", "adapter", "cf", "score", "bench",
+        "row", "hero-row", "rise", "stage", "warm", "end", "BODY",
+    }
+    stray = sorted(shapes - JOBS)
+    assert not stray, (
+        "shapes that name no job: " + ", ".join(stray)
+        + " — give it one of quantity/state/transition/evidence/boundary/"
+          "actor/navigation/specimen-structure, or delete it")

@@ -92,15 +92,27 @@ a{color:inherit}
     linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
   background-size:44px 44px}
-#traces{position:fixed;inset:0;z-index:0;pointer-events:none}
-#traces svg{width:100%;height:100%;display:block}
-#traces circle,#traces line{fill:none;stroke:rgba(255,255,255,.055);
-  stroke-width:1;vector-effect:non-scaling-stroke}
+/* The traces that were here — two circles and two diagonals — represented
+   nothing. Every other shape on this page names a job: a bar is a quantity, a
+   dot is a settlement, a diamond proposes, a ring tests, a disc decides, a
+   dashed rule is a capability limit. Those four were the only marks that could
+   not answer "what does this represent", so they are gone rather than
+   restyled. The graphite field stays: it is the ground the objects are
+   measured on. */
 
-/* ── the standing nav ────────────────────────────────────────────────── */
+/* ── the standing nav ────────────────────────────────────────────────────
+   Left, fixed, quiet. Grouped like a contents page, not a menu bar. It never
+   competes: 9px group labels, 13px links, and the held one carries the accent.
+
+   (This block and the strip below were deleted by accident when the decorative
+   traces were removed — the cut ran from the traces' first rule to `main{`,
+   and both of these sat between them. Overflow and console checks both stayed
+   green; only the screenshot showed the navigation had stopped being fixed.) */
 #nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav);z-index:6;
   padding:24px 0 22px 24px;display:flex;flex-direction:column;
-  background:var(--canvas);border-right:1px solid var(--rule)}
+  background:var(--canvas);border-right:1px solid var(--rule);
+  overflow-y:auto;scrollbar-width:none}
+#nav::-webkit-scrollbar{display:none}
 #nav .wm{font-family:var(--m);font-weight:700;letter-spacing:.26em;
   font-size:13px;margin-bottom:30px}
 #nav .grp{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.2em;
@@ -115,14 +127,15 @@ a{color:inherit}
 #nav a.on .k{color:var(--coral)}
 #nav .sys{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
   text-transform:uppercase;color:var(--dim2);line-height:2}
-#nav .sp{flex:1;min-height:20px}
+#nav .sp{flex:1;min-height:16px}
 #nav .keys{display:flex;border:1px solid var(--rule2);margin-right:24px;
-  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.12em}
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.12em;flex:none}
 #nav .keys b{flex:1;padding:10px 11px;font-weight:400;color:var(--dim)}
 #nav .keys i{font-style:normal;padding:10px 12px;color:var(--dim2);
   border-left:1px solid var(--rule2)}
 
-/* ── the strip ───────────────────────────────────────────────────────── */
+/* ── the strip ───────────────────────────────────────────────────────────
+   What produced the page, in the machine's own voice, pinned above it. */
 #strip{position:fixed;top:0;left:var(--nav);right:0;z-index:7;
   background:var(--sur);border-bottom:1px solid var(--rule);
   font-family:var(--m);font-size:var(--t-micro);letter-spacing:.06em;
@@ -295,12 +308,12 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
    which, on an empty element, is zero. scaleX() of zero is zero at every
    value of --w, so all four bars measured 0px while the track behind them
    looked like a full grey bar. */
-.bench-t u{position:absolute;top:0;bottom:0;left:0;width:100%;
+.bench-t u.q{position:absolute;top:0;bottom:0;left:0;width:100%;
   text-decoration:none;
   background:var(--coral);transform-origin:left;transform:scaleX(var(--w,0));
   transition:transform 1s cubic-bezier(.16,1,.3,1)}
-.rise:not(.in) .bench-t u{transform:scaleX(0)}
-.bench-r.me .bench-t u{background:var(--proven)}
+.rise:not(.in) .bench-t u.q{transform:scaleX(0)}
+.bench-r.me .bench-t u.q{background:var(--proven)}
 .bench-r b{font-weight:400;font-variant-numeric:tabular-nums;text-align:right;
   letter-spacing:-.02em}
 .bench-r em{font-style:normal;color:var(--dim2);font-size:var(--t-nano);
@@ -594,16 +607,56 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .ad-r{grid-template-columns:minmax(0,1fr);gap:4px}
   .ad-b{width:100%}
 }
+
+/* ── the run's disposition, on the record ───────────────────────────────
+   Three counts and three bars, on the object itself, so the record says it is
+   a BATCH before a reader has scrolled anywhere. The bar lengths are the
+   shares of the run — 197 dominates because 197 is the operational problem. */
+.spec-disp{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+.spec-disp .lbl{display:block;margin-bottom:9px;font-size:var(--t-nano)}
+.spec-disp-r{display:grid;grid-template-columns:38px 84px minmax(0,1fr);
+  gap:10px;align-items:center;padding:3px 0}
+.spec-disp-r b{font-family:var(--m);font-weight:400;font-size:var(--t-small);
+  font-variant-numeric:tabular-nums;text-align:right}
+.spec-disp-r b.p{color:var(--proven)} .spec-disp-r b.a{color:var(--coral)}
+.spec-disp-r b.c{color:var(--ink)}
+.spec-disp-r i{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim2)}
+.spec-disp-r u{display:block;height:3px;text-decoration:none;
+  background:rgba(255,255,255,.10);position:relative}
+.spec-disp-r u::after{content:"";position:absolute;top:0;bottom:0;left:0;
+  width:calc(var(--w) * 100%);background:currentColor}
+.spec-disp-r:nth-child(2) u{color:var(--proven)}
+.spec-disp-r:nth-child(3) u{color:var(--coral)}
+.spec-disp-r:nth-child(4) u{color:var(--ink)}
+
+/* ── the benchmark's claim ──────────────────────────────────────────────
+   The measurement is a table; this is the argument it supports, and without
+   it the table reads as a leaderboard ATTEST does not win. */
+.bench-note{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
+  gap:clamp(16px,2.6vw,44px);margin-top:clamp(18px,2.6vh,30px);
+  padding-top:clamp(16px,2.4vh,26px);border-top:1px solid var(--rule)}
+.bench-claim{font-size:clamp(17px,1.9vw,26px);letter-spacing:-.035em;
+  line-height:1.1;font-weight:500;max-width:14ch;margin:0}
+@media (max-width:1000px){.bench-note{grid-template-columns:minmax(0,1fr);gap:12px}}
+
+/* ── the lifecycle ──────────────────────────────────────────────────────
+   Six stations, quiet, in the nav. The station the reader is standing in is
+   lit; the rest are ground. This is the mental model the seven instruments
+   share — without it a reader meets seven questions and no reason they belong
+   to one another. */
+#loop{display:flex;flex-direction:column;gap:0;margin-right:24px}
+#loop span{display:flex;align-items:center;gap:9px;font-family:var(--m);
+  font-size:var(--t-nano);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim3);padding:3px 0;transition:color .2s}
+#loop span i.st{width:5px;height:5px;background:currentColor;flex:none;
+  transition:background .2s,transform .2s}
+#loop span.on{color:var(--ink)}
+#loop span.on i.st{background:var(--coral);transform:scale(1.5)}
+@media (max-width:1000px){#loop{display:none}}
 </style>
 <div id=field aria-hidden=true></div>
-<div id=traces aria-hidden=true>
-  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
-    <circle cx="300" cy="150" r="250"/>
-    <circle cx="1250" cy="790" r="440"/>
-    <line x1="-120" y1="640" x2="1620" y2="220"/>
-    <line x1="-120" y1="220" x2="1620" y2="900"/>
-  </svg>
-</div>
+
 
 <nav id=nav>
   <span class=wm>ATTEST</span>
@@ -640,6 +693,19 @@ const SECTIONS = [
 /* The seven instruments name the nav, because they are what the product is.
    The sections below map onto them; a reader who clicks EVIDENCE lands on the
    part of the story that instrument answers. */
+/* The product is one loop, and the seven instruments are seven points on it.
+   The engine may stop early — that is the product, not a failure — so ABSTAIN
+   is a station rather than an error branch. */
+const LOOP = [
+  ['ingest','ingest'], ['reconcile','reconcile'], ['prove','prove'],
+  ['decide','decide'], ['act','act'], ['audit','audit'],
+];
+/* which stage of the loop each section is standing in */
+const STAGE = {
+  open:'ingest', money:'reconcile', population:'prove', exception:'prove',
+  proof:'prove', ai:'prove', decision:'decide', books:'act',
+  activity:'audit', trust:'audit', boundary:'audit',
+};
 const NAV = [
   ['open','01','CONTROL'], ['money','02','EVIDENCE'], ['proof','03','INVESTIGATE'],
   ['decision','04','POLICY'], ['books','05','JOURNAL'], ['activity','06','ACTIVITY'],
@@ -776,6 +842,15 @@ async function build(){
         <div class=spec-pipe-r><i class=g></i><b>Engine</b>
           <em>decides — the model's output is diagnostic only</em></div>
       </div>
+      <div class=spec-disp>
+        <span class=lbl>disposition</span>
+        <div class=spec-disp-r><b class=p>${c.PROVEN}</b><i>proven</i>
+          <u class=q style="--w:${(c.PROVEN/run.settlements).toFixed(4)}"></u></div>
+        <div class=spec-disp-r><b class=a>${c.AMBIGUOUS}</b><i>ambiguous</i>
+          <u class=q style="--w:${(c.AMBIGUOUS/run.settlements).toFixed(4)}"></u></div>
+        <div class=spec-disp-r><b class=c>${c.CONTRADICTED}</b><i>contradicted</i>
+          <u class=q style="--w:${(c.CONTRADICTED/run.settlements).toFixed(4)}"></u></div>
+      </div>
       <div class=spec-f><i>following</i><b>${esc(CASE)} · ${
         esc(det.verdict||'')}</b></div>
       <div class=spec-stamp>no financial action on ${esc(String(
@@ -798,17 +873,22 @@ async function build(){
       <span>rate</span><span>decided</span></div>
     ${base.methods.map(m=>`<div class="bench-r${m.key==='attest'?' me':''}">
       <i>${esc(m.label)}</i>
-      <span class=bench-t><u style="--w:${
+      <span class=bench-t><u class=q style="--w:${
         (Math.min(m.false_proof/worst,1)||0).toFixed(3)}"></u></span>
       <b>${(m.false_proof*100).toFixed(1)}%</b>
       <em>${m.decided} / ${m.settlements}</em>
     </div>`).join('')}
-    <p class=say style="margin-top:18px;max-width:64ch">Coverage and false
-      proof move together, so both are shown. Exact-only never lies and decides
-      almost nothing; greedy decides nearly everything and is wrong about
-      ${(base.methods.find(m=>m.key==='greedy')||{}).wrong} times out of
-      ${(base.methods.find(m=>m.key==='greedy')||{}).decided}. Read from
-      <span class=mono>benchmark/baselines.json</span>.</p>`, 3) : ''}
+    <div class=bench-note>
+      <p class=bench-claim>More coverage is not more truth.</p>
+      <p class=say style="max-width:60ch">ATTEST does not claim the lowest error
+        rate — <b>exact-only does, at 0.0%</b>, by deciding 22 settlements out
+        of 500. Greedy decides nearly everything and is wrong
+        ${(base.methods.find(m=>m.key==='greedy')||{}).wrong} times out of
+        ${(base.methods.find(m=>m.key==='greedy')||{}).decided}. What ATTEST
+        claims is a usable balance with its uncertainty exposed rather than
+        absorbed. Read from
+        <span class=mono>benchmark/baselines.json</span>.</p>
+    </div>`, 3) : ''}
 </section>
 
 <section id=money>
@@ -1127,6 +1207,9 @@ function wire(data){
   nav.innerHTML=`<div class=grp>finance</div>`
     + NAV.map(([id,k,label])=>`<a href="#${id}" data-i="${id}"><span class=k>${
         k}</span>${esc(label)}</a>`).join('')
+    + `<div class=grp>lifecycle</div>
+       <div class=loop id=loop>${LOOP.map(([k,l])=>
+         `<span data-stage="${k}"><i class=st></i>${esc(l)}</span>`).join('')}</div>`
     + `<div class=grp>system</div><div class=sys id=sysline></div>`;
   const sysline = document.getElementById('sysline');
   if (sysline) sysline.innerHTML = (data.system || []).map(esc).join('<br>');
@@ -1139,8 +1222,12 @@ function wire(data){
     for(const [k,v] of ratio) if(v>best){best=v;id=k;}
     if(!id) return;
     links.forEach((a,k)=>a.classList.toggle('on',k===id));
+    const st = STAGE[id];
+    document.querySelectorAll('#loop span').forEach(n=>
+      n.classList.toggle('on', n.dataset.stage === st));
   },{rootMargin:'-40% 0px -40% 0px',threshold:[0,.1,.3,.6,1]});
-  NAV.forEach(([id])=>{const el=document.getElementById(id); if(el) here.observe(el);});
+  [...NAV.map(x=>x[0]), ...Object.keys(STAGE)].forEach(id=>{
+    const el=document.getElementById(id); if(el && !ratio.has(id)) here.observe(el);});
 
   const at=location.hash.replace('#','');
   if(at&&document.getElementById(at))
