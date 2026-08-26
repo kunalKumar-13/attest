@@ -385,6 +385,42 @@ def adversarial_measurement() -> dict[str, Any]:
             "stages": d.get("stages") or [], "breaches": d.get("breaches") or []}
 
 
+def baselines_measurement() -> dict[str, Any]:
+    """The four methods, from benchmark/baselines.json.
+
+    The comparison is the submission's whole correctness argument, so the page
+    that shows it reads the artifact rather than carrying the figures. Track 04
+    asks for measured accuracy against an honest exception list, and a false
+    proof rate typed into a template is neither.
+
+    COVERAGE AND FALSE-PROOF MOVE TOGETHER, and the pairing is the point:
+    exact-only never lies and decides almost nothing; greedy decides nearly
+    everything and is wrong 95% of the time. Reporting either number alone
+    flatters somebody. So both are returned for every method and the surface is
+    expected to show both.
+    """
+    art = Path(__file__).resolve().parents[1] / "benchmark" / "baselines.json"
+    try:
+        d = json.loads(art.read_text(encoding="utf-8"))["methods"]
+    except (OSError, ValueError, KeyError):
+        return {"present": False}
+    order = ("attest", "exact_only", "greedy", "fuzzy")
+    label = {"attest": "ATTEST", "exact_only": "Exact only",
+             "greedy": "Greedy", "fuzzy": "Fuzzy"}
+    out = []
+    for k in order:
+        m = d.get(k)
+        if not m:
+            continue
+        out.append({
+            "key": k, "label": label[k],
+            "decided": m.get("decided"), "settlements": m.get("settlements"),
+            "false_proof": m.get("false_proof_rate"),
+            "wrong": m.get("wrong"), "seconds": m.get("seconds"),
+        })
+    return {"present": True, "methods": out}
+
+
 def anchoring_measurement() -> dict[str, Any]:
     """What the re-measurement of the hypothesis loop actually reports.
 
@@ -2528,5 +2564,7 @@ def trust_claims(r: Run | None = None) -> dict[str, Any]:
         # pass's own artifact and the isolation from reading the engine's
         # source; if either is unavailable the surface says so.
         "adversarial": adversarial_measurement(),
+        "baselines": baselines_measurement(),
+        "anchoring": anchoring_measurement(),
         "isolation": engine_isolation(),
     }

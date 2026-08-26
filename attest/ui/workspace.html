@@ -5,46 +5,37 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
 <style>
 :root{
-  /* ═════════════════════════════════════ PHASE 32 · THE SAME WORLD
-     The investigation at `/` and this workspace are one product, and the
-     reference this family is drawn from is WARM PAPER, not dark. Phase 31 had
-     that backwards — it darkened the workspace and then darkened the front
-     door to match, which made both of them consistent and both of them wrong.
+  /* ══════════════════════════════════ PHASE 32 · THE INSTRUMENT ROOM
+     Same world as the front door, measured off the reference's DARK
+     rendering: canvas rgb(14,14,14), surface rgb(17,17,17), coral
+     rgb(255,101,90) for what is unresolved, and a lime reserved for actions.
 
-     So the ground is paper here too. What changes between the two surfaces is
-     DENSITY, not identity: the front door is a reading, the workspace is an
-     instrument, and an instrument is allowed to be dense. It is not allowed to
-     be a different product.
+     What changes between the two surfaces is DENSITY, not identity. The
+     investigation is a reading; this is the instrument. An instrument may be
+     dense. It may not be a different product.
 
-     Colour still says only three things — proved, held, and the marker that
-     numbers a section or names a boundary. */
-  --bg:#f2f1ec;              /* the paper */
-  --sur:#fbfaf7;             /* a specimen laid on it */
-  --sur2:#eeece5;            /* hover, context */
-  --sur3:#e4e2d9;            /* the ground a bar sits in */
-  --line:rgba(18,19,15,.13);
-  --line2:rgba(18,19,15,.26);
-  --ink:#12130f;
-  --dim:#55564e;
-  /* Contrast on paper is not the same problem as contrast on black. These
-     tiers were carried over from the dark build, where #a9a99f was a legible
-     grey; on this ground it measures 2.10:1 and the section numbers were
-     effectively invisible to anyone who needs contrast. Measured against
-     #f2f1ec: dim 6.57, dim2 5.05, dim3 4.70 — all clear of AA.
-
-     The quietness now comes from SIZE, which is where the reference gets it
-     too: its own 8px labels are near-black, not washed out. */
-  --dim2:#666760;
-  --dim3:#676860;
-  --acc:#b4462a;  --acc-d:rgba(180,70,42,.09);
-  --rail-bg:#edebe4;
-  --hov:rgba(18,19,15,.04);
-  --st-PROVEN:#2f6b4f;       --st-PROVEN-bg:rgba(47,107,79,.09);
-  --st-AMBIGUOUS:#8a5f1c;    --st-AMBIGUOUS-bg:rgba(168,116,35,.10);
-  --st-CONTRADICTED:#b4462a; --st-CONTRADICTED-bg:rgba(180,70,42,.09);
-  --st-INSUFFICIENT:#666760; --st-INSUFFICIENT-bg:rgba(18,19,15,.05);
-  --st-SYSTEMIC:#2f6b4f;     --st-SYSTEMIC-bg:rgba(47,107,79,.09);
-  --st-INVESTIGATE:#2f5aa8;  --st-INVESTIGATE-bg:rgba(47,90,168,.09);
+     Colour still says three things and no more: coral is unresolved or
+     refused, green is proved, lime is an action you can take. Everything else
+     is white at some opacity. */
+  --bg:#0e0e0e;
+  --sur:#141414;
+  --sur2:#191919;
+  --sur3:#202020;
+  --line:rgba(255,255,255,.10);
+  --line2:rgba(255,255,255,.20);
+  --ink:#ffffff;
+  --dim:rgba(255,255,255,.68);
+  --dim2:rgba(255,255,255,.52);
+  --dim3:rgba(255,255,255,.38);
+  --acc:#dcf23c;  --acc-d:rgba(220,242,60,.12);
+  --rail-bg:#111111;
+  --hov:rgba(255,255,255,.05);
+  --st-PROVEN:#5fbf9b;       --st-PROVEN-bg:rgba(95,191,155,.12);
+  --st-AMBIGUOUS:#e8a13c;    --st-AMBIGUOUS-bg:rgba(232,161,60,.12);
+  --st-CONTRADICTED:#ff655a; --st-CONTRADICTED-bg:rgba(255,101,90,.12);
+  --st-INSUFFICIENT:rgba(255,255,255,.52); --st-INSUFFICIENT-bg:rgba(255,255,255,.06);
+  --st-SYSTEMIC:#5fbf9b;     --st-SYSTEMIC-bg:rgba(95,191,155,.12);
+  --st-INVESTIGATE:#7aa2ff;  --st-INVESTIGATE-bg:rgba(122,162,255,.12);
   --shadow:none;
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -99,18 +90,19 @@
    never be a question about the product's appearance. */
 /* Dark is still reachable with ?theme=dark for anyone who wants it, but it is
    not the product: the family this is drawn from is paper. */
-:root[data-theme=dark]{
-  --bg:#0f0f0d; --sur:#161613; --sur2:#1c1c18; --sur3:#232320;
-  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.18);
-  --ink:#f2f1ec; --dim:#a9a89f; --dim2:#7d7e74; --dim3:#55564e;
-  --acc:#e0805f; --acc-d:rgba(224,128,95,.12);
-  --rail-bg:#131311; --hov:rgba(255,255,255,.04);
-  --st-PROVEN:#5fbf9b;       --st-PROVEN-bg:rgba(95,191,155,.10);
-  --st-AMBIGUOUS:#d9a441;    --st-AMBIGUOUS-bg:rgba(217,164,65,.10);
-  --st-CONTRADICTED:#d9705c; --st-CONTRADICTED-bg:rgba(217,112,92,.10);
-  --st-INSUFFICIENT:#666760; --st-INSUFFICIENT-bg:rgba(255,255,255,.05);
-  --st-SYSTEMIC:#5fbf9b;     --st-SYSTEMIC-bg:rgba(95,191,155,.10);
-  --st-INVESTIGATE:#7aa2ff;  --st-INVESTIGATE-bg:rgba(122,162,255,.10);
+/* Light remains reachable with ?theme=light. It is not the product. */
+:root[data-theme=light]{
+  --bg:#f2f1ec; --sur:#fbfaf7; --sur2:#eeece5; --sur3:#e4e2d9;
+  --line:rgba(18,19,15,.13); --line2:rgba(18,19,15,.26);
+  --ink:#12130f; --dim:#55564e; --dim2:#666760; --dim3:#676860;
+  --acc:#b4462a; --acc-d:rgba(180,70,42,.09);
+  --rail-bg:#edebe4; --hov:rgba(18,19,15,.04);
+  --st-PROVEN:#2f6b4f;       --st-PROVEN-bg:rgba(47,107,79,.09);
+  --st-AMBIGUOUS:#8a5f1c;    --st-AMBIGUOUS-bg:rgba(138,95,28,.10);
+  --st-CONTRADICTED:#b4462a; --st-CONTRADICTED-bg:rgba(180,70,42,.09);
+  --st-INSUFFICIENT:#666760; --st-INSUFFICIENT-bg:rgba(18,19,15,.05);
+  --st-SYSTEMIC:#2f6b4f;     --st-SYSTEMIC-bg:rgba(47,107,79,.09);
+  --st-INVESTIGATE:#2f5aa8;  --st-INVESTIGATE-bg:rgba(47,90,168,.09);
   --shadow:none;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -2541,6 +2533,16 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
   text-decoration:none;border-bottom:1px solid var(--line2);padding-bottom:1px;
   transition:color var(--micro),border-color var(--micro)}
 #bar a.back:hover{color:var(--ink);border-color:var(--ink)}
+
+/* §32 — the same field. A 44px graphite grid that disappears unless looked
+   for, so the workspace stands on the ground the front door stands on. */
+#app{position:relative}
+#app::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:44px 44px}
+:root[data-theme=light] #app::before{display:none}
 </style>
 <div id=app>
   <div id=subject></div>
@@ -2580,7 +2582,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 const root = document.documentElement;
 const forced = new URLSearchParams(location.search).get('theme')
             || localStorage.getItem('attest.theme');
-if (forced === 'dark') root.dataset.theme = 'dark';
+if (forced === 'light') root.dataset.theme = 'light';
 document.getElementById('run').onclick = () => bootShell();
 document.getElementById('hint').textContent = 'subject × lens';
 bootShell();
