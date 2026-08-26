@@ -2686,3 +2686,124 @@ def test_motion_resolves_to_the_three_declared_tiers(page):
         + ", ".join(f"{ms}ms on {n} elements" for ms, n in stray.items()))
     assert len(painted) <= 4, \
         f"more distinct durations than tiers: {sorted(map(float, painted))}"
+
+
+# PHASE 31 - THE FRONT DOOR
+#
+# `/` is the investigation, a long-form reading of the run, and `/app` is the
+# instrument workspace these contracts have always addressed directly. What
+# follows pins the front door's GUARANTEES rather than its appearance: that
+# its figures come from the engine rather than from the file, that the two
+# surfaces reach each other, and that it cannot render a number the engine did
+# not produce.
+
+INV = URL.replace("/workspace.html", "/")
+
+
+@pytest.fixture(scope="module")
+def inv(page):
+    """The front door, opened in its own context off the browser the workspace
+    fixture already owns.
+
+    A second `sync_playwright()` in the same thread raises "Sync API inside the
+    asyncio loop" — which is why these six passed when run alone and errored in
+    the full suite, where the workspace fixture is already holding one."""
+    b = page.context.browser        # the browser Playwright already gave us
+    ctx = b.new_context(viewport={"width": 1400, "height": 900})
+    pg = ctx.new_page()
+    errors: list[str] = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    pg.goto(INV, wait_until="networkidle")
+    pg.wait_for_selector("#boundary", timeout=60000)
+    pg.wait_for_timeout(900)
+    pg.errors = errors
+    yield pg
+    ctx.close()
+
+
+def test_the_investigation_reads_its_figures_from_the_engine(inv):
+    """Every number on the front door is fetched at load. A narrative that can
+    render without the system it describes is a brochure, and one that keeps
+    its own copy of the figures is a brochure that goes stale in silence."""
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      return {n: run.settlements, orders: run.orders, counts: run.counts,
+              processed: run.processed_paise}; }""")
+    body = inv.inner_text("main")
+
+    c = truth["counts"]
+    assert sum(c.values()) == truth["n"], "the verdicts do not account for the run"
+    for k in ("PROVEN", "AMBIGUOUS", "CONTRADICTED", "INSUFFICIENT"):
+        assert str(c[k]) in body, f"{k}={c[k]} is measured but not shown"
+    assert f"{truth['orders']:,}" in body, "the order count is not on the page"
+
+    # compare on digits: the point is that the figure is the engine's, not how
+    # the separators fall
+    digits = "".join(ch for ch in f"{truth['processed'] / 100:.2f}" if ch.isdigit())
+    shown = "".join(ch for ch in body if ch.isdigit())
+    assert digits in shown, "the processed total is not the engine's figure"
+
+
+def test_the_investigation_says_so_when_the_engine_is_silent(inv):
+    """The honest failure. With the API refusing, the page states that it has
+    nothing to show rather than rendering a plausible page from defaults - the
+    same rule the product holds itself to, applied to its own front door."""
+    ctx = inv.context.browser.new_context()
+    pg = ctx.new_page()
+    try:
+        pg.route("**/api/**", lambda r: r.abort())
+        pg.goto(INV, wait_until="domcontentloaded")
+        pg.wait_for_selector(".err", timeout=20000)
+        assert "nothing to show" in pg.inner_text(".err").lower()
+        assert "\u20b9" not in pg.inner_text("main"), \
+            "money was rendered with no engine behind it"
+    finally:
+        ctx.close()
+
+
+def test_the_two_surfaces_reach_each_other(inv):
+    """The narrative is the front door and the workspace is the instrument. A
+    front door with no way in, or a workspace with no way back, is two products
+    that happen to share a stylesheet."""
+    href = inv.get_attribute("#open-app", "href")
+    assert href and href.startswith("/app"), f"the door leads to {href!r}"
+    assert inv.query_selector(".door"), "the closing section offers no way in"
+
+    ctx = inv.context.browser.new_context()
+    pg = ctx.new_page()
+    try:
+        pg.goto(URL, wait_until="networkidle")
+        pg.wait_for_function("() => SHELL && SHELL.record", timeout=90000)
+        back = pg.get_attribute("#bar a.back", "href")
+        assert back == "/", f"the workspace's way back leads to {back!r}"
+    finally:
+        ctx.close()
+
+
+def test_the_investigation_has_no_horizontal_overflow_at_any_width(inv):
+    for w, h in ((360, 780), (390, 844), (768, 1024), (1024, 768),
+                 (1280, 800), (1440, 900), (1512, 982)):
+        inv.set_viewport_size({"width": w, "height": h})
+        inv.wait_for_timeout(320)
+        over = inv.evaluate("() => document.documentElement.scrollWidth"
+                            " - document.documentElement.clientWidth")
+        assert over <= 0, f"{w}x{h}: {over}px of horizontal overflow"
+    inv.set_viewport_size({"width": 1400, "height": 900})
+
+
+def test_the_investigation_scrolls_like_a_page(inv):
+    """No scroll-jacking. The choreography reacts to where the reader already
+    is; it never takes the wheel. If a script owned scrolling, jumping to the
+    end and then asking for the top would not land at the top."""
+    inv.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+    inv.wait_for_timeout(500)
+    assert inv.evaluate("() => window.scrollY") > 2000, "the page barely scrolls"
+    inv.evaluate("() => window.scrollTo({top: 0, behavior: 'instant'})")
+    inv.wait_for_timeout(500)
+    assert inv.evaluate("() => window.scrollY") < 50, \
+        "something is holding the scroll position"
+
+
+def test_the_investigation_raises_no_console_errors(inv):
+    assert not inv.errors, "console/page errors: " + "; ".join(inv.errors[:5])

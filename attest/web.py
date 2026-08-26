@@ -138,14 +138,20 @@ class Handler(BaseHTTPRequestHandler):
             self._json(d or {"error": "not found"}, 200 if d else 404)
 
         else:
-            # /story is the public narrative page. It is a real route rather
-            # than a fragment because it is meant to be linked to and
-            # screenshotted on its own, and it reads the same endpoints as the
-            # workspace so its figures cannot drift from the product's.
-            if u.path in ("/story", "/story/"):
-                name = "story.html"
+            # THE FRONT DOOR IS THE INVESTIGATION.
+            #
+            # `/` is the long-form narrative; `/app` is the instrument
+            # workspace. The workspace keeps its own filename as a route
+            # because that is what a person lands on when they open the
+            # application directly — and because the browser contracts address
+            # it there, so moving the front door cannot silently move what
+            # 150 of them are testing.
+            if u.path in ("/", "", "/story", "/story/"):
+                name = "investigation.html"
+            elif u.path in ("/app", "/app/"):
+                name = "workspace.html"
             else:
-                name = "workspace.html" if u.path in ("/", "") else u.path.lstrip("/")
+                name = "workspace.html" if u.path == "/index.html" else u.path.lstrip("/")
             path = (UI / name).resolve()
             if UI not in path.parents or not path.is_file():
                 self._reply(b"not found", "text/plain", 404)

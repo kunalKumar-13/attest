@@ -77,12 +77,14 @@ cat <<TXT
 
   The canonical journey. Every figure below was just read from the run.
 
-   0:00  the landing         http://127.0.0.1:$PORT/#/portfolio/control
+   0:00  the investigation   http://127.0.0.1:$PORT/
+                             scroll. eleven sections, every figure read from
+                             this run at load
                              $PROCESSED entered. $HELD held at verification
                              across $HELDN settlements. $POSTED reached the ledger.
 
-   0:50  open the blocker    click the first object in the register — the
-                             ₹47L one — then any settlement inside it
+   0:50  open the instrument any "open the instrument" link drops into the
+                             workspace on this case; the bar carries a way back
 
    1:10  the collapse        #/settlement/$CASE/evidence
                              $CHAIN
@@ -104,7 +106,7 @@ cat <<TXT
    3:40  what is not proved  #/portfolio/trust
                              $ADV · $ISO contain no reference to the provider
 
-   4:20  the story           http://127.0.0.1:$PORT/story
+   4:20  the workspace       http://127.0.0.1:$PORT/app#/portfolio/control
 
   The settlement is $VERDICT. Everything above is produced by the run;
   there is no demo-only code path.

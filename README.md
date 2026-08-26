@@ -266,8 +266,8 @@ python3.13 -m venv .venv && ./.venv/bin/pip install -e .
 
 ./run-demo                              # the demo: engine + UI on :8420
 ./.venv/bin/python -m attest.web        # the same server, without the wrapper
-#   http://127.0.0.1:8420/              the product
-#   http://127.0.0.1:8420/story         the same run, told in nine movements
+#   http://127.0.0.1:8420/              the investigation — the front door
+#   http://127.0.0.1:8420/app           the instrument workspace
 ./.venv/bin/python -m attest.eval.adversarial   # 34 attacks, source to ledger
 ./.venv/bin/python -m attest 250 --sweep   # the five-seed panel — report THIS
 ./.venv/bin/python -m attest 250        # a single seed

@@ -2,7 +2,7 @@
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>ATTEST — workspace</title>
 <link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
 <style>
 :root{
   /* ═══════════════════════════════════════════ PHASE 31 · THE DARK FIELD
@@ -2505,6 +2505,30 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
      the money stopped. */
   .o-h em{display:none}
 }
+
+
+/* ═══════════════════════════════ PHASE 31 · ONE VOICE ACROSS BOTH SURFACES
+   The investigation at `/` and this workspace are one product, and a reader
+   who follows "open the instrument" should arrive somewhere that sounds like
+   where they came from. Three faces, and each one means something:
+
+     SERIF     the thesis and the questions — the editorial voice
+     MONO      money, identifiers, states, verdicts — the machine's voice
+     GROTESK   explanations — a person talking
+
+   Only the first tier moves. Money stays monospace, because money is the
+   machine speaking, and a serif ₹48,03,127.81 would be a decorated figure. */
+:root{--dsp:"Instrument Serif",Georgia,serif}
+.o-stmt,.i-q h2{font-family:var(--dsp);font-weight:400;letter-spacing:-.012em}
+.o-stmt i{font-style:italic}
+.i-q h2{line-height:1.02}
+/* the way back. The investigation is the front door; a workspace with no door
+   back to it is a room with the corridor removed. */
+#bar a.back{font-family:var(--m);font-size:var(--type-label);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);
+  text-decoration:none;border-bottom:1px solid var(--line2);padding-bottom:1px;
+  transition:color var(--micro),border-color var(--micro)}
+#bar a.back:hover{color:var(--ink);border-color:var(--ink)}
 </style>
 <div id=app>
   <div id=subject></div>
@@ -2515,7 +2539,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
     <span id=exec-path title="Which solver envelope produced these figures"></span>
     <span id=hint></span>
     <span class=sp></span>
-    <a class=story href="/story">the story</a>
+    <a class=back href="/">← the investigation</a>
     <select class=btn id=size aria-label="Portfolio size">
       <option>120</option><option selected>250</option><option>500</option></select>
     <button class="btn go" id=run>Run</button>

@@ -1,0 +1,1027 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>ATTEST — the investigation</title>
+<link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   ATTEST — THE INVESTIGATION
+   The front door. Not a landing page for an application: the application's
+   own findings, told at length, in the order a person actually asks for them.
+
+   THE STORYBOARD
+     00  the hero          what this is, how much, and an invitation
+     01  the population    250 settlements, as a population, not a count
+     02  the collapse      where the money stopped, as physical mass
+     03  the exception     what is blocked, and what would unblock it
+     04  the proof         2,368 → 164 → 4
+     05  the AI            ◇ proposes · ○ tests · ● decides
+     06  the decision      the threshold, and an absence where a price would be
+     07  the books         balanced by absence
+     08  the activity      the causal chain
+     09  trust             what was attacked, and what is not claimed
+     10  the boundary      the engine does not know Razorpay exists
+     →   the instrument    open the workspace on this case
+
+   THE WORLD
+   One canvas behind everything, holding one point per settlement — 250 of
+   them, coloured by the verdict the engine actually reached. It never resets
+   between sections; it TRANSFORMS. The same 250 points scatter, sort into
+   three clusters by verdict, focus down onto one settlement, become that
+   settlement's 2,368 candidate orders, reduce to 164, then to the 4
+   explanations that survive, then return. Continuity is the point: a reader
+   should feel they are moving through one system rather than turning slides.
+
+   Nothing here is decorative. If a shape is on screen it is standing for a
+   number the engine produced, and the numbers are fetched at load — this page
+   keeps no copy of them.
+
+   THE VOICE, in three faces
+     SERIF     the thesis and the questions — the editorial voice
+     MONO      money, identifiers, states, verdicts — the machine's voice
+     GROTESK   explanations — a person talking
+
+   NO SCROLL-JACKING. The browser scrolls the way the browser scrolls. The
+   world responds to where you are; it never takes the wheel.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#08080a;
+  --ink:#f4f3f0;            /* warm off-white, not paper white */
+  --dim:#a3a29e;
+  --dim2:#75746f;
+  --dim3:#4a4a47;
+  --line:rgba(255,255,255,.08);
+  --line2:rgba(255,255,255,.16);
+  --money:#f4f3f0;          /* money is white. it is the subject. */
+  --held:#d9705c;           /* unresolved */
+  --proven:#5fbf9b;         /* proved */
+  --amber:#d9a441;          /* blocked, waiting */
+  --model:#a98ae0;
+  --solver:#7aa2ff;
+  --engine:#f4f3f0;
+  --d:"Instrument Serif",Georgia,serif;
+  --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
+  --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* one type ramp, four steps and two utilities */
+  --t-hero:clamp(44px,9vw,150px);
+  --t-stmt:clamp(30px,5.2vw,76px);
+  --t-lead:clamp(20px,2.4vw,32px);
+  --t-body:clamp(15px,1.15vw,18px);
+  --t-meta:12px;
+  --t-micro:11px;
+  --gut:clamp(20px,5vw,84px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--s);
+  font-size:var(--t-body);line-height:1.6;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden}
+a{color:inherit}
+
+/* ── the world: one canvas, fixed, behind everything ─────────────────────── */
+#world{position:fixed;inset:0;width:100%;height:100%;z-index:0;
+  pointer-events:none}
+/* a very faint coordinate trace, so the dark is a SPACE rather than a void */
+#field{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,.045), transparent 60%),
+    radial-gradient(90% 60% at 12% 108%, rgba(217,112,92,.05), transparent 62%);}
+/* THE SCRIM. The world is a field the page sits IN, not a panel beside it, so
+   the honest fix for "body text is printing over lit dots" is not to keep the
+   text out of the field — it is to give the page a light source. The reading
+   column is lit; the field falls away to the right. Large display type still
+   crosses into it, which is what gives the composition depth, and small text
+   always has ground under it.
+
+   Below 820px the composition stacks and the world moves behind everything,
+   so the scrim covers the whole field at lower strength. */
+#scrim{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(94deg,
+    var(--bg) 0%, var(--bg) 30%, rgba(8,8,10,.88) 44%,
+    rgba(8,8,10,.45) 56%, transparent 68%)}
+@media (max-width:820px){
+  #scrim{background:linear-gradient(180deg,
+    rgba(8,8,10,.72), rgba(8,8,10,.62) 60%, rgba(8,8,10,.72))}
+}
+main{position:relative;z-index:2}
+
+/* ── the persistent index ────────────────────────────────────────────────── */
+#index{position:fixed;right:var(--gut);top:50%;transform:translateY(-50%);
+  z-index:4;display:flex;flex-direction:column;align-items:flex-end;gap:9px;
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.14em}
+#index a{display:flex;align-items:center;justify-content:flex-end;gap:9px;
+  text-decoration:none;color:var(--dim3);
+  transition:color .2s cubic-bezier(.2,0,0,1)}
+#index a i{order:2;font-style:normal;width:14px;height:1px;
+  background:currentColor;transition:width .3s cubic-bezier(.16,1,.3,1)}
+#index a span{opacity:0;transform:translateX(4px);
+  transition:opacity .2s,transform .2s;white-space:nowrap}
+#index a:hover,#index a.on{color:var(--ink)}
+#index a.on i{width:30px}
+#index a:hover span,#index a.on span{opacity:1;transform:none}
+@media (max-width:1100px){#index{display:none}}
+
+/* ── the masthead ────────────────────────────────────────────────────────── */
+#mast{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;
+  align-items:baseline;gap:16px;padding:22px var(--gut);
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2);
+  background:linear-gradient(var(--bg),rgba(8,8,10,.86) 62%,transparent)}
+#mast b{letter-spacing:.34em;font-weight:700;color:var(--ink)}
+#mast .sp{flex:1}
+#mast a{text-decoration:none;color:var(--dim);border-bottom:1px solid var(--line2);
+  padding-bottom:2px;transition:color .2s,border-color .2s}
+#mast a:hover{color:var(--ink);border-color:var(--ink)}
+#mast em{font-style:normal;color:var(--dim3)}
+@media (max-width:700px){#mast em{display:none}}
+
+/* ── a section ───────────────────────────────────────────────────────────── */
+section{position:relative;padding:clamp(90px,17vh,190px) var(--gut);
+  max-width:1560px;margin:0 auto}
+@media (min-width:1101px){
+  /* reserve for the index, measured against its longest expanded label rather
+     than against its collapsed width */
+  section,#colophon{padding-right:calc(var(--gut) + 250px)}
+}
+.n{display:flex;align-items:baseline;gap:14px;margin-bottom:clamp(24px,4vh,48px);
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim3)}
+.n b{color:var(--dim);font-weight:400}
+.n::before{content:"";width:clamp(30px,5vw,74px);height:1px;
+  background:var(--line2);align-self:center}
+
+/* the editorial voice */
+.stmt{font-family:var(--d);font-size:var(--t-stmt);line-height:1.02;
+  letter-spacing:-.015em;font-weight:400;max-width:19ch;text-wrap:balance}
+.stmt.wide{max-width:26ch}
+.stmt i{font-style:italic;color:var(--dim2)}
+.lead{font-size:var(--t-lead);line-height:1.4;color:var(--dim);
+  max-width:30ch;font-family:var(--d)}
+.say{font-size:var(--t-body);line-height:1.65;color:var(--dim);max-width:56ch}
+.say b{color:var(--ink);font-weight:500}
+.say + .say{margin-top:1em}
+
+/* the machine's voice */
+.mono{font-family:var(--m);font-variant-numeric:tabular-nums}
+.money{font-family:var(--m);font-variant-numeric:tabular-nums;
+  letter-spacing:-.035em;color:var(--money)}
+.tag{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2)}
+
+/* what enters the viewport */
+.rise{opacity:0;transform:translateY(22px);
+  transition:opacity .62s cubic-bezier(.16,1,.3,1),
+             transform .62s cubic-bezier(.16,1,.3,1)}
+.rise.in{opacity:1;transform:none}
+.rise.d1{transition-delay:.07s} .rise.d2{transition-delay:.14s}
+.rise.d3{transition-delay:.21s} .rise.d4{transition-delay:.28s}
+@media (prefers-reduced-motion:reduce){
+  .rise{opacity:1;transform:none;transition:none}
+}
+</style>
+
+<canvas id=world></canvas>
+<div id=field></div>
+<div id=scrim></div>
+
+<div id=mast>
+  <b>ATTEST</b>
+  <em id=src>reading the engine…</em>
+  <span class=sp></span>
+  <a href="/app" id=open-app>open the instrument ↗</a>
+</div>
+
+<nav id=index aria-label="The investigation"></nav>
+
+<main id=main>
+  <p class=say style="padding:40vh var(--gut)" id=boot>Reading the engine…</p>
+</main>
+<style>
+/* ── 00 · the hero ───────────────────────────────────────────────────────── */
+#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  padding-top:clamp(90px,14vh,150px);padding-bottom:clamp(60px,10vh,110px)}
+#hero .stmt{font-size:var(--t-hero);max-width:15ch;line-height:.94;
+  letter-spacing:-.028em}
+#hero .stmt em{font-style:italic;color:var(--dim2);display:block}
+.hero-figs{display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:clamp(18px,3vw,56px);margin-top:clamp(34px,6vh,68px)}
+.hero-figs .money{font-size:clamp(26px,3.4vw,48px)}
+.hero-figs .u{display:flex;flex-direction:column;gap:4px}
+.hero-figs .u b{font-family:var(--m);font-size:clamp(18px,2vw,26px);
+  font-weight:400;font-variant-numeric:tabular-nums}
+.scroll-cue{margin-top:clamp(40px,7vh,86px);display:inline-flex;align-items:center;
+  gap:11px;font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2);text-decoration:none;
+  border:0;background:none;cursor:pointer}
+.scroll-cue i{font-style:normal;animation:nudge 2.6s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@media (prefers-reduced-motion:reduce){.scroll-cue i{animation:none}}
+.scroll-cue:hover{color:var(--ink)}
+
+/* ── the population, as a legend the field itself explains ───────────────── */
+/* The four verdicts sit in the editorial column, clear of the stage the world
+   occupies on the right. Four across reached into it, and the population field
+   — the brightest thing on this section by design — printed through the fourth
+   column's text. Two-up reads better anyway: proven against ambiguous, then
+   contradicted against insufficient. */
+.pop{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(20px,3vw,44px);margin-top:clamp(28px,5vh,56px);
+  max-width:min(660px,42vw)}
+.attk,.refuse{max-width:min(900px,54vw)}
+.pop-c b{display:block;font-family:var(--m);font-size:clamp(34px,4.6vw,68px);
+  font-weight:400;line-height:1;font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em}
+.pop-c span{display:block;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.2em;text-transform:uppercase;color:var(--dim2);margin-top:9px}
+.pop-c em{display:block;font-style:normal;font-size:var(--t-body);
+  color:var(--dim2);margin-top:11px;max-width:24ch;line-height:1.45}
+.pop-c.p b{color:var(--proven)} .pop-c.a b{color:var(--amber)}
+.pop-c.c b{color:var(--held)}   .pop-c.i b{color:var(--dim3)}
+
+/* ── 02 · the collapse, as physical mass ─────────────────────────────────── */
+.fall{margin-top:clamp(30px,5vh,60px);max-width:1180px}
+.fall-r{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:10px clamp(16px,3vw,40px);align-items:baseline;
+  padding:clamp(16px,2.4vh,30px) 0;border-top:1px solid var(--line)}
+.fall-r:first-child{border-top:0}
+.fall-n{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2)}
+.fall-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em;text-align:right;white-space:nowrap;
+  font-size:clamp(17px,2vw,27px)}
+/* the mass. width is the money that continued; it has no container, because a
+   quantity is not a proportion of a box — it is a length beside other lengths */
+.fall-m{grid-column:1/3;height:clamp(6px,1.1vh,11px);background:var(--dim3);
+  transform-origin:left center;transform:scaleX(var(--w,1));
+  transition:transform 1.15s cubic-bezier(.16,1,.3,1)}
+.rise:not(.in) .fall-m{transform:scaleX(0)}
+.fall-r.stop .fall-m{background:var(--amber)}
+.fall-r.stop .fall-n,.fall-r.stop .fall-v{color:var(--ink)}
+.fall-x{grid-column:1/3;display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:6px 14px;padding-top:6px}
+.fall-x b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:clamp(24px,3.4vw,52px);letter-spacing:-.035em;color:var(--held);
+  font-weight:400}
+.fall-x span{color:var(--dim2);max-width:52ch}
+
+/* ── 04 · the reduction ──────────────────────────────────────────────────── */
+.red{margin-top:clamp(30px,5vh,60px);max-width:1180px}
+.red-n{display:flex;align-items:baseline;gap:clamp(14px,2.4vw,34px);
+  flex-wrap:wrap}
+.red-n b{font-family:var(--m);font-variant-numeric:tabular-nums;font-weight:400;
+  letter-spacing:-.04em;line-height:.94;
+  font-size:clamp(40px,8.4vw,132px);transition:font-size .8s cubic-bezier(.16,1,.3,1)}
+.red-n span{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2)}
+.red-cut{display:grid;grid-template-columns:auto minmax(0,1fr);
+  gap:6px clamp(14px,2.4vw,30px);align-items:baseline;
+  padding:clamp(12px,1.8vh,22px) 0 clamp(12px,1.8vh,22px) clamp(16px,3vw,44px);
+  margin-left:clamp(8px,1.6vw,22px);border-left:1px solid var(--line2);
+  position:relative}
+.red-cut::before{content:"";position:absolute;left:0;top:50%;
+  width:clamp(10px,2vw,26px);height:1px;background:var(--line2)}
+.red-cut b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:clamp(15px,1.6vw,21px);color:var(--dim);font-weight:400}
+.red-cut i{font-style:normal;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.18em;text-transform:uppercase}
+.red-cut.conv i{color:var(--amber)} .red-cut.det i{color:var(--proven)}
+.red-cut p{grid-column:2;color:var(--dim2);max-width:60ch;font-size:var(--t-body)}
+.red-n.mid b{color:var(--proven)} .red-n.end b{color:var(--amber)}
+
+/* ── 05 · the actors ─────────────────────────────────────────────────────── */
+.act{margin-top:clamp(30px,5vh,60px);position:relative;max-width:1000px}
+.act::before{content:"";position:absolute;left:7px;top:38px;bottom:38px;
+  width:1px;background:var(--line2)}
+.act-r{display:grid;grid-template-columns:16px 120px minmax(0,1fr);
+  gap:clamp(12px,2vw,28px);align-items:baseline;
+  padding:clamp(14px,2.2vh,26px) 0}
+.act-r i{justify-self:center;align-self:center;width:11px;height:11px;
+  background:var(--bg);font-style:normal;position:relative;z-index:1}
+.act-r.model i{border:1.5px solid var(--model);transform:rotate(45deg)}
+.act-r.solver i{border:1.5px solid var(--solver);border-radius:999px}
+.act-r.engine i{background:var(--engine);border-radius:999px}
+.act-r b{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.2em;
+  text-transform:uppercase;font-weight:400}
+.act-r.model b{color:var(--model)} .act-r.solver b{color:var(--solver)}
+.act-r span{color:var(--dim)}
+.term{margin-top:clamp(28px,4.6vh,54px);padding-top:clamp(24px,4vh,44px);
+  border-top:1px solid var(--line2)}
+.term b{display:block;font-family:var(--m);font-size:clamp(24px,4.2vw,62px);
+  letter-spacing:-.03em;line-height:1.04;text-transform:uppercase;font-weight:700}
+.term b + b{color:var(--held)}
+
+/* ── 06 · the threshold ──────────────────────────────────────────────────── */
+.thr{margin-top:clamp(30px,5vh,60px);max-width:1180px}
+.thr-h{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:clamp(20px,3vw,48px);margin-bottom:clamp(22px,3.4vh,40px)}
+.thr-h b{display:block;font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:clamp(28px,4vw,58px);letter-spacing:-.035em;line-height:1;
+  font-weight:400}
+.thr-h.none b{color:var(--amber);letter-spacing:.01em}
+.thr-scale{position:relative;height:clamp(34px,5vh,54px);
+  background:rgba(255,255,255,.035);border-radius:2px}
+.thr-line{position:absolute;top:-7px;bottom:-7px;width:1px;background:var(--ink)}
+.thr-mark{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;
+  border-radius:999px;background:var(--proven);
+  box-shadow:0 0 0 5px var(--bg)}
+.thr-z{position:absolute;top:50%;transform:translateY(-50%);
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim3)}
+.thr-read{margin-top:clamp(20px,3vh,36px);font-family:var(--d);
+  font-size:var(--t-lead);color:var(--dim)}
+.thr-read b{font-family:var(--m);color:var(--ink);font-weight:400;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ── 07 · the books ──────────────────────────────────────────────────────── */
+.book{margin-top:clamp(30px,5vh,60px);display:flex;flex-wrap:wrap;
+  gap:clamp(26px,5vw,90px);align-items:flex-start}
+.book-t{display:grid;grid-template-columns:auto minmax(0,150px);
+  gap:9px clamp(20px,3vw,44px);align-items:baseline}
+.book-t i{font-style:normal;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.2em;text-transform:uppercase;color:var(--dim2)}
+.book-t b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:clamp(17px,2vw,26px);text-align:right;font-weight:400;color:var(--dim)}
+.book-t .net i,.book-t .net b{border-top:1px solid var(--dim3);
+  padding-top:9px;margin-top:5px;color:var(--ink)}
+.book-s b{display:block;font-family:var(--m);font-size:clamp(22px,3.6vw,50px);
+  text-transform:uppercase;letter-spacing:-.025em;line-height:1.04;
+  color:var(--amber);max-width:11ch;font-weight:700}
+
+/* ── 08 · the chain ──────────────────────────────────────────────────────── */
+.chain{margin-top:clamp(30px,5vh,60px);max-width:900px}
+.chain-e{display:grid;grid-template-columns:110px minmax(0,1fr);
+  gap:clamp(12px,2vw,26px);padding:clamp(11px,1.7vh,19px) 0;
+  border-top:1px solid var(--line)}
+.chain-e:first-child{border-top:0}
+.chain-e i{font-style:normal;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.2em;text-transform:uppercase;color:var(--dim2)}
+.chain-e.model i{color:var(--model)} .chain-e.solver i{color:var(--solver)}
+.chain-e.engine i{color:var(--ink)}
+.chain-e span{color:var(--dim)}
+.chain-b{grid-column:2;font-family:var(--d);font-style:italic;
+  color:var(--dim3);padding-top:5px;font-size:var(--t-body)}
+
+/* ── 09 · trust ──────────────────────────────────────────────────────────── */
+.attk{display:flex;flex-wrap:wrap;gap:clamp(26px,5.4vw,96px);
+  margin-top:clamp(30px,5vh,60px);align-items:flex-start}
+.attk-c b{display:block;font-family:var(--m);font-size:clamp(38px,6vw,92px);
+  line-height:.94;letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  font-weight:400}
+.attk-c span{display:block;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.2em;text-transform:uppercase;color:var(--dim2);margin-top:10px}
+.attk-c.ok b{color:var(--proven)}
+.refuse{margin-top:clamp(34px,5.6vh,66px);max-width:1180px}
+.refuse-r{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.5fr) auto;
+  gap:8px clamp(18px,3vw,44px);align-items:baseline;
+  padding:clamp(13px,2vh,22px) 0;border-top:1px solid var(--line)}
+.refuse-r b{font-weight:500;color:var(--ink)}
+.refuse-r span{color:var(--dim2);font-size:var(--t-body)}
+.refuse-r i{font-style:normal;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim3);
+  justify-self:end;white-space:nowrap}
+
+/* ── 10 · the boundary, and the door ─────────────────────────────────────── */
+#boundary{min-height:88svh;display:flex;flex-direction:column;justify-content:center}
+#boundary .stmt{font-size:clamp(36px,7.4vw,116px);max-width:13ch;line-height:.96}
+.door{margin-top:clamp(40px,7vh,90px);display:inline-flex;align-items:baseline;
+  gap:14px;font-family:var(--m);font-size:clamp(13px,1.3vw,17px);
+  letter-spacing:.2em;text-transform:uppercase;text-decoration:none;
+  color:var(--ink);border-bottom:1px solid var(--line2);padding-bottom:11px;
+  transition:border-color .25s,gap .25s}
+.door:hover{border-color:var(--ink);gap:22px}
+#colophon{padding:clamp(40px,7vh,80px) var(--gut) clamp(60px,10vh,120px);
+  border-top:1px solid var(--line);max-width:1560px;margin:0 auto;
+  display:flex;flex-wrap:wrap;gap:20px 60px;align-items:baseline}
+#colophon p{color:var(--dim3);font-size:var(--t-meta);max-width:60ch}
+.err{font-family:var(--m);color:var(--held);border:1px dashed var(--held);
+  padding:22px;max-width:60ch}
+
+@media (max-width:820px){
+  /* The world sits BEHIND the words on a phone rather than beside them, so it
+     has to get quieter — at desktop density the field was reading as texture
+     over the type instead of as a population under it. */
+  #world{opacity:.5}
+  .hero-figs{flex-direction:column;align-items:flex-start;gap:18px}
+  .hero-figs .u{flex-direction:row;align-items:baseline;gap:10px}
+  #hero .stmt{font-size:clamp(38px,11vw,64px)}
+  .stmt{max-width:none}
+  .pop,.attk,.refuse{max-width:none}
+  .pop{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:700px){
+  .act-r{grid-template-columns:16px minmax(0,1fr)}
+  .act-r span{grid-column:2}
+  .refuse-r{grid-template-columns:minmax(0,1fr);gap:5px}
+  .refuse-r i{justify-self:start}
+  .chain-e{grid-template-columns:minmax(0,1fr)}
+  .chain-b,.chain-e span{grid-column:1}
+  .book-t{grid-template-columns:auto minmax(0,1fr)}
+}
+</style>
+<script>
+'use strict';
+const esc = s => String(s ?? '').replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api = async p => {
+  const r = await fetch(p);
+  if (!r.ok) throw new Error(`${p} → ${r.status}`);
+  return r.json();
+};
+const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CASE = 'setl_000225';
+
+/* ═══════════════════════════════════════════════════════════ THE WORLD
+ *
+ * One point per settlement, coloured by the verdict the engine reached. The
+ * population is never rebuilt — it is re-targeted. Each phase names where
+ * every point should be, and the points ease toward it; scrolling back runs
+ * the same transformation in reverse, because it is one world being looked at
+ * from different places rather than eleven pictures.
+ *
+ * The count is real: 250 points because the run reconciled 250 settlements.
+ * When section 04 focuses on one case the field becomes that case's 2,368
+ * candidate orders — also real — and reduces to 164, then to 4.
+ *
+ * Cheap on purpose. No physics, no libraries: a target position per point and
+ * an exponential ease toward it, at whatever framerate the browser offers.
+ * With reduced motion the points are placed at their target and left alone.
+ */
+const World = (() => {
+  const cv = document.getElementById('world');
+  const cx = cv.getContext('2d');
+  let W = 0, H = 0, DPR = 1, pts = [], phase = 'sleep', t = 0, raf = 0;
+  const TONE = { PROVEN:'#5fbf9b', AMBIGUOUS:'#d9a441',
+                 CONTRADICTED:'#d9705c', INSUFFICIENT:'#4a4a47',
+                 candidate:'#75746f', kept:'#5fbf9b', survivor:'#d9a441' };
+
+  // deterministic jitter, so the field is identical on every load and a
+  // screenshot of it can be compared with the last one
+  let seed = 20260821;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  function size() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (pts.length) layout();
+  }
+
+  function build(counts) {
+    pts = []; seed = 20260821;
+    const order = ['PROVEN','AMBIGUOUS','CONTRADICTED','INSUFFICIENT'];
+    order.forEach(k => {
+      for (let i = 0; i < (counts[k] || 0); i++)
+        pts.push({ k, x:0, y:0, tx:0, ty:0, r:1.7, tr:1.7,
+                   a:0, ta:0, c:TONE[k], tc:TONE[k],
+                   j1:rnd(), j2:rnd(), j3:rnd() });
+    });
+    layout();
+  }
+
+  /* Where every point belongs, per phase. Positions are fractions of the
+     viewport so the composition survives a resize without relayout logic. */
+  function layout() {
+    const n = pts.length || 1;
+
+    /* THE STAGE. The world and the type must not fight for the same pixels.
+       Wide screens are read left-to-right with a long right margin, so the
+       world takes the right of the viewport and the editorial column keeps the
+       left. Below that the composition stacks, so the world centres and drops
+       its opacity to sit clearly behind the words rather than beside them. */
+    const wide = W >= 1000;
+    const cxp = wide ? W * .70 : W * .5;
+    const cyp = H * .5;
+    const stageW = wide ? W * .52 : W * .86;
+    const stageH = H * .74;
+    const short = Math.min(stageW, stageH);
+    const shade = wide ? 1 : .55;
+
+    const inSpace = phase === 'space' || phase === 'kept' || phase === 'survive';
+    const live = pts.reduce((c, q) => c + (q.k === 'candidate' ? 0 : 1), 0) || 1;
+    pts.forEach((p, i) => {
+      p.ta = .5; p.tr = 1.7; p.tc = TONE[p.k] || TONE.candidate;
+
+      /* The population is 250 settlements. The extra points exist only to
+         become one settlement's 2,368 candidate orders, so outside the space
+         phases they are not in the world at all — otherwise the field a reader
+         is told is "one point per settlement" has 2,368 points in it. */
+      if (p.k === 'candidate' && !inSpace) { p.ta = 0; p.tr = 1;
+        p.tx = W * .5; p.ty = H * .5; return; }
+      if (p.k !== 'candidate' && inSpace) { p.ta = 0; p.tr = 1; }
+
+      if (phase === 'hero') {
+        // a loose drift across the stage, at the density of a field seen from
+        // far away — 250 settlements, before anything has been said about them
+        p.tx = cxp + (p.j1 - .5) * stageW * 1.25;
+        p.ty = cyp + (p.j2 - .5) * stageH * 1.5;
+        p.ta = (.2 + p.j3 * .38) * shade; p.tr = 1.3 + p.j3 * 1.6;
+
+      } else if (phase === 'population') {
+        // an even field: the settlements, as a population rather than a count.
+        // Sized from the SETTLEMENT count, not pts.length — the array is
+        // padded out to the candidate space and a grid built for 2,368 points
+        // laid 250 of them out as a thin band across the whole stage.
+        const cols = Math.max(8, Math.round(Math.sqrt(live)));
+        const rows = Math.ceil(live / cols);
+        const g = Math.min(stageW / cols, stageH / rows, 26);
+        p.tx = cxp + ((i % cols) - (cols - 1) / 2) * g + (p.j1 - .5) * 2.5;
+        p.ty = cyp + (((i / cols) | 0) - (rows - 1) / 2) * g + (p.j2 - .5) * 2.5;
+        p.ta = .7 * shade; p.tr = 2.3;
+
+      } else if (phase === 'sorted') {
+        // the same field, separated by what the engine could prove
+        const lane = { PROVEN:-1, AMBIGUOUS:0, CONTRADICTED:1, INSUFFICIENT:1 }[p.k];
+        const inLane = pts.filter(q => q.k === p.k);
+        const idx = inLane.indexOf(p), m = inLane.length;
+        // three clusters, spread across the stage, sized by their own count
+        const cols = Math.max(3, Math.round(Math.sqrt(m)));
+        const g = Math.min(short * .05, 15);
+        p.tx = cxp + lane * stageW * .34
+             + ((idx % cols) - (cols - 1) / 2) * g + (p.j1 - .5) * 2;
+        p.ty = cyp + (((idx / cols) | 0) - (Math.ceil(m / cols) - 1) / 2) * g
+             + (p.j2 - .5) * 2;
+        p.ta = (p.k === 'AMBIGUOUS' ? .9 : .58) * shade;
+        p.tr = p.k === 'CONTRADICTED' ? 4 : 2.2;
+
+      } else if (phase === 'one') {
+        // everything recedes but the single case this investigation follows
+        const chosen = i === 140;              // one of the 197 ambiguous
+        p.tx = chosen ? cxp : cxp + (p.j1 - .5) * stageW * 2.4;
+        p.ty = chosen ? cyp : cyp + (p.j2 - .5) * stageH * 2;
+        p.ta = chosen ? .95 : .05 * shade;
+        p.tr = chosen ? 7 : 1.2;
+
+      } else if (phase === 'space' || phase === 'kept' || phase === 'survive') {
+        // the candidate space of that one case, reducing
+        const keep = phase === 'space' ? n : phase === 'kept' ? SPACE.kept : SPACE.left;
+        const live = i < keep;
+        const cols = Math.max(6, Math.round(Math.sqrt(keep)));
+        const rows = Math.ceil(keep / cols);
+        const g = Math.min(stageW / cols, stageH / rows, 22);
+        p.tx = cxp + ((i % cols) - (cols - 1) / 2) * g + (p.j1 - .5) * 2;
+        p.ty = cyp + (((i / cols) | 0) - (rows - 1) / 2) * g + (p.j2 - .5) * 2;
+        if (!live) { p.tx += (p.j1 - .5) * stageW * 1.6;
+                     p.ty += (p.j2 - .5) * stageH * 1.4; }
+        p.ta = live ? (phase === 'survive' ? .95 : .58) * shade : 0;
+        p.tr = phase === 'survive' ? 9 : phase === 'kept' ? 2.7 : 1.7;
+        p.tc = phase === 'survive' ? TONE.survivor
+             : phase === 'kept' ? TONE.kept : TONE.candidate;
+
+      } else if (phase === 'quiet') {
+        p.tx = cxp + (p.j1 - .5) * stageW * 2.2;
+        p.ty = cyp + (p.j2 - .5) * stageH * 1.6;
+        p.ta = .08 * shade; p.tr = 1.2;
+
+      } else {                       // sleep
+        p.tx = cxp; p.ty = cyp; p.ta = 0; p.tr = 1;
+      }
+    });
+  }
+
+  const SPACE = { total: 0, kept: 0, left: 0 };
+
+  function frame() {
+    raf = 0;
+    cx.clearRect(0, 0, W, H);
+    let moving = false;
+    const e = STILL ? 1 : .085;
+    for (const p of pts) {
+      p.x += (p.tx - p.x) * e; p.y += (p.ty - p.y) * e;
+      p.a += (p.ta - p.a) * e; p.r += (p.tr - p.r) * e;
+      if (Math.abs(p.tx - p.x) > .4 || Math.abs(p.ta - p.a) > .004) moving = true;
+      if (p.a <= .004) continue;
+      cx.globalAlpha = p.a;
+      cx.fillStyle = p.tc;
+      cx.beginPath(); cx.arc(p.x, p.y, Math.max(p.r, .4), 0, 6.2832); cx.fill();
+    }
+    cx.globalAlpha = 1;
+    if (moving && !STILL) raf = requestAnimationFrame(frame);
+  }
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+
+  return {
+    start(counts, space) {
+      SPACE.total = space.universe; SPACE.kept = space.candidates;
+      SPACE.left = space.survivors;
+      build(counts);
+      // the candidate space needs more points than the settlement population
+      const need = Math.max(SPACE.total, pts.length);
+      while (pts.length < need) {
+        const s = pts[pts.length % 250];
+        pts.push({ k:'candidate', x:s.x, y:s.y, tx:s.x, ty:s.y, r:1, tr:1,
+                   a:0, ta:0, c:TONE.candidate, tc:TONE.candidate,
+                   j1:rnd(), j2:rnd(), j3:rnd() });
+      }
+      size();
+      addEventListener('resize', () => { size(); kick(); }, { passive:true });
+      this.to('hero');
+    },
+    to(next) {
+      if (next === phase) return;
+      phase = next; layout(); kick();
+    },
+    phase: () => phase,
+  };
+})();
+</script>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════ THE INVESTIGATION
+ * Eleven sections, every figure fetched from the running engine at load. If
+ * the engine does not answer, this page says so and shows nothing — it keeps
+ * no copy of the numbers, because a narrative that can render without the
+ * system it describes is a brochure.
+ */
+const SECTIONS = [
+  ['population', 'the population'],
+  ['collapse',   'where it stopped'],
+  ['exception',  'the exception'],
+  ['proof',      'the proof'],
+  ['ai',         'the model'],
+  ['decision',   'the decision'],
+  ['books',      'the books'],
+  ['activity',   'what happened'],
+  ['trust',      'what can be believed'],
+  ['boundary',   'the boundary'],
+];
+
+/* which world-phase each section owns */
+const PHASE = {
+  hero:'hero', population:'population', collapse:'sorted', exception:'sorted',
+  proof:'space', ai:'survive', decision:'one', books:'quiet',
+  activity:'quiet', trust:'population', boundary:'quiet',
+};
+
+const rise = (cls, html, d) =>
+  `<div class="rise ${d ? 'd' + d : ''} ${cls || ''}">${html}</div>`;
+
+async function build() {
+  const main = document.getElementById('main');
+  try {
+    const run = await api('/api/run?n=250');
+    const id = run.run_id;
+    const [rec, spine, acts, det, inv, dec, claims, act] = await Promise.all([
+      api(`/api/subject?run=${id}&type=portfolio&id=portfolio`),
+      api(`/api/spine?run=${id}&type=portfolio&review=15000&exposure=10000000`),
+      api(`/api/actions?run=${id}`),
+      api(`/api/settlement?run=${id}&id=${CASE}`),
+      api(`/api/investigation?run=${id}&type=settlement&id=${CASE}`),
+      api(`/api/decision?run=${id}&type=settlement&id=${CASE}&review=15000&exposure=10000000`),
+      api(`/api/claims?run=${id}`),
+      api(`/api/activity?run=${id}&type=settlement&id=${CASE}`),
+    ]);
+
+    const src = rec.source || {};
+    document.getElementById('src').textContent =
+      [src.label, src.engine && src.engine.label].filter(Boolean).join(' · ');
+    document.getElementById('open-app').href =
+      `/app#/settlement/${encodeURIComponent(CASE)}/evidence`;
+
+    const st = k => spine.stages.find(s => s.key === k) || {};
+    const counts = run.counts || {};
+    const money = run.money || {};
+    const blocker = (acts.actions || [])[0] || {};
+    const space = det.space || {};
+    const survivors = (det.proofs || []).length;
+    const held = spine.stages.reduce((n, s) => n + (s.held || 0), 0);
+    const iso = claims.isolation || {};
+    const adv = claims.adversarial || {};
+    const top = Math.max(...spine.stages.map(s => s.continues_paise), 1);
+    const rupee = p => `₹${(p / 100).toLocaleString('en-IN',
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const cap = s => esc(String(s ?? '').trim().replace(/[.\s]+$/, ''))
+      .replace(/^./, c => c.toUpperCase());
+
+    const N = (i, label) =>
+      `<p class=n><b>${String(i).padStart(2, '0')}</b>${esc(label)}</p>`;
+
+    main.innerHTML = `
+
+<section id=hero>
+  ${rise('', `<h1 class=stmt>Financial reconciliation
+    <em>that refuses to invent certainty.</em></h1>`)}
+  ${rise('hero-figs', `
+    <span class="money" style="font-size:clamp(26px,3.4vw,48px)"
+      >${esc(rupee(run.processed_paise))}</span>
+    <span class=u><b>${esc(String(run.settlements))}</b>
+      <span class=tag>settlements</span></span>
+    <span class=u><b>${Number(run.orders).toLocaleString()}</b>
+      <span class=tag>orders</span></span>`, 1)}
+  ${rise('', `<button class=scroll-cue data-go=population
+    >scroll to investigate <i>↓</i></button>`, 3)}
+</section>
+
+<section id=population data-phase=population>
+  ${N(1, 'the population')}
+  ${rise('', `<h2 class="stmt wide">${esc(String(run.settlements))} settlements
+    went in. The engine proved ${counts.PROVEN} of them.</h2>`)}
+  ${rise('pop', `
+    <div class="pop-c p"><b>${counts.PROVEN}</b><span>proven</span>
+      <em>one order set satisfies the credit, re-derived by an independent
+        kernel</em></div>
+    <div class="pop-c a"><b>${counts.AMBIGUOUS}</b><span>ambiguous</span>
+      <em>more than one order set satisfies it exactly, and arithmetic cannot
+        choose</em></div>
+    <div class="pop-c c"><b>${counts.CONTRADICTED}</b><span>contradicted</span>
+      <em>the closest explanation leaves a residual with no matching
+        record</em></div>
+    <div class="pop-c i"><b>${counts.INSUFFICIENT}</b><span>insufficient</span>
+      <em>out of the solver's envelope — nothing was attempted</em></div>`, 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(26px,4.4vh,52px)">The system
+    did not force the remaining ${counts.AMBIGUOUS + counts.CONTRADICTED} into an
+    answer. <b>Every point behind this text is one of these settlements</b>, and
+    they are about to separate by what could be proved about them.</p>`, 2)}
+</section>
+
+<section id=collapse data-phase=sorted>
+  ${N(2, 'where it stopped')}
+  ${rise('', `<h2 class=stmt>Money enters at the top and almost none of it
+    reaches the bottom.</h2>`)}
+  ${rise('fall', spine.stages.map((s, i) => {
+    const w = Math.max(s.continues_paise / top, s.continues_paise > 0 ? .004 : 0);
+    const same = i > 0 && spine.stages[i - 1].value === s.value;
+    return `<div class="fall-r ${s.state === 'stopped' ? 'stop' : ''}">
+      <span class=fall-n>${esc(s.label)}</span>
+      <span class=fall-v>${same ? '' : esc(s.value)}</span>
+      <span class=fall-m style="--w:${w.toFixed(4)}"></span>
+      ${s.held ? `<span class=fall-x><b>${esc(s.held_value)}</b>
+        <span>held — ${esc(s.detail)}</span></span>` : ''}
+    </div>`; }).join(''), 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(26px,4.4vh,52px)">Of
+    <b>${esc(rupee(run.processed_paise))}</b> that entered,
+    <b>${esc(rupee(spine.posted_paise))}</b> reached the ledger. The other
+    ${held} settlements did not fail — they stopped, and each one says what is
+    holding it.</p>`, 2)}
+</section>
+
+<section id=exception data-phase=sorted>
+  ${N(3, 'the exception')}
+  ${rise('', `<h2 class=stmt>One missing field is holding
+    ${esc(rupee(blocker.leverage_paise || blocker.value_paise || 0))}.</h2>`)}
+  ${rise('', `<p class=lead style="margin-top:clamp(20px,3.4vh,38px)"
+    >${cap(blocker.why)}.</p>`, 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(20px,3vh,34px)">That is
+    <b>${blocker.settlements} settlements</b> blocked for the same reason, which
+    is why it is one piece of work rather than ${blocker.settlements}. It
+    unblocks when an order-level reference exists on the settlement report —
+    a change at the source, <b>not an operation ATTEST can perform</b>.</p>`, 2)}
+</section>
+
+<section id=proof data-phase=space>
+  ${N(4, 'the proof')}
+  ${rise('', `<h2 class=stmt>Inside one settlement, the search space
+    collapses.</h2>`)}
+  ${rise('red', `
+    <div class="red-n"><b>${Number(space.universe).toLocaleString()}</b>
+      <span>orders in the book</span></div>
+    ${(space.reductions || []).map(x => `<div class="red-cut ${
+      x.deterministic ? 'det' : 'conv'}">
+      <b>−${Number(x.removed).toLocaleString()}</b>
+      <span>${esc(x.name)} <i>${x.deterministic ? 'deterministic' : 'convention'}</i></span>
+      <p>${esc(x.justification)}</p></div>`).join('')}
+    <div class="red-n mid"><b>${Number(space.candidates).toLocaleString()}</b>
+      <span>could belong to this credit</span></div>
+    <div class="red-cut det"><b>∑</b>
+      <span>subsets whose net equals the credit <i>deterministic</i></span>
+      <p>the last cut is arithmetic rather than a rule: what survives is every
+        subset of the ${Number(space.candidates).toLocaleString()} candidates
+        whose net equals the credit within tolerance</p></div>
+    <div class="red-n end"><b>${survivors}</b>
+      <span>explanations survive</span></div>`, 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(26px,4.4vh,52px)">Some of
+    those cuts are <b>conventions rather than facts</b>, and the page says which.
+    Uniqueness inside a space that already excluded the truth is not
+    uniqueness — so the boundary is stated, not only the answer.</p>`, 2)}
+</section>
+
+<section id=ai data-phase=survive>
+  ${N(5, 'the model')}
+  ${rise('', `<h2 class=stmt>${esc(inv.question || 'What would separate them?')}</h2>`)}
+  ${rise('act', `
+    <div class="act-r model"><i></i><b>Model</b>
+      <span>proposed an anchor that might separate the survivors</span></div>
+    <div class="act-r solver"><i></i><b>Solver</b>
+      <span>tested whether the anchor discriminates —
+        ${esc(String(inv.tested ?? 0))} tested,
+        ${esc(String(inv.discriminative ?? 0))} discriminative</span></div>
+    <div class="act-r engine"><i></i><b>Engine</b>
+      <span>retained the verdict it already had</span></div>`, 1)}
+  ${rise('term', `<b>Verdict unchanged</b><b>No financial action</b>`, 2)}
+  ${rise('', `<p class=say style="margin-top:clamp(24px,4vh,44px)">The model is
+    asked for a hypothesis, never for a verdict. Its conclusion is recorded as
+    evidence and discarded — <b>not eligible to become the verdict</b>, and
+    nothing downstream reads it. The constraint is the point, not the
+    model.</p>`, 3)}
+</section>
+
+<section id=decision data-phase=one>
+  ${N(6, 'the decision')}
+  ${rise('', `<h2 class=stmt>Automate only what is cheaper to get wrong than to
+    check.</h2>`)}
+  ${rise('thr', (() => {
+    const b = dec.boundary || {};
+    const rev = b.review_paise, loss = b.priced ? b.expected_loss_paise : null;
+    const span = Math.max(loss || 0, rev) * 2;
+    const pos = v => Math.min(v / span * 100, 96);
+    return `<div class=thr-h>
+        <div class="${b.priced ? '' : 'none'}"><span class=tag>expected loss</span>
+          <b>${b.priced ? esc(rupee(loss)) : 'Unpriced'}</b></div>
+        <div><span class=tag>cost of a review</span>
+          <b>${esc(rupee(rev))}</b></div>
+      </div>
+      <div class=thr-scale>
+        <i class=thr-line style="left:${pos(rev)}%"></i>
+        ${b.priced ? `<i class=thr-mark style="left:${pos(loss)}%"></i>` : ''}
+        <span class=thr-z style="left:14px">automating is cheaper</span>
+        <span class=thr-z style="right:14px">checking is cheaper</span>
+      </div>
+      <p class=thr-read>${b.priced
+        ? `<b>${esc(rupee(Math.abs(rev - loss)))}</b> cheaper to automate than to check.`
+        : `There is nothing on the scale. The proof did not establish a unique
+           explanation, so there is no error probability to multiply — and a
+           zero here would claim the posting was proved safe.`}</p>`;
+  })(), 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(24px,4vh,44px)">Across the
+    run this priced <b>${counts.PROVEN} proven settlements</b> and let
+    ${st('action').count} of them post without a person, for
+    <b>${esc(rupee(spine.posted_paise))}</b> and
+    <b>${run.wrong} wrong</b>.</p>`, 2)}
+</section>
+
+<section id=books data-phase=quiet>
+  ${N(7, 'the books')}
+  ${rise('', `<h2 class=stmt>Nothing was written, which is not the same as
+    writing nothing.</h2>`)}
+  ${rise('book', `
+    <div class=book-t>
+      <i>debit</i><b>₹0.00</b>
+      <i>credit</i><b>₹0.00</b>
+      <span class=net style="display:contents"><i class=net>net</i><b class=net>₹0.00</b></span>
+    </div>
+    <div class=book-s><b>Balanced by absence</b>
+      <p class=say style="margin-top:14px">An entry that happens to net to zero
+        and an entry that was never written are indistinguishable in a total.
+        They are not the same event, so the books say which one this was.</p>
+    </div>`, 1)}
+</section>
+
+<section id=activity data-phase=quiet>
+  ${N(8, 'what happened')}
+  ${rise('', `<h2 class=stmt>Every step is recorded, including the ones that
+    changed nothing.</h2>`)}
+  ${rise('chain', (act.events || []).map(e => `
+    <div class="chain-e ${esc((e.actor || '').toLowerCase())}">
+      <i>${esc(e.actor || 'system')}</i>
+      <span>${esc(e.what || '')}${e.value
+        ? ` <b class=mono style="font-weight:400;color:var(--ink)">${
+            esc(e.value)}</b>` : ''}</span>
+      ${e.caused_by ? `<span class=chain-b>because ${esc(e.caused_by)}</span>` : ''}
+    </div>`).join(''), 1)}
+  ${rise('', `<p class=say style="margin-top:clamp(26px,4.4vh,52px)">The
+    connectors are the argument. Each step names what caused it, so the chain
+    from a bank credit arriving to a ledger that did not move can be read
+    without knowing anything about the engine that produced it.</p>`, 2)}
+</section>
+
+<section id=trust data-phase=population>
+  ${N(9, 'what can be believed')}
+  ${rise('', `<h2 class=stmt>What can I believe?</h2>`)}
+  ${adv.present ? rise('attk', `
+    <div class=attk-c><b>${adv.attacks}</b><span>attacks</span></div>
+    <div class="attk-c ok"><b>${adv.defended}</b><span>defended</span></div>
+    <div class="attk-c ok"><b>${adv.breached}</b><span>breached</span></div>
+    <p class=say style="flex:1 1 30ch;min-width:26ch;align-self:center">Each one
+      is an attempt to move money the engine should not be able to move. A
+      refusal counts as a defence; an exception from the harness does not, and
+      there ${adv.harness_errors === 1 ? 'was' : 'were'}
+      ${adv.harness_errors} of those.</p>`, 1) : ''}
+  ${rise('refuse', `<p class=tag style="margin-bottom:14px">what ATTEST does not
+    claim</p>` + (claims.unknowns || []).slice(0, 6).map(u => `
+    <div class=refuse-r><b>${esc(u.what)}</b><span>${esc(u.why)}</span>
+      <i>not verified</i></div>`).join(''), 2)}
+</section>
+
+<section id=boundary data-phase=quiet>
+  ${N(10, 'the boundary')}
+  ${rise('', iso.isolated
+    ? `<h2 class=stmt>The engine does not know Razorpay exists.</h2>`
+    : `<h2 class=stmt>Razorpay reaches the engine.</h2>`)}
+  ${rise('', `<p class=say style="margin-top:clamp(26px,4.4vh,52px)">${
+    iso.isolated
+      ? `All <b>${iso.clean} of ${iso.modules}</b> modules that produce a verdict
+         were read, and none contains the string <span class=mono>${esc(
+         iso.provider)}</span>. The provider is named only at the boundary, so
+         the same verdict is produced whether the records arrive from an API, a
+         bank file, or a CSV. It is a measurement, not a claim — name the
+         modules and grep them.`
+      : `${(iso.mentions || []).length} of ${iso.modules} engine modules name the
+         provider. The portability claim does not currently hold.`}</p>`, 1)}
+  ${rise('', `<a class=door href="/app#/settlement/${encodeURIComponent(CASE)}/evidence"
+    >open the instrument <i>↗</i></a>`, 2)}
+</section>
+
+<div id=colophon>
+  <p><b class=mono>${esc(String(run.settlements))}</b> settlements ·
+     <b class=mono>${Number(run.orders).toLocaleString()}</b> orders ·
+     seed <b class=mono>${esc(String(run.seed))}</b> ·
+     ${esc(src.detail || '')}</p>
+  <p>Every figure on this page was read from the running engine when the page
+     loaded. It keeps no copy of them.</p>
+</div>`;
+
+    World.start(counts, { universe: space.universe, candidates: space.candidates,
+                          survivors });
+    wire();
+  } catch (e) {
+    main.innerHTML = `<section><p class=err>The engine did not answer, so this
+      page has nothing to show. It does not keep a copy of the numbers.<br><br>
+      ${esc(e.message)}</p></section>`;
+  }
+}
+</script>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════ THE SCROLL CHOREOGRAPHY
+ *
+ * Observers, not a scroll handler that owns the wheel. The browser scrolls the
+ * way the browser scrolls; the world and the index react to where the reader
+ * already is. Nothing here can trap someone on a section, and Page Down,
+ * Home/End, find-in-page and a trackpad fling all behave exactly as they would
+ * on a page with no script at all.
+ *
+ * Two observers with different jobs:
+ *   REVEAL   fires once per element, at 12% visible, and never undoes itself —
+ *            content that flickers back out as you scroll up is content you
+ *            cannot re-read.
+ *   PHASE    tracks which section owns the middle of the viewport and tells
+ *            the world where to be. This one is continuous in both directions,
+ *            because the world is a place rather than an animation.
+ */
+function wire() {
+  const secs = [...document.querySelectorAll('section[data-phase]')];
+
+  if (!STILL) {
+    const reveal = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) {
+        e.target.classList.add('in');
+        reveal.unobserve(e.target);
+      }
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .12 });
+    document.querySelectorAll('.rise').forEach(n => reveal.observe(n));
+  } else {
+    document.querySelectorAll('.rise').forEach(n => n.classList.add('in'));
+  }
+
+  /* the index */
+  const nav = document.getElementById('index');
+  nav.innerHTML = SECTIONS.map(([id, label], i) =>
+    `<a href="#${id}" data-i="${id}"><i></i><span>${
+      String(i + 1).padStart(2, '0')} ${esc(label)}</span></a>`).join('');
+  const links = new Map([...nav.querySelectorAll('a')].map(a => [a.dataset.i, a]));
+
+  /* A running record of how much of the middle band each section holds.
+     Reading only the entries in the current callback picked the section that
+     had just CHANGED rather than the one now in front of the reader — jump
+     straight to a section and the world stayed a phase behind, because the
+     only entry that fired was the one leaving. */
+  const ratio = new Map();
+  const phase = new IntersectionObserver((es) => {
+    for (const e of es) ratio.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+    let id = null, best = 0;
+    for (const [k, v] of ratio) if (v > best) { best = v; id = k; }
+    if (!id) return;
+    World.to(PHASE[id] || 'quiet');
+    links.forEach((a, k) => a.classList.toggle('on', k === id));
+    if (history.replaceState) history.replaceState(null, '', `#${id}`);
+  }, { rootMargin: '-38% 0px -38% 0px', threshold: [0, .1, .25, .5, .75, 1] });
+  secs.forEach(s => phase.observe(s));
+
+  // the hero owns the world until the first section takes it
+  const heroObs = new IntersectionObserver((es) => {
+    for (const e of es) if (e.isIntersecting && e.intersectionRatio > .5) {
+      World.to('hero');
+      links.forEach(a => a.classList.remove('on'));
+    }
+  }, { threshold: [.5] });
+  heroObs.observe(document.getElementById('hero'));
+
+  document.querySelectorAll('[data-go]').forEach(b => {
+    b.addEventListener('click', () => {
+      const t = document.getElementById(b.dataset.go);
+      if (t) t.scrollIntoView({ behavior: STILL ? 'auto' : 'smooth' });
+    });
+  });
+
+  /* Deep links work: /#proof lands on that section with the world already in
+     the right phase rather than easing into it from the hero. */
+  const at = location.hash.replace('#', '');
+  if (at && document.getElementById(at)) {
+    document.getElementById(at).scrollIntoView({ behavior: 'auto' });
+  }
+}
+
+build();
+</script>
