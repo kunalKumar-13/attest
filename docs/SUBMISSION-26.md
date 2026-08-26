@@ -92,6 +92,9 @@ narrative reads left-to-right on a desktop.
 - [x] five canonical screenshots identified
 - [x] limitations stated in the product, not only in the docs
 - [x] clean-room verification passed
+- [x] the AI boundary is visible in the product, not only in the payload
+- [x] the anchoring claim is read from the artifact and cannot revert
+- [x] no ratio is rounded in the product's favour
 
 ---
 
@@ -100,8 +103,8 @@ narrative reads left-to-right on a desktop.
 | | |
 |---|---|
 | **submitted revision** | tag **`attest-submission`** — a commit cannot contain its own hash, so the tag is the identifier. `git rev-parse --short attest-submission` resolves it. |
-| **tests** | **297 passed** (full stack: Playwright, server running, `ortools`) |
-| **browser contracts** | **133**, counted by `ci/verify.sh` from the source |
+| **tests** | **308 passed** (full stack: Playwright, server running, `ortools`) |
+| **browser contracts** | **141**, counted by `ci/verify.sh` from the source |
 | **safety gates** | **6 / 6 PASS**. `money wrongly auto-posted` and `false proof rate` at **+0.0000** in both environments |
 | **adversarial** | **34 attacks · 34 defended · 0 breached · 0 harness errors**, re-run in the clean room |
 | **clean checkout** | `python3.13 -m venv` → `pip install -e .` → import, gates, adversarial, demo — all pass |
