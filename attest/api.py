@@ -1752,8 +1752,14 @@ def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
         Verdict.PROVEN: "What could still be wrong about this?",
     }[f.verdict]
 
-    raw = (investigate_view(r, sid) or {}).get("events", []) \
-        if f.verdict is Verdict.AMBIGUOUS else []
+    # The loop's own record, kept whole. `would_have_concluded` is the verdict
+    # the model's proposal would have produced had anything downstream been
+    # allowed to read it — the engine throws it away, and the counterfactual is
+    # only demonstrable if the discarded value is on hand to be shown beside
+    # the one that stood. It was computed here already and dropped on the way
+    # out, which made the boundary a claim rather than a comparison.
+    _loop = (investigate_view(r, sid) or {}) if f.verdict is Verdict.AMBIGUOUS else {}
+    raw = _loop.get("events", [])
 
     steps, tested, discriminative = [], 0, 0
     for e in raw:
@@ -1841,6 +1847,9 @@ def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
         # and discarded, so it cannot become the financial verdict. It was true
         # in the payload and invisible on screen.
         "changed_nothing": True,
+        # What the loop concluded, beside what the engine kept. None when the
+        # loop did not run, which is the honest value — never a placeholder.
+        "would_have_concluded": _loop.get("would_have_concluded"),
         "measurement": anchoring_measurement(),
         "tested": tested, "discriminative": discriminative,
         "steps": steps,

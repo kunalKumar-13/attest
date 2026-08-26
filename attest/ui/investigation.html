@@ -240,6 +240,30 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
 .spec-stamp{margin-top:16px;display:inline-block;border:1px solid var(--coral);
   color:var(--coral);font-family:var(--m);font-size:var(--t-micro);
   letter-spacing:.2em;padding:7px 11px;text-transform:uppercase}
+/* ── the pipeline, on the specimen ──────────────────────────────────────
+   The whole system, printed on the object a judge sees before scrolling:
+   evidence goes in, the model proposes, the solver tests, the engine decides.
+   Four marks, each a different shape, because the roles are different: a bar
+   is an input, a diamond proposes, a ring tests, a filled disc decides. */
+.spec-pipe{margin-top:18px;padding-top:14px;border-top:1px solid var(--rule)}
+.spec-pipe .lbl{display:block;margin-bottom:10px;font-size:var(--t-nano)}
+.spec-pipe-r{display:grid;grid-template-columns:16px 62px minmax(0,1fr);
+  gap:9px;align-items:center;padding:4px 0;position:relative}
+.spec-pipe-r i{justify-self:center;width:9px;height:9px;font-style:normal;
+  position:relative;z-index:1;background:var(--sur)}
+.spec-pipe-r i.e{width:11px;height:2px;background:var(--dim2)}
+.spec-pipe-r i.m{border:1.5px solid var(--dim);transform:rotate(45deg)}
+.spec-pipe-r i.s{border:1.5px solid var(--dim);border-radius:999px}
+.spec-pipe-r i.g{background:var(--ink);border-radius:999px}
+/* the connector runs between the marks, not through them */
+.spec-pipe-r:not(:last-child)::before{content:"";position:absolute;left:7.5px;
+  top:calc(50% + 6px);height:calc(100% - 12px);width:1px;background:var(--rule2)}
+.spec-pipe-r b{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.16em;
+  text-transform:uppercase;font-weight:400}
+.spec-pipe-r em{font-style:normal;font-size:var(--t-nano);color:var(--dim2);
+  letter-spacing:.04em}
+.spec-note{margin-top:10px;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--dim2)}
 .spec-foot{display:flex;justify-content:space-between;gap:12px;margin-top:18px;
   padding-top:12px;border-top:1px solid var(--rule);
   font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
@@ -478,6 +502,98 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .sheet::before,.sheet::after{display:none}
   .book-t{grid-template-columns:auto minmax(0,1fr)}
 }
+
+/* ── THE SYSTEM BOUNDARY ─────────────────────────────────────────────────
+   Not a timeline. A timeline says "then, then, then"; this has to say that
+   four different KINDS of thing are happening, and that only one of them is
+   allowed to decide.
+
+   The role is carried by the mark, and each mark is a different shape:
+     ─  evidence   an input, so it is a bar
+     ◇  model      proposes, so it is open and turned
+     ○  solver     tests, so it is a ring — a thing you pass through
+     ●  engine     decides, so it is solid and filled
+
+   The left column names the VERB rather than the actor, because "proposes /
+   tests / decides" is the sentence a reader needs and "model / solver /
+   engine" is the one they already saw. */
+.bound{position:relative;margin-top:clamp(20px,3vh,34px)}
+.bound-r{display:grid;grid-template-columns:96px 22px minmax(0,1fr);
+  gap:clamp(12px,2vw,26px);align-items:start;
+  padding:clamp(13px,2.2vh,24px) 0;position:relative}
+.bound-k{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim3);text-align:right;padding-top:.45em}
+.bound-m{justify-self:center;margin-top:.35em;width:13px;height:13px;
+  background:var(--canvas);position:relative;z-index:1;display:block}
+.bound-r[class*=model] .bound-m{border:1.5px solid var(--ink);transform:rotate(45deg)}
+.bound-r[class*=solver] .bound-m{border:1.5px solid var(--ink);border-radius:999px}
+.bound-r[class*=engine] .bound-m{background:var(--ink);border-radius:999px;
+  box-shadow:0 0 0 4px rgba(255,255,255,.09)}
+.bound-r:first-child .bound-m{height:2px;width:15px;background:var(--dim2);
+  margin-top:.85em}
+.bound-r:not(:last-child)::before{content:"";position:absolute;left:107px;
+  top:calc(.35em + 20px);bottom:-4px;width:1px;background:var(--rule2)}
+.bound-b b{display:block;font-family:var(--m);font-size:var(--t-micro);
+  letter-spacing:.2em;text-transform:uppercase;font-weight:400;
+  margin-bottom:5px}
+.bound-r[class*=engine] .bound-b b{color:var(--ink);font-weight:700}
+.bound-b span{color:var(--dim);font-size:var(--t-small)}
+.bound-b em{font-style:normal;font-family:var(--m);color:var(--ink)}
+
+/* ── THE COUNTERFACTUAL ──────────────────────────────────────────────────
+   The boundary, demonstrated instead of asserted: what the loop concluded,
+   beside what the engine kept, beside whether anything moved. */
+.cf{display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:clamp(14px,2.4vw,36px);
+  align-items:center;margin-top:clamp(26px,4vh,50px);
+  padding-top:clamp(20px,3.2vh,36px);border-top:1px solid var(--rule2)}
+.cf-c b{display:block;font-family:var(--m);font-weight:400;
+  font-size:clamp(19px,2.4vw,34px);letter-spacing:-.04em;line-height:1;
+  margin:9px 0 7px}
+.cf-c b.hot{color:var(--coral)}
+.cf-c em{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim3)}
+.cf-op{font-family:var(--m);font-size:clamp(20px,2.4vw,32px);color:var(--dim3)}
+
+/* ── THE SAFE STOP ───────────────────────────────────────────────────────
+   Four statements down a rule, each one a consequence of the one above it.
+   The last is coral, which in this product means unresolved — not error. */
+.safe{margin-top:clamp(30px,5vh,62px);padding-left:clamp(16px,2.6vw,34px);
+  border-left:2px solid var(--rule2)}
+.safe-s{font-family:var(--m);font-size:clamp(15px,1.7vw,24px);
+  letter-spacing:-.02em;text-transform:uppercase;padding:clamp(5px,.9vh,9px) 0;
+  color:var(--dim)}
+.safe-s.hot{color:var(--coral);font-weight:700}
+.safe-n{margin-top:clamp(14px,2.2vh,24px);color:var(--dim2);
+  font-size:var(--t-small);max-width:56ch}
+.safe-n b{color:var(--ink)}
+
+@media (max-width:1000px){
+  .bound-r{grid-template-columns:22px minmax(0,1fr);gap:12px}
+  .bound-k{grid-column:1/-1;text-align:left;padding-top:0}
+  .bound-r:not(:last-child)::before{left:10px}
+  .cf{grid-template-columns:minmax(0,1fr);gap:16px}
+  .cf-op{display:none}
+}
+
+/* ── THE ADAPTER BOUNDARY ────────────────────────────────────────────────
+   Three stations and the line between them, so "the engine does not know
+   Razorpay exists" is a diagram a reader can check rather than a sentence
+   they have to take. The middle station is the boundary itself. */
+.adapter{margin-top:clamp(8px,1.4vh,16px)}
+.ad-r{display:grid;grid-template-columns:190px minmax(0,1fr);
+  gap:clamp(12px,2vw,26px);align-items:baseline;padding:clamp(9px,1.5vh,16px) 0}
+.ad-r b{font-family:var(--m);font-size:var(--t-micro);letter-spacing:.18em;
+  text-transform:uppercase;font-weight:400;color:var(--dim)}
+.ad-r.eng b{color:var(--ink);font-weight:700}
+.ad-r span{color:var(--dim2);font-size:var(--t-small)}
+.ad-r em{font-style:normal;font-family:var(--m);color:var(--ink)}
+.ad-b{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--coral);padding:2px 0 2px 0;
+  border-top:1px dashed rgba(255,101,90,.4);width:190px}
+@media (max-width:1000px){
+  .ad-r{grid-template-columns:minmax(0,1fr);gap:4px}
+  .ad-b{width:100%}
+}
 </style>
 <div id=field aria-hidden=true></div>
 <div id=traces aria-hidden=true>
@@ -641,15 +757,30 @@ async function build(){
     ${rise('', `<div class=spec>
       <i class="spec-c tr"></i><i class="spec-c bl"></i>
       <i class=spec-punch></i>
-      <div class=spec-h><b>ATTEST</b><span>financial control</span></div>
-      <div class=spec-f><i>case</i><b>${esc(CASE)}</b></div>
+      <div class=spec-h><b>ATTEST</b><span>run manifest</span></div>
+      <div class=spec-f><i>run</i><b>${esc(id)}</b></div>
       <div class="spec-f big"><i>processed</i><b>${esc(rupee(run.processed_paise))}</b></div>
       <div class=spec-f><i>settlements</i><b>${esc(String(run.settlements))}</b></div>
       <div class=spec-f><i>orders</i><b>${Number(run.orders).toLocaleString()}</b></div>
       <div class=spec-f><i>stopped at</i><b>${esc((stop.label||'').toUpperCase())}</b></div>
       <div class="spec-f big hot"><i>held</i><b>${esc(stop.held_value||'')}</b></div>
       <div class=spec-f><i>action</i><b>${esc(st('action').value||'')}</b></div>
-      <div class=spec-stamp>${esc(String(run.wrong))} wrongly auto-posted</div>
+      <div class=spec-pipe>
+        <span class=lbl>how the verdict was reached</span>
+        <div class=spec-pipe-r><i class=e></i><b>Evidence</b>
+          <em>${Number(space.candidates).toLocaleString()} candidate orders</em></div>
+        <div class=spec-pipe-r><i class=m></i><b>Model</b>
+          <em>proposes an anchor</em></div>
+        <div class=spec-pipe-r><i class=s></i><b>Solver</b>
+          <em>tests whether it discriminates</em></div>
+        <div class=spec-pipe-r><i class=g></i><b>Engine</b>
+          <em>decides — the model's output is diagnostic only</em></div>
+      </div>
+      <div class=spec-f><i>following</i><b>${esc(CASE)} · ${
+        esc(det.verdict||'')}</b></div>
+      <div class=spec-stamp>no financial action on ${esc(String(
+        c.AMBIGUOUS + c.CONTRADICTED))} settlements</div>
+      <div class=spec-note>${esc(String(run.wrong))} wrongly auto-posted</div>
       <div class=spec-foot><span>seed ${esc(String(run.seed))}</span>
         <span>${esc(src.label||'')}</span>
         <span>${esc((src.engine||{}).label||'')}</span></div>
@@ -716,7 +847,10 @@ async function build(){
     + `<div><p class=say>${cap(blocker.why)}.</p>
        <p class=say>That is <b>${blocker.settlements} settlements</b> blocked
          for the same reason — one piece of work, not
-         ${blocker.settlements}.</p></div>`)}
+         ${blocker.settlements}.</p>
+       <p class=say><span class=lbl>what unblocks it</span><br>${
+         cap((blocker.what||'').split(';')[0])}. That is a change at the source,
+         <b>not an operation ATTEST can perform</b>.</p></div>`)}
 </section>
 
 <section id=proof>
@@ -754,16 +888,67 @@ async function build(){
         verdict. Its conclusion is recorded as evidence and discarded — <b>not
         eligible to become the verdict</b>, and nothing downstream reads
         it.</p></div>`)}
-  ${rise('act', `
-    <div class="act-r model"><i></i><b>Model</b>
-      <span>proposed an anchor that might separate the survivors</span></div>
-    <div class="act-r solver"><i></i><b>Solver</b>
-      <span>tested whether the anchor discriminates —
-        ${esc(String(inv.tested??0))} tested,
-        ${esc(String(inv.discriminative??0))} discriminative</span></div>
-    <div class="act-r engine"><i></i><b>Engine</b>
-      <span>retained the verdict it already had</span></div>`, 1)}
-  ${rise('term', `<b>Verdict unchanged</b><b>No financial action</b>`, 2)}
+  ${rise('bound', `
+    <div class=bound-r>
+      <span class=bound-k>evidence</span>
+      <i class=bound-m e></i>
+      <div class=bound-b><b>${Number(space.candidates).toLocaleString()} candidate orders</b>
+        <span>the space the engine is allowed to search</span></div>
+    </div>
+    <div class="bound-r model">
+      <span class=bound-k>proposes</span>
+      <i class=bound-m></i>
+      <div class=bound-b><b>Model</b>
+        <span>proposed the anchor <em>${esc(
+          ((inv.steps||[]).find(x=>x.actor==='model')||{}).input || '—')}</em>
+          — a guess at what might tell the survivors apart</span></div>
+    </div>
+    <div class="bound-r solver">
+      <span class=bound-k>tests</span>
+      <i class=bound-m></i>
+      <div class=bound-b><b>Solver</b>
+        <span><em>${esc(String(inv.tested??0))} tested,
+          ${esc(String(inv.discriminative??0))} discriminative</em> — the anchor
+          does not isolate one explanation, so it separates nothing</span></div>
+    </div>
+    <div class="bound-r engine">
+      <span class=bound-k>decides</span>
+      <i class=bound-m></i>
+      <div class=bound-b><b>Engine</b>
+        <span>kept the verdict it already had. It never read the model's
+          conclusion.</span></div>
+    </div>`, 1)}
+
+  ${inv.would_have_concluded ? rise('cf', `
+    <div class=cf-c><span class=lbl>model concluded</span>
+      <b>${esc(inv.would_have_concluded)}</b>
+      <em>diagnostic only · discarded</em></div>
+    <div class=cf-op>${inv.would_have_concluded === inv.verdict ? '=' : '≠'}</div>
+    <div class=cf-c><span class=lbl>engine verdict</span>
+      <b class=hot>${esc(inv.verdict)}</b>
+      <em>retained · deterministic</em></div>
+    <div class=cf-c><span class=lbl>verdict changed</span>
+      <b>${inv.changed_nothing ? 'No' : 'Yes'}</b>
+      <em>financial action: none</em></div>`, 2) : ''}
+
+  ${inv.would_have_concluded ? rise('', `<p class=say style="margin-top:20px;max-width:62ch">${
+    inv.would_have_concluded === inv.verdict
+      ? `On this settlement the two agree. That is a coincidence of this case,
+         not a mechanism — <b>the engine's verdict is produced without reading
+         the model's</b>, so agreement and disagreement are equally
+         inconsequential. The model's output is recorded as evidence and
+         discarded.`
+      : `The model reached a different conclusion and it changed nothing. The
+         engine's verdict is produced without reading it.`}</p>`, 3) : ''}
+
+  ${rise('safe', `
+    <div class=safe-s>Proof not unique</div>
+    <div class=safe-s>Engine abstained</div>
+    <div class=safe-s>Verdict unchanged</div>
+    <div class="safe-s hot">No financial action</div>
+    <p class=safe-n><b>Ambiguity is not a failure.</b> It is the engine
+      declining to post what it could not prove, and saying which evidence
+      would settle it.</p>`, 4)}
   ${anch.resolved ? rise('', `<p class=say style="margin-top:26px">
     <span class=lbl>anchoring benchmark</span><br>
     Re-measured across the evaluation panel, the loop resolved
@@ -844,10 +1029,27 @@ async function build(){
     <div class=attk-c><b>${adv.attacks}</b><span>attacks</span></div>
     <div class="attk-c ok"><b>${adv.defended}</b><span>defended</span></div>
     <div class="attk-c ok"><b>${adv.breached}</b><span>breached</span></div>`,1):''}
+  ${rise('adapter', `<hr class=rule>
+    <span class=lbl>where the provider stops</span>
+    <div class=ad-r><b>Razorpay</b><span>settlements and orders, as the
+      provider returns them</span></div>
+    <div class=ad-b>adapter boundary</div>
+    <div class=ad-r><b>Normalized records</b><span>integer paise, one shape,
+      no provider in it</span></div>
+    <div class=ad-b>·</div>
+    <div class="ad-r eng"><b>ATTEST engine</b><span>${iso.isolated
+      ? `all ${iso.clean} of ${iso.modules} modules that produce a verdict were
+         read; none contains the string <em>${esc(iso.provider)}</em>`
+      : `${(iso.mentions||[]).length} of ${iso.modules} modules name the
+         provider`}</span></div>
+    <p class=say style="margin-top:16px;max-width:60ch">The financial reasoning
+      is not tailored to one provider — swap the adapter and the same verdict is
+      produced. <b>Live account validation is not verified</b>, and every figure
+      on this page describes generated data.</p>`, 2)}
   ${rise('', `<hr class=rule><span class=lbl>what ATTEST does not claim</span>`
     + (claims.unknowns||[]).slice(0,6).map(u=>`
     <div class=refuse-r><b>${esc(u.what)}</b><span>${esc(u.why)}</span>
-      <i>not verified</i></div>`).join(''), 2)}
+      <i>not verified</i></div>`).join(''), 3)}
 </section>
 
 <div class=warm id=boundary>
