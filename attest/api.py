@@ -311,10 +311,35 @@ def _wilson(w: int, t: int) -> float:
     return _wilson_upper(w, t) if t else 1.0
 
 
+def anchoring_measurement() -> dict[str, Any]:
+    """What the re-measurement of the hypothesis loop actually reports.
+
+    D8 disabled the loop on a hand-taken 0.521. `attest/eval/anchoring.py` made
+    that number re-runnable, and the re-measurement came back **worse** — so the
+    decision held, and five strings across the product went on quoting the
+    superseded figure because nothing checked them.
+
+    Read from the artifact at call time. A number that decides whether a feature
+    ships does not get to live in a Python string.
+    """
+    a = _artifact("anchoring.json")
+    resolved = int(a.get("resolved") or 0)
+    correct = int(a.get("correct") or 0)
+    return {
+        "correct": correct,
+        "resolved": resolved,
+        "wrong": int(a.get("wrong") or 0),
+        "precision": float(a.get("precision") or 0.0),
+        "source": "benchmark/anchoring.json",
+        "superseded": 0.521,
+    }
+
+
 def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
     """Run the hypothesis loop in INVESTIGATE-ONLY mode and return the trail.
 
-    §15 and §54: the loop is measured at precision 0.521 and is not permitted to
+    §15 and §54: the loop is measured below a coin flip — see
+    `anchoring_measurement()`, read from the artifact — and is not permitted to
     resolve anything. It is permitted to *investigate* — propose explanations,
     have them tested, and show what happened. So this endpoint runs it and
     discards the verdict it would have produced, keeping only the record of
@@ -342,6 +367,7 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
 
     proposed, trail = investigate(f, st[sid], credit, r.pools.get(sid, []),
                                   batch_proposer)
+    m = anchoring_measurement()
 
     # The verdict is deliberately thrown away. Whatever the loop concluded, the
     # engine's answer is the one it already had.
@@ -351,13 +377,16 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
         "would_have_concluded": proposed.verdict.value,
         "changed_nothing": True,
         "events": trail.events,
+        "measurement": m,
         "note": (
-            "AI resolution is disabled. Measured at precision 0.521 over five "
-            "seeds — a coin flip — because the settlement report carries no "
-            "order-level reference, so every anchor is a guess and selecting "
-            "among candidate explanations with a guess lands where guesses land. "
-            "A language model would change which guess gets made, not that it is "
-            "one. It does not meet the auto-post policy, so it does not run."),
+            f"AI resolution is disabled. Re-measured over five seeds at "
+            f"{m['correct']} correct of {m['resolved']} resolved "
+            f"({m['precision'] * 100:.1f}%) — below a coin flip — because the "
+            "settlement report carries no order-level reference, so every anchor "
+            "is a guess and selecting among candidate explanations with a guess "
+            "lands where guesses land. A language model would change which guess "
+            "gets made, not that it is one. It does not meet the auto-post "
+            "policy, so it does not run."),
     }
 
 
@@ -1628,6 +1657,11 @@ def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
         "state": ("abstained" if steps and discriminative == 0
                   else "resolved" if discriminative else "open"),
         "verdict_changed": False,
+        # The fact the audit found buried: the loop's conclusion is computed
+        # and discarded, so it cannot become the financial verdict. It was true
+        # in the payload and invisible on screen.
+        "changed_nothing": True,
+        "measurement": anchoring_measurement(),
         "tested": tested, "discriminative": discriminative,
         "steps": steps,
         "signal": signal,

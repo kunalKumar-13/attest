@@ -174,7 +174,8 @@ class Provenance:
     dataset_version: str
     model_version: str = "none"
     """Which model produced hypotheses, if any ran. 'none' is the honest and
-    current answer — the loop is disabled at precision 0.521."""
+    current answer — the loop is disabled, below a coin flip on the
+    re-measurement in `benchmark/anchoring.json`."""
 
     def to_json(self) -> dict[str, str]:
         return asdict(self)

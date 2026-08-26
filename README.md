@@ -34,9 +34,9 @@ greedy            462     439           95.0%     useful, and catastrophic
 ```
 
 `exact_only` beats ATTEST on precision and we say so. The claim is not *most
-accurate* — it is four times the coverage of the safe baseline at a twentieth of
-the error rate of the useful one, **and it says which of its answers it could
-not establish.**
+accurate*. It decides **84 settlements against `exact_only`'s 22**, at a
+false-proof rate one twentieth of `greedy`'s — **and it says which of its
+answers it could not establish.**
 
 ### The insight
 

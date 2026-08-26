@@ -9,7 +9,7 @@ credited that an evaluator would not discover on their own.
 
 ## Findings, reported not fixed
 
-### F1 · A number in the code contradicts the artifact it cites — **fix before submitting**
+### F1 · A number in the code contradicted the artifact it cites — **RESOLVED**
 
 `attest/api.py` explains why AI resolution is switched off:
 
@@ -31,12 +31,23 @@ this project's own standard is that every claim traces to an artifact. The claim
 register does not catch it because the number lives in a Python string rather
 than a generated README block.
 
-A skeptical evaluator who opens `anchoring.json` finds a mismatch between what
-the code says and what the measurement says. That is the one thing this
-submission cannot afford. **Recommend correcting the string to read from the
-artifact, or restating it as 0.4286.**
+A skeptical evaluator who opens `anchoring.json` would have found the code and
+the measurement disagreeing. That is the one thing this submission cannot
+afford.
 
-### F2 · The strongest evidence for the thesis is not on screen — **your call**
+**Resolved.** `api.anchoring_measurement()` now reads the artifact at call time
+and the note is composed from it, so the displayed figure cannot drift. Four
+other strings — `hypothesis.py`, `rules.py`, `ARCHITECTURE.md`, `DECISIONS.md` —
+were restated with the chronology explicit: D8 measured 0.521 by hand, the
+re-measurement came back worse, and the decision held. `FAILURES.md`,
+`UX-AUDIT.md`, `eval/anchoring.py` and this document keep 0.521 as history.
+
+A regression test refuses any bare 0.521 outside those files — it checks
+chronology, not arithmetic, so a rounding of the current figure passes and an
+unqualified superseded one does not. Mutation-tested: reverting the api.py
+string fails it.
+
+### F2 · The strongest evidence for the thesis was not on screen — **RESOLVED**
 
 The single best answer to *"why not just let the AI decide?"* is that it was
 tried and measured. That measurement is **not discoverable in the product**:

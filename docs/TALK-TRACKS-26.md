@@ -123,8 +123,8 @@ Everything above, plus four expansions.
 > different objectives. ATTEST: 84 decided, 4 wrong.
 >
 > Exact-only beats us on precision and we say so in the README. Our claim is
-> four times the coverage at a twentieth of the error, and knowing which answers
-> we couldn't establish.
+> eighty-four decided against exact-only's twenty-two, at a twentieth of
+> greedy's error rate, and knowing which answers we couldn't establish.
 
 **After the search space (1:50)** — what stops a forged proof:
 

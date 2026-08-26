@@ -1113,15 +1113,40 @@ font-size:var(--t-num);line-height:1;letter-spacing:-.03em}
 .i-sig-d{font-size:var(--t-label);color:var(--dim2);line-height:1.6;max-width:88ch}
 
 /* §25 — restraint, not error */
-.i-abs{border-left:2px solid var(--ink);padding:var(--s-4) 0 var(--s-4) var(--s-5);
-margin:0 0 var(--s-6)}
-.i-abs-n{display:flex;gap:var(--s-5);font-size:var(--t-label);color:var(--dim3);
-margin-bottom:7px}
-.i-abs-n b{font-family:var(--m);font-size:var(--t-body);color:var(--ink)}
 /* .i-abs-v held a second 'Engine abstained' beneath the one that leads the
    room. A rule with no element is a guess about the future, so it goes too. */
-.i-abs-d{font-size:var(--t-label);color:var(--dim2);line-height:1.65;max-width:82ch;
-padding-top:var(--sp-1)}
+/* ------------------------------------------------------- THE AI BOUNDARY
+   Three actors, three marks, one row of facts. The hero is the boundary; the
+   benchmark note is supporting evidence at the smallest readable size, and it
+   is the only sentence here that is about a panel rather than this case. The
+   marks reuse the shapes the timeline already owns, so grayscale carries it. */
+.i-bound{border-left:2px solid var(--ink);padding:var(--sp-4) var(--sp-5);
+  margin:var(--sp-6) 0;max-width:82ch}
+.i-bound-k{font-size:var(--type-micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim3);padding-bottom:var(--sp-3)}
+.i-bound-s{display:grid;grid-template-columns:14px 84px minmax(0,1fr);
+  gap:var(--sp-3);align-items:baseline;padding:3px 0}
+.i-bound-s b{font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.13em;color:var(--ink);font-weight:400}
+.i-bound-s span{font-size:var(--type-body);color:var(--dim)}
+.i-bound-dot{display:block;width:9px;height:9px;justify-self:center;
+  align-self:center;border:1.5px solid var(--dim2)}
+.i-bound-dot.model{transform:rotate(45deg)}
+.i-bound-dot.solver{border-radius:999px}
+.i-bound-dot.engine{border-radius:999px;background:var(--ink);
+  border-color:var(--ink)}
+.i-bound-r{display:flex;flex-wrap:wrap;gap:var(--sp-6);
+  padding:var(--sp-4) 0 var(--sp-3);margin-top:var(--sp-3);
+  border-top:1px solid var(--line)}
+.i-bound-r span{display:flex;flex-direction:column;gap:2px}
+.i-bound-r i{font-style:normal;font-size:var(--type-micro);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3)}
+.i-bound-r b{font-size:var(--type-data);font-weight:500}
+.i-bound-x{font-size:var(--type-label);color:var(--dim);line-height:1.6}
+.i-bound-m-note{font-size:var(--type-micro);color:var(--dim3);line-height:1.6;
+  padding-top:var(--sp-3);margin-top:var(--sp-3);
+  border-top:1px solid var(--line)}
+.i-bound-m-note b{font-family:var(--m);color:var(--dim2);font-weight:400}
 
 .i-res{display:flex;flex-direction:column;gap:1px}
 .i-res-r{display:grid;grid-template-columns:106px 1fr 1fr;gap:var(--s-4);

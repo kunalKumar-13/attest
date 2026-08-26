@@ -86,7 +86,8 @@ seeds give 0, 0, 1, 2, 2.
 Anchoring *before* the search resolved 92 abstentions and got 32 wrong.
 Uniqueness inside a restricted space is not uniqueness.
 
-**Consequence** the corrected version is sound and *worse* — 0.521, a coin flip —
+**Consequence** the corrected version is sound and *worse*. D8 measured 0.521
+by hand; the re-measurement records 27 correct of 63 resolved, worse again —
 which is the useful result: there is no signal to select on, because the generator
 emits no order-level reference.
 

@@ -566,13 +566,17 @@ def test_abstention_is_shown_as_restraint_and_changes_no_verdict(page):
     """§8, §9, §25. The investigation ran; the verdict did not move.
 
     Phase 23: the word `abstained` left `.i-abs`, which was painting the room's
-    own conclusion a second time at the same size. It is still stated — it
-    leads the room — so this reads the room for the abstention and `.i-abs`
-    for what that block actually owns: that nothing moved as a result."""
+    own conclusion a second time at the same size.
+
+    Phase F2: `.i-abs` itself is gone. It stated the verdict, that no financial
+    action was taken, and that nothing the model proposed separated the
+    explanations — all of which the AI boundary now states, with the counts
+    folded in and the discarded verdict named outright. The guarantee did not
+    move; the block that carried it did."""
     _ev(page, "#/settlement/setl_000089/investigate")
     room = page.inner_text("#w-main")
     assert "abstained" in room.lower()
-    abs_ = page.inner_text(".i-abs")
+    abs_ = page.inner_text(".i-bound")
     assert "no financial action" in abs_.lower()
     assert "AMBIGUOUS" in abs_
     # the subject header still carries the same verdict
@@ -2238,3 +2242,80 @@ def test_razorpay_is_never_named_as_the_source_without_credentials(page):
         mode = page.inner_text("#source-mode").lower()
         assert "razorpay" not in mode, \
             f"{lens} names Razorpay as the source: {mode!r}"
+
+
+def test_the_ai_boundary_shows_the_model_did_not_decide(page):
+    """F2. The strongest fact in the audit was invisible: the hypothesis loop's
+    verdict is computed and then discarded, so the model's conclusion cannot
+    become the financial one.
+
+    The instrument states the order the code actually executes — the solver
+    established the ambiguity first, the model was then asked for an anchor,
+    and the solver tested whether that anchor discriminates. It does not say
+    the solver checked whether the model was right."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    box = page.query_selector(".i-bound")
+    assert box and box.is_visible(), "no AI boundary instrument"
+    t = box.inner_text().lower()
+    for phrase in ("model", "solver", "engine", "diagnostic",
+                   "no financial action"):
+        assert phrase in t, f"the boundary does not state {phrase!r}: {t[:200]}"
+    assert "confidence" not in t, "the boundary speaks of confidence"
+    # the verdict retained is the engine's, and it is named
+    assert "ambiguous" in t
+
+
+def test_the_ai_boundary_reports_the_verdict_was_not_changed(page):
+    """`changed_nothing` is the fact, and it must be on screen, not only in the
+    payload."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    truth = page.evaluate("""async () => {
+      const r = await fetch(`/api/investigation?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000089`);
+      const d = await r.json();
+      return {verdict: d.verdict, would: d.would_have_concluded,
+              changed: d.changed_nothing}; }""")
+    assert truth["changed"] is True, "the payload no longer discards the verdict"
+    box = page.inner_text(".i-bound").lower()
+    assert truth["verdict"].lower() in box
+    assert "changed" in box and ("no" in box or "nothing" in box)
+
+
+def test_the_solver_tests_discrimination_not_correctness(page):
+    """The wording matters. The solver is not adjudicating the model."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    t = page.inner_text(".i-bound").lower()
+    for wrong in ("whether the model is right", "model was correct",
+                  "validates the model", "checks the model"):
+        assert wrong not in t, f"the boundary implies adjudication: {wrong!r}"
+    assert "discriminat" in t or "separate" in t
+
+
+def test_the_benchmark_note_is_read_from_the_artifact(page):
+    """If the measurement is shown at all it is the artifact's, and it is
+    labelled a benchmark rather than this settlement's likelihood."""
+    _ev(page, "#/settlement/setl_000089/investigate")
+    el = page.query_selector(".i-bound-m-note")
+    if not el:
+        return                                   # showing it is optional
+    shown = el.inner_text().lower()
+    truth = page.evaluate("""async () => {
+      const r = await fetch(`/api/investigation?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000089`);
+      return (await r.json()).measurement; }""")
+    assert truth, "the payload carries no measurement"
+    assert str(truth["correct"]) in shown and str(truth["resolved"]) in shown, \
+        f"the note does not match the artifact: {shown!r} vs {truth}"
+    assert "benchmark" in shown or "re-measure" in shown, \
+        "the measurement is not labelled as a benchmark"
+    for banned in ("confidence", "probability", "likelihood"):
+        assert banned not in shown, f"the note says {banned!r}"
+
+
+def test_a_model_conclusion_cannot_make_a_settlement_postable(page):
+    """The boundary is structural, and the room must not contradict it."""
+    _ev(page, "#/settlement/setl_000089/policy")
+    assert "0/5 passed" in page.inner_text("#w-main")
+    _ev(page, "#/settlement/setl_000089/journal")
+    j = page.inner_text("#w-main").lower()
+    assert "no entry is written" in j

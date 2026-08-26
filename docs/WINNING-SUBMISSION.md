@@ -44,9 +44,9 @@ greedy            462     439           95.0%
 *(`benchmark/baselines.json`, 500 settlements, held-out seeds.)*
 
 **ATTEST does not claim the best precision. `exact_only` beats it.** The claim
-is different: four times the coverage of the safe baseline, at a twentieth of
-the error rate of the useful one, and — the part neither baseline has — it says
-which of its answers it could not establish.
+is different: **84 decided against `exact_only`'s 22**, at a false-proof rate
+one twentieth of `greedy`'s — and, the part neither baseline has, it says which
+of its answers it could not establish.
 
 ## 4 · Why does AI belong in the system at all?
 

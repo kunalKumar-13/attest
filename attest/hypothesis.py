@@ -132,8 +132,12 @@ class Trail:
 
 Proposer = Callable[[Evidence], list[Hypothesis]]
 
-#: OFF by default. Measured at precision 0.521 over five seeds — a coin flip —
-#: because the generator emits no order-level reference for an anchor to key on,
+#: OFF by default. D8 disabled it on a hand-taken 0.521; the re-measurement in
+#: `attest/eval/anchoring.py` came back at 27 correct of 63 resolved — worse than
+#: a coin flip, so the decision held and the earlier figure is superseded. The
+#: current number is read from `benchmark/anchoring.json`, never written here.
+#: The cause is unchanged: the generator emits no order-level reference for an
+#: anchor to key on,
 #: so every anchor is a guess and selecting among four explanations with a guess
 #: lands where guesses land. Enabling it would take the engine from 5 false
 #: proofs per 1,250 to roughly 40. See FAILURES.md D8.

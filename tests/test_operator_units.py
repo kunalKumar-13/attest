@@ -143,3 +143,81 @@ def test_every_money_renderer_agrees_on_paise_and_grouping():
     assert rupees(9775984) == "₹97,759.84"
     assert rupees(0) == "₹0.00"
     assert rupees(-450) == "-₹4.50"
+
+
+# --------------------------------------------------------------------------
+# The anchoring measurement. F1.
+#
+# D8 disabled the hypothesis loop on a hand-taken measurement of 0.521. The
+# measurement was later made re-runnable (attest/eval/anchoring.py) and the
+# re-measurement came back at 0.4286 — worse, so the conclusion held and nobody
+# noticed that five strings across the product still quoted the superseded
+# number. A claim that decides whether a feature ships may not live in a Python
+# string that nothing checks.
+# --------------------------------------------------------------------------
+
+ANCHORING = ROOT / "benchmark" / "anchoring.json"
+
+
+def _anchoring():
+    import json
+    return json.loads(ANCHORING.read_text())
+
+
+def test_the_anchoring_artifact_still_carries_what_the_claim_needs():
+    """If the artifact stops reporting these, the claim has nothing to rest on."""
+    a = _anchoring()
+    for k in ("precision", "resolved", "correct", "wrong"):
+        assert k in a, f"anchoring.json no longer reports {k}"
+    assert a["resolved"] == a["correct"] + a["wrong"], \
+        f"resolved != correct + wrong: {a}"
+    assert 0.0 <= a["precision"] <= 1.0
+
+
+def test_no_product_code_quotes_a_superseded_anchoring_precision():
+    """F1. 0.521 was superseded by the re-measurement and may survive only as
+    history — never as the current figure.
+
+    The check is chronology, not arithmetic: an occurrence is allowed when the
+    surrounding text says it is the earlier measurement, and refused when it
+    stands bare. Rounding variants of the artifact's own number (0.429, 42.9%)
+    are the current claim and are fine.
+    """
+    import re
+    HISTORICAL_FILES = {
+        "FAILURES.md",                    # D8's own record
+        "docs/UX-AUDIT.md",               # dated audit note
+        "docs/JUDGE-ATTACK.md",           # the audit that found this drift
+        "attest/eval/anchoring.py",       # explains why it was re-measured
+        "tests/test_operator_units.py",   # this file
+    }
+    CHRONOLOGY = ("supersed", "hand-taken", "by hand", "d8 measured",
+                  "d8 first measured", "d8 recorded", "d8 disabled",
+                  "earlier", "historical", "first measured")
+    offenders = []
+    for path in sorted(ROOT.rglob("*.py")) + sorted(ROOT.rglob("*.md")):
+        rel = path.relative_to(ROOT).as_posix()
+        if rel.startswith((".venv", "native/.venv", ".git")) or rel in HISTORICAL_FILES:
+            continue
+        text = path.read_text(errors="ignore")
+        for m in re.finditer(r"0\.521|52\.1\s?%", text):
+            window = text[max(0, m.start() - 220):m.start() + 120].lower()
+            if any(c in window for c in CHRONOLOGY):
+                continue
+            line = text[:m.start()].count("\n") + 1
+            offenders.append(f"{rel}:{line}")
+    assert not offenders, (
+        "the superseded 0.521 is presented as current, with no chronology:\n  "
+        + "\n  ".join(sorted(set(offenders))))
+
+
+def test_the_displayed_anchoring_claim_is_read_from_the_artifact():
+    """The number the product shows is the artifact's, computed at call time —
+    not a literal that a re-measurement would leave behind."""
+    from attest.api import anchoring_measurement
+    a = _anchoring()
+    claim = anchoring_measurement()
+    assert claim["correct"] == a["correct"]
+    assert claim["resolved"] == a["resolved"]
+    assert abs(claim["precision"] - a["precision"]) < 1e-9
+    assert claim["source"] == "benchmark/anchoring.json"

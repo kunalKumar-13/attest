@@ -46,22 +46,60 @@
     }).join('')}</ol>`;
   }
 
-  /* §25. Abstention is a result, and it should read as restraint rather than as
-     a system that failed to produce an answer. */
-  function Abstained(d) {
+  /* THE AI BOUNDARY.
+   *
+   * The strongest fact about this system was only in the payload: the loop's
+   * verdict is computed and then discarded, so the model's conclusion cannot
+   * become the financial one. `changed_nothing` was true and nobody could see
+   * it.
+   *
+   * The order stated here is the order the code executes. Deterministic
+   * reconciliation established AMBIGUOUS first; only then was the model asked
+   * for an anchor; then the solver tested whether that anchor DISCRIMINATES.
+   * The solver is not adjudicating the model — it never asks whether the model
+   * was right, only whether what it proposed separates the surviving
+   * explanations. Getting that backwards would make the model sound like the
+   * author of the answer, which is the one thing this instrument exists to
+   * deny.
+   *
+   * The benchmark note is supporting evidence, not the hero, and it is read
+   * from the payload — which reads it from benchmark/anchoring.json. It is a
+   * property of the loop across a panel, never of this settlement. */
+  function AiBoundary(d) {
     if (d.state !== 'abstained') return '';
-    return `<div class=i-abs>
-      <div class=i-abs-n>
-        <span><b>${d.tested}</b> ${d.tested === 1 ? 'hypothesis' : 'hypotheses'} tested</span>
-        <span><b>${d.discriminative}</b> discriminative</span>
+    const m = d.measurement;
+    const step = (mark, actor, did) =>
+      `<div class=i-bound-s><i class="i-bound-dot ${mark}" aria-hidden=true></i>
+         <b>${actor}</b><span>${did}</span></div>`;
+    return `<div class=i-bound>
+      <div class=i-bound-k>the boundary</div>
+      ${step('model', 'MODEL', 'proposed an anchor')}
+      ${step('solver', 'SOLVER', 'tested whether the anchor discriminates')}
+      ${step('engine', 'ENGINE', 'original verdict retained')}
+      <div class=i-bound-r>
+        <span><i>tested</i><b>${d.tested}</b></span>
+        <span><i>discriminative</i><b>${d.discriminative}</b></span>
+        <span><i>model output</i>diagnostic only</span>
+        <span><i>verdict</i><b class="c-status s-${esc(d.verdict)} sm"
+          >${esc(d.verdict)}</b></span>
+        <span><i>changed</i><b>No</b></span>
       </div>
-      <div class=i-abs-d>The verdict stands at
-        <b class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</b>
-        and no financial action was taken. Nothing the model proposed could
-        separate the surviving explanations, so nothing was posted on the
-        strength of it.</div>
+      <div class=i-bound-x>No financial action. The loop's conclusion is
+        recorded as evidence and discarded; it is not eligible to become the
+        verdict, and nothing downstream reads it.</div>
+      ${m && m.resolved ? `<p class=i-bound-m-note>Benchmark, not this
+        settlement: re-measured across the evaluation panel, the loop resolved
+        <b>${m.correct} of ${m.resolved}</b> correctly
+        (${(m.precision * 100).toFixed(1)}%) — below a coin flip, which is why
+        it does not decide.</p>` : ''}
     </div>`;
   }
+
+  /* §25's abstention block is gone. It stated the verdict, that no financial
+     action was taken, and that nothing the model proposed separated the
+     explanations — which is what the boundary above now says, with the counts
+     folded in. Two blocks making the same point is the duplication this
+     product has been removing throughout. */
 
   async function settlement(subject, S) {
     const d = await window.shellApi(`/api/investigation?run=${S.run}`
@@ -121,7 +159,7 @@
               adds nothing on top of it.</p>`,
           }) : ''),
         }) : '')
-      + Abstained(d)
+      + AiBoundary(d)
       + Resolvers(d);
   }
 

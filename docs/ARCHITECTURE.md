@@ -23,7 +23,9 @@ an action except through all four in order.
 | **L7** | exceptions, each with a reason code and a residual | no |
 
 L5 is the only layer a model touches, and it is disabled — measured at precision
-0.521, which is a coin flip (FAILURES.md D8). It runs in investigation mode,
+27 correct of 63 resolved — below a coin flip. D8 first measured this by
+hand at 0.521 and the re-measurement in `benchmark/anchoring.json` came back
+worse, so the decision held. It runs in investigation mode,
 where its conclusion is discarded and only the record of what it proposed and why
 it was refused is kept.
 
