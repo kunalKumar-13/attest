@@ -32,31 +32,64 @@
      already excluded the truth. */
   function Universe(space, survivors) {
     if (!space) return '';
+
+    /* §30.3 — the reduction chain as an object rather than a bar list.
+     *
+     * This is the product's signature moment and it was three rows of small
+     * type: the reader had to assemble "2,368 orders became 164 candidates
+     * became 4 explanations" out of a table. The sequence IS the argument, so
+     * the sequence is now the composition — three figures at the size of the
+     * claim they make, and between them the cuts that got from one to the next.
+     *
+     * The rule under each figure is linear in its own population, so the
+     * physical collapse from 2,368 to 4 is visible before a digit is read.
+     * The floor keeps the survivors from rendering as nothing, since four
+     * surviving explanations is the whole reason this case is open.
+     *
+     * Each cut is focusable and states its justification on hover or focus.
+     * That is the one piece of progressive disclosure here: the default view
+     * carries the fact and the KIND — deterministic or convention — because
+     * that distinction is what the 32/92 failure was about, and a reader who
+     * never hovers must still see it. */
     const top = Math.max(space.universe, 1);
-    const bar = (n, cls) =>
-      `<span class=e-uni-t aria-hidden=true><i class="${cls}" style="width:${
-        Math.max(n / top * 100, n > 0 ? 0.4 : 0).toFixed(2)}%"></i></span>`;
-    return `<div class=e-uni>
-      <div class=e-uni-r>
-        <span class=e-uni-n>${Number(space.universe).toLocaleString()}</span>
-        ${bar(space.universe, 'all')}
-        <span class=e-uni-l>orders in the book</span></div>
-      ${space.reductions.map(x => `<div class="e-uni-c ${x.deterministic ? 'det' : 'conv'}">
+    const FLOOR = 0.35;
+    const rule = (n) => `<span class=e-uni-t aria-hidden=true><i style="width:${
+      Math.max(n / top * 100, n > 0 ? FLOOR : 0).toFixed(3)}%"></i></span>`;
+
+    const node = (n, label, cls = '') => `<div class="e-uni-r ${cls}">
+      <span class=e-uni-n>${Number(n).toLocaleString()}</span>
+      <span class=e-uni-l>${esc(label)}</span>
+      ${rule(n)}</div>`;
+
+    const cuts = space.reductions.map((x, i) => `<button
+        class="e-uni-c ${x.deterministic ? 'det' : 'conv'}"
+        style="animation-delay:${120 + i * 90}ms"
+        aria-describedby="e-just-${i}">
         <span class=e-uni-m>−${Number(x.removed).toLocaleString()}</span>
         <span class=e-uni-w>${esc(x.name)}</span>
         <span class=e-uni-k>${x.deterministic ? 'deterministic' : 'convention'}</span>
-        <span class=e-uni-j>${esc(x.justification)}</span></div>`).join('')}
-      <div class=e-uni-r>
-        <span class=e-uni-n>${Number(space.candidates).toLocaleString()}</span>
-        ${bar(space.candidates, 'kept')}
-        <span class=e-uni-l>could belong to this credit</span></div>
-      ${survivors ? `<div class="e-uni-r e-uni-end">
-        <span class=e-uni-n>${Number(survivors).toLocaleString()}</span>
-        ${bar(0, 'kept')}
-        <span class=e-uni-l>${survivors === 1
+        <span class=e-uni-j id="e-just-${i}">${esc(x.justification)}</span>
+      </button>`).join('');
+
+    return `<div class=e-uni>
+      ${node(space.universe, 'orders in the book')}
+      <div class=e-uni-e>${cuts}</div>
+      ${node(space.candidates, 'could belong to this credit', 'mid')}
+      ${survivors ? `<div class=e-uni-e>
+          <div class="e-uni-c arith">
+            <span class=e-uni-m>∑</span>
+            <span class=e-uni-w>subsets whose net equals the credit</span>
+            <span class=e-uni-k>deterministic</span>
+            <span class=e-uni-j>the last cut is arithmetic, not a rule: what
+              survives is every subset of the ${Number(space.candidates
+                ).toLocaleString()} candidates whose net equals the credit
+              within tolerance</span>
+          </div>
+        </div>
+        ${node(survivors, survivors === 1
           ? 'explanation survives'
-          : 'surviving explanations, and arithmetic cannot choose'}</span></div>`
-        : ''}
+          : 'surviving explanations, and arithmetic cannot choose',
+          'e-uni-end')}` : ''}
     </div>`;
   }
 

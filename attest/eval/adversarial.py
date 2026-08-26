@@ -438,4 +438,24 @@ if __name__ == "__main__":
     if harness:
         print("\n  A harness error is NOT a defence. These attacks did not run.")
     print("=" * w + "\n")
+
+    # The result is written where the product can read it. Trust states this
+    # count on screen, and a count typed into the UI by hand is a claim about a
+    # pass that may not have run since. Same rule as benchmark/anchoring.json:
+    # the surface reads the artifact, and if the artifact is missing the
+    # surface says the pass has not been run rather than inventing a number.
+    import json
+    from pathlib import Path as _P
+    art = _P(__file__).resolve().parents[2] / "benchmark" / "adversarial.json"
+    art.write_text(json.dumps({
+        "attacks": len(RESULTS),
+        "defended": len(ok),
+        "breached": len(bad),
+        "harness_errors": len(harness),
+        "stages": sorted({r[0] for r in RESULTS}),
+        "breaches": [{"stage": r[0], "kind": r[1], "name": r[2], "detail": r[4]}
+                     for r in bad],
+    }, indent=2) + "\n")
+    print(f"  wrote {art.relative_to(_P.cwd()) if art.is_relative_to(_P.cwd()) else art}\n")
+
     raise SystemExit(1 if bad or harness else 0)

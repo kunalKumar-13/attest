@@ -81,6 +81,14 @@
   async function portfolio(S) {
     const d = await window.shellApi(`/api/claims?run=${S.run}`);
     const failing = d.gates.filter(g => g.state !== 'PASS').length;
+    // Both measured by the API, neither typed here. `adversarial` reads the
+    // pass's artifact; `isolation` reads the engine's own source.
+    const adv = d.adversarial || { present: false };
+    // a proper noun in prose; the lowercase literal stays wherever the string
+    // that was actually searched for is being shown
+    const title = w => String(w || '').replace(/^./, c => c.toUpperCase());
+    const iso = d.isolation || { isolated: false, provider: 'the provider',
+                                 modules: 0, clean: 0, mentions: [] };
 
     // Trust leads with what the system will not claim. The strongest thing on
     // this screen must be a limitation, not a green tick — a trophy wall is
@@ -103,6 +111,33 @@
        * it is three rows rather than a section. */
       + `<div class=t-head><span class=t-head-k>where ATTEST has failed</span></div>`
       + Section({ body: BadNews(d) })
+
+      /* §30.8 — what was attacked, and what held.
+       *
+       * The counts come from benchmark/adversarial.json, written by the pass
+       * itself. If that artifact is absent this says the pass has not been
+       * run: a defended-attack count with nothing behind it is exactly the
+       * kind of claim this lens exists to refuse. */
+      + Section({
+          title: 'What was attacked',
+          aside: adv.present
+            ? `<span class=c-muted>${(adv.stages || []).length} stages, source to ledger</span>`
+            : '',
+          body: adv.present ? `<div class=t-adv>
+              <div class=t-adv-f><b>${adv.attacks}</b><span>attacks</span></div>
+              <div class=t-adv-f><b>${adv.defended}</b><span>defended</span></div>
+              <div class="t-adv-f ${adv.breached ? 'bad' : ''}"
+                ><b>${adv.breached}</b><span>breached</span></div>
+              <p class=t-adv-n>Each attack is an attempt to move money it should
+                not be able to move. A refusal counts as a defence; an exception
+                from the harness does not, and there
+                ${adv.harness_errors === 1 ? 'was' : 'were'}
+                ${adv.harness_errors} of those.</p>
+            </div>`
+            : `<p class=t-adv-n>The adversarial pass has not been run against
+                 this build, so there is no count to show.
+                 <code>python -m attest.eval.adversarial</code> writes it.</p>`,
+        })
 
       /* ------------------------------------------------------------ ZONE 1
        * NOT VERIFIED, and deliberately the strongest zone on the screen.
@@ -225,7 +260,36 @@
           <p class=t-prov-n>Content-hashed. A changed rule set changes its
             version, so a run that produced a number can always be told from a
             run that did not.</p>`,
-        });
+        })
+
+      /* §30.8 — the last thing the room says.
+       *
+       * It is the strongest architectural claim ATTEST makes, and until now it
+       * was made only in a README. It is checkable, so it is checked: every
+       * engine module is read and searched for the provider's name, and the
+       * count of modules scanned is on screen beside the result. A reader who
+       * disbelieves it can name the modules and grep them. */
+      + (iso.isolated ? `<div class=t-iso>
+          <div class=t-iso-k>the boundary that makes this portable</div>
+          <p class=t-iso-s>The engine does not know<br>${esc(
+            title(iso.provider))} exists.</p>
+          <p class=t-iso-n>All ${iso.clean} of ${iso.modules} modules that
+            produce a verdict were read: none of them contains the string
+            <code>${esc(iso.provider)}</code>. The provider is named only at the
+            boundary — <code>${(iso.boundary || []).map(esc).join('</code>, <code>')}</code>
+            — so the same verdict is produced whether the records arrive from
+            an API, a bank file, or a CSV.</p>
+        </div>` : `<div class="t-iso breached">
+          <div class=t-iso-k>the boundary that makes this portable</div>
+          <p class=t-iso-s>${esc(title(iso.provider))} reaches the engine.</p>
+          <p class=t-iso-n>${(iso.mentions || []).length} of ${iso.modules}
+            engine modules name the provider${(iso.mentions || []).length
+              ? ': ' + (iso.mentions || []).map(esc).join(', ') : ''}${
+            (iso.unreadable || []).length
+              ? `; ${(iso.unreadable || []).length} could not be read`
+              : ''}. The claim that this engine is provider-independent does
+            not currently hold.</p>
+        </div>`);
   }
 
 

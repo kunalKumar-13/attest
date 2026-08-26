@@ -129,7 +129,10 @@ button{font:inherit;color:inherit;background:transparent;border:0;
 /* Secondary controls. Moved out of the primary interaction path — the first
    interactive element on the page was the theme toggle, which is a statement
    about what the product thinks it is for. */
-#bar{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);
+/* wraps rather than overflows: the bar carries the source and the execution
+   path, and a 360px phone cannot hold both on one line beside the run
+   controls. Neither fact is worth dropping to save a row. */
+#bar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);
 height:auto;border-top:1px solid var(--line);background:var(--rail-bg)}
 #bar .wm{opacity:.55}
 #bar #hint{display:none}
@@ -401,45 +404,11 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-sim-tag{font-size:var(--type-micro);letter-spacing:.11em;color:var(--st-AMBIGUOUS);
   border:1px dashed var(--st-AMBIGUOUS);border-radius:var(--r-sm);padding:1px 5px}
 
-/* ================================================ CONTROL · THE BLOCKERS
-   Not action rows. A blocker states the value it holds, its scope, where it
-   is stuck, why, what would move it, and — the part that matters — whether
-   ATTEST can do that itself. Value leads because value is what decides
-   whether the work is worth the next ten minutes. */
-/* Each blocker is its own grid, so minmax(150px,auto) resolved column two
-   from that row's own amount — three rows, three widths, and the register's
-   labels never shared an edge. A fixed column is what makes three rows read as
-   one ledger: 160px holds ₹47,96,811.78 at the value's own type size. */
-.c-blk{display:grid;
-  grid-template-columns:26px 160px 132px minmax(0,1fr);
-  grid-template-areas:"i v s b" "i v s w" "i v s n" ". . . c";
-  gap:2px var(--sp-4);width:100%;text-align:left;align-items:baseline;
-  padding:var(--sp-4) var(--sp-2);border-top:1px solid var(--line);
-  border-radius:var(--r-sm);transition:background var(--micro)}
-.c-blk:hover{background:var(--sur2)}
-.c-blk.sel{background:var(--sur2);box-shadow:inset 3px 0 0 var(--acc)}
-.c-blk-i{grid-area:i;font-family:var(--m);font-size:var(--type-micro);
-  color:var(--dim3);align-self:start;padding-top:6px}
-.c-blk-v{grid-area:v;font-family:var(--m);font-variant-numeric:tabular-nums;
-  font-size:var(--type-title);letter-spacing:-.025em;align-self:start}
-.c-blk-s{grid-area:s;display:flex;flex-direction:column;gap:3px;align-self:start}
-.c-blk-s em{font-style:normal;font-size:var(--type-micro);color:var(--dim3)}
-.c-blk-b,.c-blk-w,.c-blk-n{font-size:var(--type-micro);color:var(--dim);
-  line-height:1.45}
-/* 112px, not 96: the labels moved off an undeclared 9px tier onto the scale's
-   10px in Phase 13 and WOULD UNBLOCK stopped fitting, wrapping on all three
-   rows of the register that answers what to do first. */
-.c-blk-b i,.c-blk-w i,.c-blk-n i{display:inline-block;width:112px;
-  flex:0 0 112px;font-style:normal;
-  font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;
-  color:var(--dim3);white-space:nowrap}
-.c-blk-b{grid-area:b} .c-blk-w{grid-area:w} .c-blk-n{grid-area:n}
-.c-blk-n{color:var(--ink)}
-/* capability: what ATTEST can and cannot do, in words, never colour alone */
-.c-blk-c{grid-area:c;justify-self:start;font-size:var(--type-micro);letter-spacing:.13em;
-  padding:2px 6px;border-radius:var(--r-sm);margin-top:var(--sp-2)}
-.c-blk-c.cannot{color:var(--st-AMBIGUOUS);border:1px dashed var(--st-AMBIGUOUS)}
-.c-blk-c.can{color:var(--st-PROVEN);border:1px solid var(--st-PROVEN)}
+/* CONTROL · THE BLOCKERS — rebuilt in Phase 30 as evidence objects; see
+   §30.2 at the foot of this stylesheet. The old grid was retired WITH it
+   rather than left behind to win cascade fights against its replacement:
+   `width:112px` on the label spans outlived the rebuild and blew a 112px hole
+   into "blocked at | verification". Superseded CSS is not inert. */
 
 /* the working population a blocker scopes to */
 .c-pop-h{display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;
@@ -469,8 +438,6 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-from-x{color:var(--dim3)}
 
 @media (max-width:1023px){
-  .c-blk{grid-template-columns:24px minmax(0,1fr);
-    grid-template-areas:"i v" "i s" ". b" ". w" ". n" ". c"}
   .c-pop-r{grid-template-columns:16px minmax(0,1fr) auto}
   .c-pop-n{display:none}
 }
@@ -479,7 +446,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
    A vertical chain of financial movement, then what the books actually did.
    Accounting columns and hairlines — no cards. The zeroes are the point. */
 .j-mv{list-style:none;display:flex;flex-direction:column;margin:0;padding:0}
-.j-mv-s{display:grid;grid-template-columns:112px minmax(0,1fr) auto;
+.j-mv-s{display:grid;grid-template-columns:168px minmax(0,1fr) auto;
   gap:var(--sp-4);align-items:baseline;padding:var(--sp-3) 0;
   border-top:1px solid var(--line);position:relative}
 .j-mv-s:first-child{border-top:0}
@@ -512,20 +479,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .j-mv-s.through .j-mv-v{color:var(--ink)}
 
 /* the ledger effect — three accounting rows, right-aligned like a book */
-.j-eff{display:grid;grid-template-columns:110px 168px;justify-content:start;
-  gap:0 var(--sp-5);padding-bottom:var(--sp-4)}
-.j-eff-r{display:contents}
-.j-eff-k{font-size:var(--type-micro);letter-spacing:.13em;text-transform:uppercase;
-  color:var(--dim3);padding:var(--sp-2) 0;border-bottom:1px solid var(--line)}
-.j-eff-v{font-family:var(--m);font-variant-numeric:tabular-nums;
-  font-size:var(--type-data);text-align:right;padding:var(--sp-2) 0;
-  border-bottom:1px solid var(--line)}
-.j-eff-r.net .j-eff-k,.j-eff-r.net .j-eff-v{border-bottom:2px solid var(--ink);
-  font-weight:600}
-.j-eff.absent .j-eff-v{color:var(--dim2)}
-.j-eff.written .j-eff-v{color:var(--ink)}
-.j-eff-n{grid-column:1/3;padding-top:var(--sp-3);font-size:var(--type-micro);
-  color:var(--dim2);max-width:64ch;line-height:1.5}
+/* rebuilt in Phase 30 · §30.6, at the foot of this stylesheet */
 
 /* entry status — fixed questions, short answers, no prose */
 .j-st{display:flex;flex-direction:column;margin:0}
@@ -621,8 +575,21 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-lenses button{display:block;width:100%;padding:3px var(--sp-5);
   border-left:2px solid transparent;text-align:left;
   transition:color var(--micro),border-color var(--micro),background var(--micro)}
+.c-lenses button{position:relative}
+/* the ordinal: an anchor, set back from the name so it reads as an index
+   rather than as part of the instrument's title */
+.c-lens-i{position:absolute;left:var(--sp-2);top:var(--sp-2);
+  font-family:var(--m);font-size:var(--type-micro);color:var(--line);
+  letter-spacing:.06em}
+.c-lenses button{padding-left:var(--sp-8)}
 .c-lens-n{display:block;font-size:var(--type-micro);letter-spacing:.13em;
   text-transform:uppercase;color:var(--dim3)}
+/* what this instrument currently answers — the smallest thing in the dock,
+   because it is a report and not a label */
+.c-lens-s{display:block;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.06em;text-transform:uppercase;color:var(--dim3);
+  opacity:.75;padding-top:2px}
+.c-lenses button.on .c-lens-s{color:var(--dim);opacity:1}
 /* Every instrument states what it asks. Hiding the question on all but the
    held one left six bare nouns — the menu convention this dock was built to
    avoid. The held one is distinguished by seating and weight, not by being
@@ -652,9 +619,15 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
    predictable whichever instrument is held. */
 @media (max-width:767px){
   .c-lenses{display:flex;flex-direction:column;padding:0}
+  /* The ordinal keeps its place at a phone width but the state line does not:
+     seven three-line rows would take 210px of an 780px screen, and the room is
+     where the state is already stated. Index, name and question stay on one
+     line; padding-left is the ordinal's column, not sp-8. */
   .c-lenses button{display:flex;align-items:baseline;gap:var(--sp-2);
-    padding:3px var(--sp-4)}
-  .c-lens-n{flex:0 0 92px;line-height:1.35}
+    padding:3px var(--sp-4) 3px 26px}
+  .c-lens-i{left:var(--sp-3);top:4px}
+  .c-lens-s{display:none}
+  .c-lens-n{flex:0 0 88px;line-height:1.35}
   .c-lens-q{flex:1 1 auto;padding-top:0;line-height:1.35;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .c-lenses button.on{padding-top:3px;padding-bottom:3px}
@@ -945,39 +918,7 @@ padding:0 0 9px 108px;line-height:1.5;max-width:96ch}
  * must be visible as a drop, and the reductions that are conventions rather
  * than facts must say so. That distinction is what the 32/92 failure was about.
  */
-.e-uni{display:flex;flex-direction:column;gap:2px}
-.e-uni-r{display:grid;grid-template-columns:78px minmax(120px,300px) 1fr;
-gap:var(--s-4);align-items:center;padding:5px 0}
-.e-uni-n{font-family:var(--m);font-variant-numeric:tabular-nums;
-font-size:var(--t-body);text-align:right}
-.e-uni-t{height:16px;background:var(--sur3);border-radius:var(--r-0);
-overflow:hidden}
-.e-uni-t i{display:block;height:100%;border-radius:var(--r-0)}
-.e-uni-t i.all{background:var(--dim3);opacity:.45}
-.e-uni-t i.kept{background:var(--st-PROVEN)}
-.e-uni-l{font-size:var(--t-label);color:var(--dim3)}
-/* the end of the chain: what came out the far side of the reductions. Its
-   track is empty on purpose — four explanations are not a proportion of two
-   thousand orders, and drawing a sliver there would invite that reading. */
-.e-uni-end{padding-top:var(--sp-3);margin-top:var(--sp-2);
-  border-top:1px solid var(--line)}
-.e-uni-end .e-uni-n{font-size:var(--type-title);color:var(--st-AMBIGUOUS)}
-.e-uni-end .e-uni-t{background:transparent}
-.e-uni-end .e-uni-l{color:var(--dim)}
-.e-uni-claim{font-size:var(--type-label);color:var(--dim2);line-height:1.5;
-  padding-top:var(--sp-3);max-width:76ch}
-.e-uni-c{display:grid;grid-template-columns:70px 210px 96px 1fr;gap:var(--s-4);
-align-items:baseline;padding:5px 0 5px var(--s-4);
-border-left:2px solid var(--line)}
-.e-uni-c.conv{border-left-color:var(--st-AMBIGUOUS)}
-.e-uni-c.det{border-left-color:var(--st-PROVEN)}
-.e-uni-m{font-family:var(--m);font-variant-numeric:tabular-nums;
-font-size:var(--t-label);color:var(--dim2);text-align:right}
-.e-uni-w{font-size:var(--t-label)}
-.e-uni-k{font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase}
-.e-uni-c.conv .e-uni-k{color:var(--st-AMBIGUOUS)}
-.e-uni-c.det .e-uni-k{color:var(--st-PROVEN)}
-.e-uni-j{font-size:var(--t-label);color:var(--dim3);line-height:1.5}
+/* rebuilt in Phase 30 · §30.3, at the foot of this stylesheet */
 .e-red{margin-top:var(--s-4);display:flex;flex-direction:column;gap:2px}
 
 /* agreement as a block, disagreement as the sliver beside it */
@@ -1211,25 +1152,7 @@ color:var(--st-INVESTIGATE);border:1px dashed var(--st-INVESTIGATE);
 border-radius:var(--r-full);padding:2px 9px}
 
 /* the boundary itself */
-.p-bound{padding:var(--s-3) 0}
-.p-bound-t{position:relative;height:34px;background:var(--sur3);
-border-radius:var(--r-0);margin-bottom:9px}
-.p-bound-line{position:absolute;top:-4px;bottom:-4px;width:2px;
-background:var(--ink);border-radius:var(--r-sm)}
-.p-bound-mark{position:absolute;top:50%;width:11px;height:11px;
-margin:-5.5px 0 0 -5.5px;border-radius:var(--r-full);
-background:var(--st-AMBIGUOUS);box-shadow:0 0 0 3px var(--bg)}
-.p-bound.auto .p-bound-mark{background:var(--st-PROVEN)}
-.p-bound-zl,.p-bound-zr{position:absolute;top:50%;transform:translateY(-50%);
-font-size:var(--t-micro);letter-spacing:.06em;color:var(--dim3)}
-.p-bound-zl{left:9px}
-.p-bound-zr{right:9px}
-.p-bound-k{display:flex;gap:var(--s-5);font-size:var(--t-label);
-color:var(--dim3);margin-bottom:6px}
-.p-bound-k b{font-family:var(--m);color:var(--ink)}
-.p-bound-s{font-size:var(--t-label);color:var(--dim2);line-height:1.6;
-max-width:88ch}
-.p-bound.unpriced .p-bound-s{color:var(--dim2)}
+/* rebuilt in Phase 30 · §30.5, at the foot of this stylesheet */
 
 /* the safety chain — proof, then policy, in that order */
 .p-gates{display:flex;flex-direction:column;gap:var(--s-3)}
@@ -1675,6 +1598,568 @@ border-radius:var(--r-0)}
   .c-trail-rule{margin-left:0}
   .c-table th:nth-child(4),.c-table td:nth-child(4){display:none}
 }
+
+/* ════════════════════════════════════════════════ PHASE 30 · THE INSTRUMENTS
+   Phase 29 designed the system; this builds it. The premise is that a screen
+   which looks like every other screen teaches the reader nothing about what
+   changed, so each lens gets its own grammar while the shell holds still.
+
+   Three rules govern everything below.
+
+   1. GEOMETRY IS ARGUMENT. A bar that is one two-hundredth of the bar above it
+      says "almost none of this money continued" before a figure is read. Where
+      a shape can carry the fact, the shape carries it.
+   2. NO CARDS. A card is a container that says nothing about what it holds.
+      These are objects: a rule, an ordinal, a figure at the size its importance
+      deserves. Radius 0 or 2px, never 8.
+   3. MOTION EXPLAINS A TRANSITION OR IT DOES NOT RUN. Every animation here is
+      a state change becoming visible — a population being removed, a threshold
+      being crossed, an instrument seating itself. None of it is decoration. */
+:root{
+  /* Two roles above the existing six. The statement is the only type on the
+     page allowed to be larger than the money, and only on the landing, where
+     nothing has happened yet. */
+  --type-statement:clamp(30px,4.6vw,58px);
+  --type-hero:clamp(28px,3.4vw,44px);
+  --sp-9:48px; --sp-10:64px; --sp-11:96px;
+  --r-obj:2px;                   /* objects. not cards. */
+  --rule:1px solid var(--line);
+  --rule2:1px solid var(--line2);
+  /* Semantic, not decorative. Each of these names a thing the product can say;
+     none of them is "primary" or "secondary". Grayscale still carries the
+     hierarchy — every one of these has a weight and a size behind it. */
+  --sem-money:var(--ink);
+  --sem-held:var(--st-CONTRADICTED,#b4453a);
+  --sem-blocked:var(--st-AMBIGUOUS,#a06a00);
+  --sem-verified:var(--st-PROVEN,#0c7d5a);
+  --sem-model:#7c5cbf;           /* ◇ proposes */
+  --sem-solver:#1566e5;          /* ○ tests */
+  --sem-engine:#111820;          /* ● decides */
+}
+
+/* ─────────────────────────────────────────────────────── 1 · THE OVERTURE
+   The landing's opening spread. Not a header: the first thing said, at the
+   size of a thing being said once.
+
+   It replaces the Conclusion block that used to open this room, so the page
+   gains presence without gaining words — §19's constraint is that the redesign
+   must not make the product heavier, and an overture stacked ON TOP of the old
+   opening would have done exactly that. */
+.o{margin:0 0 var(--sp-9);max-width:none}
+.o-top{display:flex;align-items:baseline;gap:var(--sp-3);
+  padding-bottom:var(--sp-3);margin-bottom:var(--sp-6);border-bottom:var(--rule)}
+.o-wm{font-family:var(--m);font-weight:700;letter-spacing:.24em;
+  font-size:var(--type-body);color:var(--ink)}
+.o-kind{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.18em;
+  color:var(--dim2);text-transform:uppercase}
+.o-top .sp{flex:1}
+.o-stmt{font-size:var(--type-statement);line-height:1.04;letter-spacing:-.028em;
+  font-weight:600;color:var(--ink);margin:0 0 var(--sp-7);max-width:19ch;
+  text-wrap:balance}
+/* The refusal is the thesis, so it is the half that carries the weight. */
+.o-stmt i{font-style:normal;color:var(--dim2)}
+
+/* The figures, stated as a row of facts rather than as tiles. No borders, no
+   backgrounds — the scale difference is the hierarchy. */
+.o-figs{display:flex;flex-wrap:wrap;align-items:flex-end;
+  gap:var(--sp-6) var(--sp-9);margin-bottom:var(--sp-7)}
+.o-fig{display:flex;flex-direction:column;gap:2px}
+.o-fig b{font-family:var(--m);font-size:var(--type-hero);font-weight:500;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+  color:var(--sem-money);line-height:1}
+.o-fig.sm b{font-size:var(--type-title);font-weight:600}
+.o-fig span{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim2)}
+
+/* ── the collapse ──────────────────────────────────────────────────────────
+   The centrepiece. Phase 29 found this living as a bar list inside a 296px
+   rail, which is the correct place for it while a case is open and the wrong
+   place for it as the product's opening statement.
+
+   Widths are LINEAR in what continues past each stage, with a floor so a
+   surviving sliver does not read as zero. Verification keeps 9.4% of the
+   width because it kept 9.4% of the money. Nothing here is eased for looks. */
+.o-collapse{margin:0 0 var(--sp-8)}
+.o-h{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:var(--sp-5)}
+.o-h b{font-family:var(--m);font-size:var(--type-label);letter-spacing:.18em;
+  text-transform:uppercase;font-weight:700;color:var(--ink)}
+.o-h em{font-style:normal;font-size:var(--type-body);color:var(--dim2)}
+.o-h .n{font-family:var(--m);font-size:var(--type-label);color:var(--dim3);
+  font-weight:700}
+
+.o-stage{display:grid;grid-template-columns:150px minmax(0,1fr) auto;
+  align-items:center;gap:0 var(--sp-4);padding:var(--sp-3) 0;
+  border-bottom:var(--rule);width:100%;cursor:pointer;
+  transition:background var(--micro)}
+.o-stage:hover,.o-stage:focus-visible{background:var(--hov)}
+.o-stage:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.o-stage-n{font-family:var(--m);font-size:var(--type-label);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);display:flex;gap:var(--sp-2)}
+.o-stage-n i{font-style:normal;color:var(--dim3);font-weight:700}
+.o-bar{height:22px;position:relative;background:var(--track,rgba(0,0,0,.045));
+  border-radius:var(--r-obj);overflow:hidden}
+.o-bar i{position:absolute;inset:0 auto 0 0;background:var(--sem-verified);
+  border-radius:var(--r-obj);
+  transform-origin:left center;
+  animation:o-grow var(--spatial) both}
+@keyframes o-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.o-stage.stopped .o-bar i{background:var(--sem-blocked)}
+.o-stage-v{font-family:var(--m);font-size:var(--type-data);
+  font-variant-numeric:tabular-nums;color:var(--ink);min-width:9.5ch;
+  text-align:right}
+/* The held line is the one that matters, so it is red, on its own row, and
+   directly beneath the bar that lost the money. */
+.o-stage-x{grid-column:2/4;font-size:var(--type-body);color:var(--dim2);
+  padding-top:var(--sp-2);display:flex;gap:var(--sp-2);flex-wrap:wrap;
+  align-items:baseline}
+/* The held figure is the landing's emotional peak and it was set at data
+   size — an annotation under a bar. ₹48,03,127.81 is the largest financial
+   fact on this screen and the single blocker beneath it was being painted
+   nearly three times larger, which is the exact inversion
+   `test_the_money_that_stopped_outranks_any_single_blocker` exists to catch.
+   It is the reason the stage that stopped is the tallest row here. */
+.o-stage-x b{font-family:var(--m);font-size:var(--type-hero);
+  font-variant-numeric:tabular-nums;color:var(--sem-held);font-weight:500;
+  letter-spacing:-.03em;line-height:1.05}
+.o-stage.stopped{padding-bottom:var(--sp-5)}
+.o-stage-x{align-items:baseline}
+.o-stage:not(.stopped) .o-stage-x{display:none}
+
+/* The reading of the diagram, said once, under it. */
+.o-read{margin:var(--sp-5) 0 0;font-size:var(--type-body);color:var(--dim);
+  max-width:62ch;line-height:1.55}
+.o-read b{color:var(--ink);font-weight:600}
+
+/* ─────────────────────────────────────────── 2 · THE BLOCKER AS EVIDENCE
+   Was a six-column grid row. A row invites scanning; this is not a list to be
+   scanned, it is three findings, and the reader is meant to stop at the first
+   one because it holds ninety percent of the money.
+
+   The class names are unchanged — the browser contracts pin them, and pinning
+   the hook rather than the appearance is what let this be rebuilt at all. */
+.c-blk{display:grid;
+  grid-template-columns:auto minmax(0,1.05fr) minmax(0,1fr);
+  grid-template-areas:"i v w" "i s n" "i c n";
+  gap:var(--sp-2) var(--sp-7);align-items:start;
+  padding:var(--sp-7) 0;border-bottom:var(--rule);width:100%;
+  text-align:left;cursor:pointer;position:relative;
+  transition:background var(--micro)}
+.c-blk:first-child{border-top:var(--rule2)}
+.c-blk:hover,.c-blk:focus-visible{background:var(--hov)}
+.c-blk:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+/* The ordinal is a plate, not a bullet. It numbers the finding. */
+.c-blk-i{grid-area:i;font-family:var(--m);font-size:var(--type-title);
+  font-weight:700;color:var(--dim3);width:2.4ch;line-height:1;padding-top:6px;
+  font-variant-numeric:tabular-nums;transition:color var(--micro)}
+.c-blk:hover .c-blk-i{color:var(--ink)}
+/* Dominant. This is the number the whole object exists to state. */
+.c-blk-v{grid-area:v;font-family:var(--m);font-size:var(--type-hero);
+  font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  color:var(--sem-money);line-height:1}
+.c-blk-s{grid-area:s;display:flex;align-items:baseline;gap:var(--sp-3);
+  flex-wrap:wrap}
+.c-blk-s em{font-style:normal;font-family:var(--m);
+  font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim2)}
+/* The scope was a tinted pill — the one piece of SaaS geometry left inside the
+   object. It is a classification, so it reads as one: a rule beneath the word,
+   in the tone the classification carries, and nothing else. */
+.c-blk-s .c-status{background:none;border:0;border-radius:0;padding:0 0 3px;
+  font-family:var(--m);font-size:var(--type-micro);letter-spacing:.14em;
+  text-transform:uppercase;font-style:normal;font-weight:700;
+  border-bottom:2px solid currentColor}
+/* selection survives the rebuild — the palette and the context pane both mark
+   which blocker is open, and a rule that vanished with the old grid would have
+   taken that with it. */
+.c-blk.sel{background:var(--sur2);box-shadow:inset 3px 0 0 var(--acc)}
+/* "blocked at verification" reads as one phrase, at label scale. */
+.c-blk-b{grid-area:c;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim2)}
+.c-blk-b i{font-style:normal;color:var(--dim3);margin-right:.5ch}
+/* Editorial. A sentence, at reading size, not a table cell. */
+.c-blk-w{grid-area:w;font-size:var(--type-data);line-height:1.5;color:var(--ink);
+  max-width:46ch}
+.c-blk-w i{display:block;font-style:normal;font-family:var(--m);
+  font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim3);margin-bottom:var(--sp-2)}
+.c-blk-n{grid-area:n;font-size:var(--type-body);line-height:1.5;color:var(--dim);
+  max-width:46ch;align-self:start}
+.c-blk-n i{display:block;font-style:normal;font-family:var(--m);
+  font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim3);margin-bottom:var(--sp-2)}
+/* A stamped boundary, not a chip. The dashed rule reads as a limit rather
+   than as a status, which is exactly what it is: the edge of what ATTEST can
+   do without a person. */
+.c-blk-c{grid-column:2/4;grid-row:4;justify-self:start;margin-top:var(--sp-4);
+  font-family:var(--m);font-size:var(--type-micro);letter-spacing:.18em;
+  text-transform:uppercase;padding:6px 10px;border:1px dashed currentColor;
+  border-radius:0;color:var(--sem-blocked);opacity:.9}
+.c-blk-c.can{color:var(--sem-verified)}
+
+/* ────────────────────────────────────────────── 3 · THE REDUCTION CHAIN
+   Evidence's signature moment. Three figures and the cuts between them, in the
+   order they happened, at the size of the claim they make.
+
+   The rule under each figure is linear in its own population. 164 of 2,368 is
+   6.9% of the width because it is 6.9% of the orders; the survivors sit on the
+   0.35% floor because four explanations must be visible and are not a
+   proportion of anything. The old block drew NO track at all at the end, with
+   a comment saying a sliver would invite a false reading — the floor plus an
+   explicit label is the honest version of that instinct. */
+.e-uni{display:flex;flex-direction:column;margin:var(--sp-2) 0 0}
+.e-uni-r{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);
+  grid-template-areas:"n l" "t t";gap:var(--sp-2) var(--sp-5);
+  align-items:baseline;padding:var(--sp-3) 0}
+.e-uni-n{grid-area:n;font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-hero);font-weight:500;letter-spacing:-.03em;
+  line-height:1;color:var(--ink)}
+.e-uni-l{grid-area:l;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.16em;text-transform:uppercase;color:var(--dim2)}
+.e-uni-t{grid-area:t;height:6px;background:var(--sur3);border-radius:0;
+  overflow:hidden;margin-top:var(--sp-1)}
+/* the book is a population, not value — it reads as the ground the cuts
+   act on rather than as a quantity competing with them */
+.e-uni-t i{display:block;height:100%;background:var(--line2);
+  transform-origin:left center;animation:o-grow var(--spatial) both}
+.e-uni-r.mid .e-uni-n{color:var(--sem-verified)}
+.e-uni-r.mid .e-uni-t i{background:var(--sem-verified)}
+/* the far side of the chain: the number the whole case turns on */
+.e-uni-end{border-top:var(--rule2);margin-top:var(--sp-3);
+  padding-top:var(--sp-5)}
+.e-uni-end .e-uni-n{color:var(--sem-blocked);font-size:var(--type-statement);
+  font-weight:600}
+.e-uni-end .e-uni-t i{background:var(--sem-blocked)}
+.e-uni-end .e-uni-l{color:var(--dim)}
+
+/* the cuts. Indented under the figure they act on, so the chain reads as
+   one movement rather than as five sibling rows. */
+.e-uni-e{display:flex;flex-direction:column;border-left:var(--rule2);
+  margin-left:var(--sp-4);padding-left:var(--sp-5)}
+.e-uni-c{display:grid;grid-template-columns:6ch minmax(0,27ch) 13ch;
+  grid-template-areas:"m w k" "j j j";gap:2px var(--sp-4);
+  align-items:baseline;padding:var(--sp-2) var(--sp-3);width:100%;
+  text-align:left;position:relative;border-radius:var(--r-obj);
+  animation:e-cut var(--spatial) both;
+  transition:background var(--micro)}
+@keyframes e-cut{from{opacity:0;transform:translateY(-5px)}
+                 to{opacity:1;transform:none}}
+.e-uni-c::before{content:"";position:absolute;left:calc(var(--sp-5) * -1 - 1px);
+  top:50%;width:var(--sp-4);height:1px;background:var(--line2)}
+.e-uni-m{grid-area:m;font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-data);color:var(--ink);text-align:right}
+.e-uni-w{grid-area:w;font-size:var(--type-body);color:var(--ink)}
+.e-uni-k{grid-area:k;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.14em;text-transform:uppercase;justify-self:start}
+.e-uni-c.conv .e-uni-k{color:var(--sem-blocked)}
+.e-uni-c.det .e-uni-k,.e-uni-c.arith .e-uni-k{color:var(--sem-verified)}
+/* §30.13 — the playful part. The justification is the reward for asking, and
+   the KIND above it is never hidden, because a reader who does not hover must
+   still see that the boundary rests on a convention. */
+.e-uni-j{grid-area:j;font-size:var(--type-body);color:var(--dim2);
+  line-height:1.5;max-width:64ch;
+  max-height:0;opacity:0;overflow:hidden;
+  transition:max-height var(--standard),opacity var(--standard),
+             padding-top var(--standard)}
+button.e-uni-c:hover,button.e-uni-c:focus-visible{background:var(--hov)}
+button.e-uni-c:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
+.e-uni-c.arith .e-uni-j{max-height:8em;opacity:1;padding-top:var(--sp-2)}
+.e-uni-claim{font-size:var(--type-body);color:var(--dim2);line-height:1.55;
+  padding-top:var(--sp-4);max-width:76ch}
+@media (prefers-reduced-motion:reduce){
+  .e-uni-c,.e-uni-t i,.o-bar i{animation:none}
+  .e-uni-j{transition:none}
+}
+
+/* ──────────────────────────────────────────── 4 · INVESTIGATE AS EXPERIMENT
+   Three actors, in sequence, and what the sequence produced.
+
+   The actors were three unconnected rows, which reads as a list of facts about
+   three systems. They are one causal chain — the model proposes, the solver
+   tests what was proposed, the engine decides on the result of that test — and
+   a chain that is not drawn has to be inferred. */
+.i-bound-seq{position:relative;padding:var(--sp-2) 0}
+/* the connector. It runs between the dots, not through them, so the sequence
+   reads as three steps rather than as one continuous rail. */
+.i-bound-seq::before{content:"";position:absolute;left:6.5px;
+  top:calc(var(--sp-2) + 14px);bottom:calc(var(--sp-2) + 14px);
+  width:1px;background:var(--line2)}
+.i-bound-s{position:relative;padding:var(--sp-2) 0}
+.i-bound-dot{background:var(--sur);box-shadow:0 0 0 3px var(--sur)}
+.i-bound-dot.model{border:1.5px solid var(--sem-model)}
+.i-bound-dot.solver{border:1.5px solid var(--sem-solver)}
+.i-bound-dot.engine{background:var(--sem-engine);border-color:var(--sem-engine)}
+.i-bound-s b{letter-spacing:.14em}
+
+/* the terminal. Two statements, at statement size, because they are the two
+   things this instrument exists to be able to say. */
+.i-bound-t{display:flex;flex-direction:column;gap:2px;
+  margin:var(--sp-6) 0 var(--sp-5);padding-top:var(--sp-5);
+  border-top:var(--rule2)}
+.i-bound-t b{font-size:var(--type-hero);line-height:1.02;font-weight:600;
+  letter-spacing:-.025em;text-transform:uppercase;
+  font-family:var(--m)}
+.i-bound-t b:first-child{color:var(--ink)}
+.i-bound-t b:last-child{color:var(--sem-held)}
+.i-bound-k .n{font-family:var(--m);color:var(--dim3);margin-right:var(--sp-2);
+  font-weight:700}
+
+/* the question, as the opening of an experiment rather than a section title */
+.i-q{margin:var(--sp-7) 0 var(--sp-6);padding-bottom:var(--sp-5);
+  border-bottom:var(--rule)}
+.i-q-k{display:block;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim3);
+  margin-bottom:var(--sp-3)}
+.i-q h2{font-size:var(--type-hero);line-height:1.08;letter-spacing:-.025em;
+  font-weight:600;color:var(--ink);margin:0;max-width:22ch;text-wrap:balance}
+
+/* ─────────────────────────────────────────── 5 · POLICY AS A THRESHOLD
+   Two comparable numbers and the line between them. Nothing else in this
+   product decides anything, so nothing else in this room should be larger. */
+.p-bound{padding:var(--sp-2) 0 var(--sp-4)}
+.p-bound-hd{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:var(--sp-6);margin-bottom:var(--sp-6)}
+.p-bound-k{display:flex;flex-direction:column;gap:var(--sp-2)}
+.p-bound-k i{font-style:normal;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim3)}
+.p-bound-k b{font-family:var(--m);font-size:var(--type-hero);font-weight:500;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;
+  color:var(--ink)}
+/* the notes that used to sit under each figure were the conclusion's sentence
+   and "what went in"'s note, restated — the instrument states figures */
+/* The absence IS the statement, so it is set at the size a price would have
+   been and in the tone of a thing that did not happen. A zero here would be a
+   claim that the posting was proved safe. */
+.p-bound.unpriced .p-bound-k.lo b{color:var(--sem-blocked);
+  font-size:var(--type-hero);text-transform:uppercase;letter-spacing:.02em}
+
+.p-bound-t{position:relative;height:44px;background:var(--sur3);
+  border-radius:var(--r-obj);margin:var(--sp-2) 0 var(--sp-8)}
+.p-bound-line{position:absolute;top:-6px;bottom:-6px;width:2px;
+  background:var(--ink);z-index:2}
+/* below the bar, not above it — above, the label landed on top of the review
+   cost's own note and the two words overlapped */
+.p-bound-line::after{content:"review cost";position:absolute;top:calc(100% + 10px);
+  left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-family:var(--m);font-size:var(--type-micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim2)}
+.p-bound-mark{position:absolute;top:50%;width:16px;height:16px;
+  margin:-8px 0 0 -8px;border-radius:999px;background:var(--sem-blocked);
+  box-shadow:0 0 0 4px var(--sur);z-index:3;
+  animation:p-seat var(--spatial) both}
+@keyframes p-seat{from{transform:translateX(-14px) scale(.4);opacity:0}
+                  to{transform:none;opacity:1}}
+.p-bound.auto .p-bound-mark{background:var(--sem-verified)}
+.p-bound-zl,.p-bound-zr{position:absolute;top:50%;transform:translateY(-50%);
+  font-family:var(--m);font-size:var(--type-micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim3)}
+.p-bound-zl{left:12px} .p-bound-zr{right:12px}
+/* The margin — how close the call was, which is the one thing the comparison
+   knows and nothing else on the screen says. It was the decision word, which
+   the conclusion above already paints at hero weight; two heroes for one word
+   is what Phase 13B removed from this exact room. */
+.p-bound-out{font-size:var(--type-title);color:var(--dim);line-height:1.3}
+.p-bound-out b{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+.p-bound.auto .p-bound-out b{color:var(--sem-verified)}
+.p-bound.review .p-bound-out b{color:var(--sem-blocked)}
+.p-bound.unpriced .p-bound-out{color:var(--dim2);font-style:italic}
+@media (prefers-reduced-motion:reduce){.p-bound-mark{animation:none}}
+
+/* ────────────────────────────────────────── 6 · JOURNAL AS ACCOUNTING
+   A movement through the books, and what the books did about it. */
+/* the movement. The connector was already drawn; what it lacked was room to
+   read as a movement rather than as a five-row table. */
+.j-mv-s{padding:var(--sp-4) 0}
+.j-mv-k{font-family:var(--m);letter-spacing:.16em}
+
+/* the effect. A T-account: two entries and the rule that closes them. */
+.j-eff{display:block;padding:var(--sp-2) 0 0}
+.j-eff-t{display:grid;grid-template-columns:auto minmax(0,200px);
+  justify-content:start;gap:var(--sp-2) var(--sp-7);margin-bottom:var(--sp-6)}
+/* the rows are pairs of cells in the parent grid, not boxes of their own —
+   without this the three entries pack into three cells and the rule that
+   closes the account lands under the wrong one */
+.j-eff-r{display:contents}
+.j-eff-k{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim3);align-self:center}
+.j-eff-v{font-family:var(--m);font-variant-numeric:tabular-nums;
+  font-size:var(--type-title);text-align:right;letter-spacing:-.02em}
+.j-eff-r.net .j-eff-k,.j-eff-r.net .j-eff-v{border-top:2px solid var(--ink);
+  border-bottom:0;padding-top:var(--sp-2);margin-top:var(--sp-1)}
+.j-eff.absent .j-eff-v{color:var(--dim2)}
+.j-eff.written .j-eff-v{color:var(--ink)}
+/* §30.6 — the reading, stamped. ₹0.00 / ₹0.00 / ₹0.00 is indistinguishable
+   from an entry that cancelled out; this line is the difference, and it was
+   set at annotation size underneath the figures it explains. */
+.j-eff-stamp{font-family:var(--m);font-size:var(--type-hero);font-weight:600;
+  letter-spacing:-.025em;text-transform:uppercase;line-height:1;
+  max-width:16ch;margin-bottom:var(--sp-3)}
+.j-eff.absent .j-eff-stamp{color:var(--sem-blocked)}
+.j-eff.written .j-eff-stamp{color:var(--sem-verified)}
+.j-eff-n{font-size:var(--type-body);color:var(--dim2);line-height:1.55;
+  max-width:56ch;padding-top:0}
+
+/* ────────────────────────────────────────────── 8 · TRUST AS FORENSICS
+   What was attacked, and what held. Three counts, and the third is the one
+   that matters — it is zero, and a zero that means something must be as large
+   as the numbers it is being compared against. */
+.t-adv{display:flex;flex-wrap:wrap;gap:var(--sp-9);align-items:flex-start;
+  padding:var(--sp-2) 0 0}
+.t-adv-f{display:flex;flex-direction:column;gap:var(--sp-1)}
+.t-adv-f b{font-family:var(--m);font-size:var(--type-statement);font-weight:600;
+  letter-spacing:-.03em;line-height:.95;font-variant-numeric:tabular-nums;
+  color:var(--sem-verified)}
+.t-adv-f:first-child b{color:var(--ink)}
+.t-adv-f.bad b{color:var(--sem-held)}
+.t-adv-f span{font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim2)}
+.t-adv-n{flex:1 1 34ch;min-width:28ch;margin:0;font-size:var(--type-body);
+  color:var(--dim2);line-height:1.55;align-self:center}
+.t-adv-n code{font-family:var(--m);font-size:var(--type-label);color:var(--ink)}
+
+/* the closing statement. The last thing the room says, and the only piece of
+   type in Trust allowed to be this large — because it is the one claim that
+   survives swapping the provider out entirely. */
+.t-iso{margin-top:var(--sp-9);padding-top:var(--sp-7);border-top:2px solid var(--ink)}
+.t-iso-k{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim3);margin-bottom:var(--sp-5)}
+.t-iso-s{margin:0 0 var(--sp-5);font-size:var(--type-statement);line-height:1.02;
+  letter-spacing:-.03em;font-weight:600;color:var(--ink);max-width:16ch}
+.t-iso.breached .t-iso-s{color:var(--sem-held)}
+.t-iso-n{margin:0;font-size:var(--type-body);color:var(--dim2);line-height:1.6;
+  max-width:74ch}
+.t-iso-n code{font-family:var(--m);font-size:var(--type-label);color:var(--ink);
+  background:var(--sur3);padding:1px 4px;border-radius:var(--r-obj)}
+
+/* ──────────────────────────────────────────── 9 · THE DOCK AS A RACK
+   Phase 29 gave every instrument its state. What was left was the gesture:
+   the held instrument should read as SEATED into the room it opened, not as
+   a highlighted row in a list.
+
+   Three things do that, and none of them is a colour change. It carries the
+   room's own surface, so the seam between rail and room disappears where the
+   two meet; it loses its right edge, so the instrument and the room are one
+   shape; and it moves 2px toward the room as it seats. */
+.c-lenses button{transition:color var(--micro),border-color var(--micro),
+  background var(--micro),transform var(--standard),padding var(--standard)}
+.c-lenses button.on{background:var(--bg);
+  margin-right:-1px;border-right:0;transform:translateX(2px);
+  box-shadow:inset 3px 0 0 var(--ink)}
+.c-lenses button.on .c-lens-i{color:var(--dim2)}
+/* the state is the instrument's report and reads as one */
+.c-lenses button.on .c-lens-s{color:var(--ink);font-weight:700;opacity:1}
+.c-lens-s{transition:color var(--micro),opacity var(--micro)}
+/* hovering an instrument shows where it would seat, without moving it */
+.c-lenses button:not(.on):hover{box-shadow:inset 2px 0 0 var(--line2)}
+.c-lenses button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+@media (prefers-reduced-motion:reduce){
+  .c-lenses button{transition:none}
+  .c-lenses button.on{transform:none}
+}
+
+/* ────────────────────────────────────────── 15 · THE DISCOVERY LOOP
+   The one thing the workspace could not say was that a narrative exists.
+   A link in the utility bar, at the weight of a utility link. */
+#bar a.story{font-family:var(--m);font-size:var(--type-label);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);
+  text-decoration:none;border-bottom:1px solid var(--line2);padding-bottom:1px;
+  transition:color var(--micro),border-color var(--micro)}
+#bar a.story:hover{color:var(--ink);border-color:var(--ink)}
+
+/* ══════════════════════════════════════════ PHASE 30 · ON A PHONE
+   Not the desktop composition shrunk. Each instrument keeps its argument and
+   loses only what a 390px column cannot hold without breaking a word. */
+@media (max-width:767px){
+  /* the overture. The masthead's two labels wrapped into four lines and read
+     as a paragraph; on a phone the identity and the execution state are
+     stacked facts, not a bar. */
+  .o-top{flex-direction:column;align-items:flex-start;gap:var(--sp-1)}
+  .o-top .sp{display:none}
+  .o-stmt{max-width:none}
+  .o-figs{gap:var(--sp-5) var(--sp-7);margin-bottom:var(--sp-7)}
+  .o-fig b{font-size:var(--type-hero)}
+  /* "01 THE COLLAPSE  every stage is an instrument" ran off the column and
+     broke mid-word. The aside drops below rather than being dropped. */
+  .o-h{flex-wrap:wrap;gap:var(--sp-1) var(--sp-2)}
+  .o-h em{flex:1 1 100%;font-size:var(--type-body)}
+  /* the collapse keeps its bar — the narrowing IS the instrument — and puts
+     the figure on the row with the name so the bar gets the full column */
+  .o-stage{grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"n v" "b b" "x x";gap:var(--sp-2) var(--sp-3);
+    padding:var(--sp-3) 0}
+  .o-stage-n{grid-area:n}
+  .o-bar{grid-area:b;height:16px}
+  .o-stage-v{grid-area:v;min-width:0}
+  .o-stage-x{grid-area:x;padding-top:var(--sp-1)}
+  .o-stage-x b{font-size:var(--type-title)}
+  .o-read{font-size:var(--type-body)}
+
+  /* the blocker objects: one column, the amount still dominant */
+  .c-blk{grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"i v" ". s" ". c" ". w" ". n";
+    gap:var(--sp-2) var(--sp-4);padding:var(--sp-6) 0}
+  .c-blk-v{font-size:var(--type-title)}
+  .c-blk-c{grid-column:1/3;grid-row:6;margin-top:var(--sp-3)}
+  .c-blk-w,.c-blk-n{max-width:none}
+
+  /* the reduction chain */
+  .e-uni-n{font-size:var(--type-title)}
+  .e-uni-end .e-uni-n{font-size:var(--type-hero)}
+  .e-uni-e{margin-left:var(--sp-2);padding-left:var(--sp-4)}
+  .e-uni-c{grid-template-columns:6ch minmax(0,1fr);
+    grid-template-areas:"m w" ". k" "j j";gap:2px var(--sp-3);
+    padding:var(--sp-2)}
+  .e-uni-c::before{left:calc(var(--sp-4) * -1 - 1px);width:var(--sp-3)}
+
+  /* the threshold */
+  .p-bound-hd{grid-template-columns:minmax(0,1fr);gap:var(--sp-5)}
+  .p-bound-k b{font-size:var(--type-title)}
+  .p-bound-zl,.p-bound-zr{display:none}
+  .p-bound-out{font-size:var(--type-hero)}
+
+  /* the terminals: they are statements, and a statement that wraps mid-word
+     is not one. Mono at hero size does not fit 390px, so they step down. */
+  .i-bound-t b,.j-eff-stamp,.t-iso-s,.t-adv-f b{font-size:var(--type-title)}
+  .t-iso-s{font-size:var(--type-hero)}
+  .i-q h2{font-size:var(--type-title);max-width:none}
+  .t-adv{gap:var(--sp-6)}
+  .j-eff-t{grid-template-columns:auto minmax(0,1fr)}
+  .j-mv-s{grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"k v" "w w";gap:var(--sp-1) var(--sp-3)}
+  .j-mv-k{grid-area:k;padding-left:var(--sp-5)}
+  .j-mv-w{grid-area:w;padding-left:var(--sp-5)}
+  .j-mv-v{grid-area:v}
+
+  /* the dock: the ordinal was overlapping the instrument's name once the name
+     moved to the first line */
+  .c-lenses button{padding-left:var(--sp-7)}
+  .c-lens-i{left:var(--sp-1)}
+}
+
+/* ────────────────────────────────────────── 7 · ACTIVITY AS A CAUSAL CHAIN
+   This instrument was already a chain rather than a table; what it lacked was
+   the weight to read as an argument. Three changes, no new elements.
+
+   The connectors ARE the argument, so they stop being the smallest type on
+   screen. The event headline is a statement, so it is set as one. And the
+   actor marks match the ones Investigate and the story page use — ◇ proposes,
+   ○ tests, ● decides — because an actor that looks different in each room is
+   three actors. */
+.a-cause{padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
+.a-cause span{font-size:var(--type-body);color:var(--dim2);font-style:italic}
+.a-cause::before,.a-cause::after{border-color:var(--line2)}
+.a-ev{padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border-radius:var(--r-obj)}
+.a-what{font-size:var(--type-data);line-height:1.45}
+.a-actor{font-family:var(--m);letter-spacing:.16em}
+/* one actor vocabulary across the product */
+.a-model .a-actor,.a-model .a-mark{color:var(--sem-model)}
+.a-solver .a-actor,.a-solver .a-mark{color:var(--sem-solver)}
+.a-engine .a-actor,.a-engine .a-mark{color:var(--sem-engine)}
+/* the badge was the last pill in the product */
+.a-badge{border-radius:0;border:0;border-bottom:2px solid currentColor;
+  padding:0 0 2px;font-family:var(--m);letter-spacing:.14em}
 </style>
 <div id=app>
   <div id=subject></div>
@@ -1685,6 +2170,7 @@ border-radius:var(--r-0)}
     <span id=exec-path title="Which solver envelope produced these figures"></span>
     <span id=hint></span>
     <span class=sp></span>
+    <a class=story href="/story">the story</a>
     <button class=btn id=theme aria-label="Toggle theme">◐</button>
     <select class=btn id=size aria-label="Portfolio size">
       <option>120</option><option selected>250</option><option>500</option></select>

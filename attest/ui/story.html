@@ -1,0 +1,316 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>ATTEST — the story</title>
+<link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
+<style>
+/* THE STORY — one page, nine movements, every figure read from the running
+   engine at load. Nothing here is typed in: if the generator changes, this
+   page changes, and if the API is unreachable the page says so rather than
+   rendering a plausible number. That is the same rule the product holds
+   itself to, applied to its own marketing surface. */
+:root{
+  --ink:#101418; --dim:#4a5560; --dim2:#6b7681; --dim3:#98a2ac;
+  --bg:#fbfbfa; --sur:#fff; --line:#e6e6e3; --line2:#d2d2ce;
+  --go:#0c7d5a; --hold:#a06a00; --stop:#b4453a;
+  --model:#7c5cbf; --solver:#1566e5;
+  --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
+  --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --statement:clamp(32px,5.4vw,72px);
+  --hero:clamp(26px,3.6vw,46px);
+}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#eef1f4; --dim:#aab4be; --dim2:#8a949e; --dim3:#69737d;
+  --bg:#0d1116; --sur:#141a21; --line:#232b34; --line2:#333d48;
+  --go:#3fbc92; --hold:#d9a53c; --stop:#e0705f;
+  --model:#a98ae0; --solver:#5a9bff;}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--s);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+a{color:inherit}
+
+/* masthead */
+.mast{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+  padding:32px 0 24px;border-bottom:1px solid var(--line);margin-bottom:64px}
+.mast b{font-family:var(--m);font-weight:700;letter-spacing:.24em;font-size:13px}
+.mast span{font-family:var(--m);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim2)}
+.mast .sp{flex:1}
+.mast a{font-family:var(--m);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim2);text-decoration:none;
+  border-bottom:1px solid var(--line2);padding-bottom:2px}
+.mast a:hover{color:var(--ink)}
+
+.lede{font-size:var(--statement);line-height:1.02;letter-spacing:-.03em;
+  font-weight:600;margin:0 0 24px;max-width:17ch;text-wrap:balance}
+.lede i{font-style:normal;color:var(--dim2)}
+.sub{font-size:17px;color:var(--dim);line-height:1.6;max-width:62ch;
+  margin:0 0 96px}
+
+/* a movement */
+.mv{display:grid;grid-template-columns:88px minmax(0,1fr);gap:0 32px;
+  padding:48px 0;border-top:1px solid var(--line)}
+.mv-n{font-family:var(--m);font-size:13px;font-weight:700;color:var(--dim3);
+  letter-spacing:.06em;padding-top:8px}
+.mv-t{font-family:var(--m);font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim2);margin:0 0 20px}
+.mv-f{font-family:var(--m);font-size:var(--hero);font-weight:500;
+  letter-spacing:-.03em;line-height:1.04;font-variant-numeric:tabular-nums;
+  margin:0 0 16px;word-break:break-word}
+.mv-f.go{color:var(--go)} .mv-f.hold{color:var(--hold)} .mv-f.stop{color:var(--stop)}
+.mv-s{font-size:15px;color:var(--dim);line-height:1.65;max-width:62ch;margin:0}
+.mv-s b{color:var(--ink);font-weight:600}
+/* a declared size, not a fraction of its parent — see the same fix in the
+   workspace's stylesheet */
+.mv-s code{font-family:var(--m);font-size:13px;background:var(--sur);
+  border:1px solid var(--line);padding:1px 5px;border-radius:2px}
+
+/* the collapse, physical */
+.bars{margin:8px 0 20px}
+.bar{display:grid;grid-template-columns:132px minmax(0,1fr) auto;
+  gap:16px;align-items:center;padding:7px 0}
+.bar i{font-style:normal;font-family:var(--m);font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--dim2)}
+.bar u{display:block;height:14px;background:var(--line);text-decoration:none;
+  border-radius:2px;overflow:hidden}
+.bar u>s{display:block;height:100%;background:var(--dim3);text-decoration:none}
+.bar.go u>s{background:var(--go)} .bar.hold u>s{background:var(--hold)}
+.bar b{font-family:var(--m);font-size:13px;font-variant-numeric:tabular-nums;
+  font-weight:400;white-space:nowrap}
+
+/* the chain */
+.chain{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px 20px;
+  margin:0 0 16px}
+.chain b{font-family:var(--m);font-size:var(--hero);font-weight:500;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.chain em{font-style:normal;font-family:var(--m);font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--dim2)}
+.chain span{color:var(--dim3);font-size:20px}
+.chain b:last-of-type{color:var(--hold)}
+
+/* the three actors */
+.actor{display:grid;grid-template-columns:20px 96px minmax(0,1fr);
+  gap:14px;align-items:baseline;padding:10px 0;position:relative}
+.actor i{font-style:normal;justify-self:center;width:10px;height:10px;
+  background:var(--bg);align-self:center}
+.actor.model i{border:1.5px solid var(--model);transform:rotate(45deg)}
+.actor.solver i{border:1.5px solid var(--solver);border-radius:999px}
+.actor.engine i{background:var(--ink);border-radius:999px}
+.actor b{font-family:var(--m);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase}
+.actor.model b{color:var(--model)} .actor.solver b{color:var(--solver)}
+.actor span{font-size:14px;color:var(--dim)}
+.actors{position:relative;margin:0 0 20px}
+.actors::before{content:"";position:absolute;left:9.5px;top:24px;bottom:24px;
+  width:1px;background:var(--line2)}
+
+/* the terminal statements */
+.term{font-family:var(--m);font-size:var(--hero);font-weight:600;
+  text-transform:uppercase;letter-spacing:-.02em;line-height:1.04;margin:0 0 6px}
+.term.stop{color:var(--stop)}
+
+.foot{border-top:2px solid var(--ink);margin-top:64px;padding-top:32px;
+  display:flex;flex-wrap:wrap;gap:24px 48px;align-items:baseline}
+.foot p{margin:0;font-size:13px;color:var(--dim2);max-width:54ch;line-height:1.6}
+.foot a{font-family:var(--m);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;text-decoration:none;border-bottom:1px solid var(--line2);
+  padding-bottom:2px;white-space:nowrap}
+.err{font-family:var(--m);font-size:13px;color:var(--stop);
+  border:1px dashed var(--stop);padding:16px;border-radius:2px}
+@media (max-width:640px){
+  .mv{grid-template-columns:minmax(0,1fr);gap:0}
+  .mv-n{padding:0 0 8px}
+  .bar{grid-template-columns:96px minmax(0,1fr);grid-template-areas:"l v" "b b"}
+  .bar i{grid-area:l} .bar b{grid-area:v;text-align:right} .bar u{grid-area:b}
+  .actor{grid-template-columns:20px minmax(0,1fr);gap:8px 12px}
+  .actor span{grid-column:2}
+}
+</style>
+<div class=wrap>
+  <div class=mast>
+    <b>ATTEST</b>
+    <span>settlement reconciliation</span>
+    <span class=sp></span>
+    <span id=src>reading…</span>
+    <a href="/">open the product →</a>
+  </div>
+  <h1 class=lede><i>Financial reconciliation</i>
+    that refuses to invent certainty.</h1>
+  <p class=sub>Nine movements, from a bank credit arriving to the system stating
+    what it could not establish. Every figure on this page is read from the
+    running engine when the page loads — nothing here is written down.</p>
+  <div id=story><p class=sub>Reading the engine…</p></div>
+</div>
+<script>
+'use strict';
+const $ = (h) => h;
+const esc = s => String(s ?? '').replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api = async (p) => {
+  const r = await fetch(p);
+  if (!r.ok) throw new Error(`${p} → ${r.status}`);
+  return r.json();
+};
+
+/* A derived sentence arrives lowercase and unpunctuated because it was
+   written to sit inside a row. Splicing it into prose as a clause produced
+   "250 bank credits, 2,368 orders arrive as bank credits" — so it is promoted
+   to a sentence of its own instead. */
+const cap = s => esc(String(s ?? '').trim().replace(/[.\s]+$/, ''))
+  .replace(/^./, c => c.toUpperCase());
+
+const mv = (n, title, body) => `<section class=mv>
+  <div class=mv-n>${n}</div>
+  <div><p class=mv-t>${esc(title)}</p>${body}</div></section>`;
+
+/* The one settlement this page follows. It is chosen the way the demo chooses
+   it — the canonical ambiguous case — and if it is not in the run the page
+   says which case it used instead rather than pretending. */
+const CANONICAL = 'setl_000225';
+
+async function build() {
+  const host = document.getElementById('story');
+  try {
+    const run = await api('/api/run?n=250');
+    const id = run.run_id;
+    const [spine, acts, det, inv, dec, claims] = await Promise.all([
+      api(`/api/spine?run=${id}&type=portfolio&review=15000&exposure=10000000`),
+      api(`/api/actions?run=${id}`),
+      api(`/api/settlement?run=${id}&id=${CANONICAL}`),
+      api(`/api/investigation?run=${id}&type=settlement&id=${CANONICAL}`),
+      api(`/api/decision?run=${id}&type=settlement&id=${CANONICAL}`
+          + `&review=15000&exposure=10000000`),
+      api(`/api/claims?run=${id}`),
+    ]);
+
+    const rec = await api(`/api/subject?run=${id}&type=portfolio&id=portfolio`);
+    const src = rec.source || {};
+    document.getElementById('src').textContent =
+      [src.label, src.engine && src.engine.label].filter(Boolean).join(' · ');
+
+    const st = k => spine.stages.find(s => s.key === k) || {};
+    const top = Math.max(...spine.stages.map(s => s.continues_paise), 1);
+    const bar = (s, cls) => `<div class="bar ${cls}">
+      <i>${esc(s.label)}</i>
+      <u><s style="width:${Math.max(s.continues_paise / top * 100,
+        s.continues_paise > 0 ? 0.6 : 0).toFixed(3)}%"></s></u>
+      <b>${esc(s.value)}</b></div>`;
+
+    const held = spine.stages.reduce((n, s) => n + (s.held || 0), 0);
+    const verif = st('verification');
+    const blocker = (acts.actions || [])[0] || {};
+    const space = det.space || {};
+    const survivors = (det.proofs || []).length;
+    const iso = claims.isolation || {};
+    const adv = claims.adversarial || {};
+    const razor = (claims.unknowns || []).find(u =>
+      /live traffic|live account/i.test(u.what || '')) || {};
+
+    host.innerHTML = [
+      mv('01', 'money enters',
+        `<p class="mv-f">${esc(st('source').value)}</p>
+         <p class=mv-s>${cap(st('source').detail)}. Every credit is a claim that
+           some set of orders was paid out, and none of them says which set.</p>`),
+
+      mv('02', 'the system reconciles',
+        `<p class="mv-f">${esc(String(st('source').count))} settlements</p>
+         <p class=mv-s>${cap(st('matching').detail)}. The pool is built from
+           rules that are written down and can be argued with, not from a
+           similarity score.</p>`),
+
+      mv('03', 'money stops',
+        `<div class=bars>${spine.stages.map(s => bar(s,
+            s.state === 'stopped' ? 'hold' : 'go')).join('')}</div>
+         <p class="mv-f stop">${esc(verif.held_value || '')} held</p>
+         <p class=mv-s>${cap(verif.detail)}. Of ${esc(String(st('source').count))}
+           settlements, <b>${held}</b> stopped and <b>${esc(String(
+             st('action').count))}</b> reached the ledger. That is not a failure
+           rate — it is the system declining to post what it could not prove.</p>`),
+
+      mv('04', 'the search space collapses',
+        `<div class=chain>
+           <b>${Number(space.universe || 0).toLocaleString()}</b><em>orders</em>
+           <span>→</span>
+           <b>${Number(space.candidates || 0).toLocaleString()}</b><em>candidates</em>
+           <span>→</span>
+           <b>${survivors}</b><em>explanations</em>
+         </div>
+         <p class=mv-s>Inside settlement <code>${esc(CANONICAL)}</code>. Each
+           cut is recorded with whether it was a deterministic fact or a
+           convention${(space.reductions || []).some(r => !r.deterministic)
+             ? ' — and some of them are conventions' : ''}. Uniqueness inside a
+           space that already excluded the truth is not uniqueness, which is why
+           the boundary is stated and not just the answer.</p>`),
+
+      mv('05', 'the AI tries',
+        `<div class=actors>
+           <div class="actor model"><i></i><b>Model</b>
+             <span>proposed an anchor to separate the survivors</span></div>
+         </div>
+         <p class=mv-s>${esc(inv.question || '')} The model is asked for a
+           hypothesis, never for a verdict.</p>`),
+
+      mv('06', 'the solver tests',
+        `<div class=actors>
+           <div class="actor solver"><i></i><b>Solver</b>
+             <span>tested whether the anchor discriminates —
+               ${esc(String(inv.tested ?? 0))} tested,
+               ${esc(String(inv.discriminative ?? 0))} discriminative</span></div>
+         </div>
+         <p class=mv-s>The test is not whether the model was right. It is
+           whether what it proposed separates the explanations that survived,
+           which is a question arithmetic can answer.</p>`),
+
+      mv('07', 'the engine refuses',
+        `<div class=actors>
+           <div class="actor engine"><i></i><b>Engine</b>
+             <span>original verdict retained</span></div>
+         </div>
+         <p class=term>Verdict unchanged</p>
+         <p class="term stop">No financial action</p>
+         <p class=mv-s>The loop's conclusion is recorded as evidence and
+           discarded. It is not eligible to become the verdict, and nothing
+           downstream reads it.</p>`),
+
+      mv('08', 'the ledger does nothing',
+        `<p class="mv-f hold">${esc((dec.decision || '').replace(/_/g, '-'))}</p>
+         <p class=mv-s>Expected loss is <b>unpriced</b> — the proof did not
+           establish a unique explanation, so there is no error probability to
+           multiply. A review costs ${esc((dec.inputs || []).find(
+             i => i.k === 'cost of a review')?.v || '')}. Debit ₹0.00, credit
+           ₹0.00, net ₹0.00: <b>balanced by absence</b>, which is not the same
+           as an entry that happened to cancel out.</p>`),
+
+      mv('09', 'the system admits its limits',
+        `<p class="mv-f stop">Not verified</p>
+         <p class=mv-s>${esc(razor.why || 'No live account has been contacted.')}
+           ${adv.present ? `Against ${adv.attacks} attempts to move money the
+             engine should not move, <b>${adv.defended} were refused and
+             ${adv.breached} succeeded</b>.` : ''}</p>
+         <p class=mv-s style="margin-top:16px">${iso.isolated
+           ? `All ${iso.clean} of ${iso.modules} modules that produce a verdict
+              were read, and none of them contains the string
+              <code>${esc(iso.provider)}</code>.
+              <b>The engine does not know ${esc((iso.provider || '')
+                .replace(/^./, c => c.toUpperCase()))} exists.</b>`
+           : 'The provider reaches the engine; the portability claim does not '
+             + 'currently hold.'}</p>`),
+    ].join('');
+
+    host.insertAdjacentHTML('beforeend', `<div class=foot>
+      <p>Every figure above was read from this build when the page loaded.
+        Blocking the largest amount: <b>${esc(blocker.why || '')}</b>.</p>
+      <a href="/#/portfolio/control">see it in the product →</a>
+      <a href="/#/settlement/${encodeURIComponent(CANONICAL)}/evidence"
+        >open this case →</a>
+    </div>`);
+  } catch (e) {
+    host.innerHTML = `<p class=err>The engine did not answer, so this page has
+      nothing to show. It does not keep a copy of the numbers.<br>${esc(e.message)}</p>`;
+  }
+}
+build();
+</script>

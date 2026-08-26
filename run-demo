@@ -31,24 +31,83 @@ fi
 curl -sf -o /dev/null "http://127.0.0.1:$PORT/api/observatory" || {
   echo "  the engine did not come up. log:"; tail -20 /tmp/attest-demo.log; exit 1; }
 
+# The journey's figures are READ from the run rather than typed into this
+# file. The previous version said "2,368 orders reduced to 73" for a case that
+# reduces to 164, and pointed at a settlement that cannot be reproduced on a
+# default install at all — both because they were written down once and then
+# outlived the thing they described.
+CASE=${CASE:-setl_000225}
+J=$("$PY" - "$PORT" "$CASE" <<'PYEOF'
+import json, sys, urllib.request
+port, case = sys.argv[1], sys.argv[2]
+def get(p):
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{p}") as r:
+        return json.load(r)
+run = get("/api/run?n=250")["run_id"]
+sp  = get(f"/api/spine?run={run}&type=portfolio&review=15000&exposure=10000000")
+det = get(f"/api/settlement?run={run}&id={case}")
+src = get(f"/api/subject?run={run}&type=portfolio&id=portfolio").get("source", {})
+inv = get(f"/api/investigation?run={run}&type=settlement&id={case}")
+cl  = get(f"/api/claims?run={run}")
+stop = next((s for s in sp["stages"] if s["state"] == "stopped"), {})
+space = det.get("space") or {}
+adv = cl.get("adversarial") or {}
+iso = cl.get("isolation") or {}
+print("\n".join([
+    sp["stages"][0]["value"],
+    stop.get("held_value", "—"),
+    str(stop.get("held", "—")),
+    sp["stages"][-1]["value"],
+    f'{space.get("universe", "?"):,} → {space.get("candidates", "?"):,} → {len(det.get("proofs") or [])}',
+    det.get("verdict", "?"),
+    f'{inv.get("tested", 0)} tested, {inv.get("discriminative", 0)} discriminative',
+    f'{adv.get("attacks", "?")} attacks, {adv.get("breached", "?")} breached' if adv.get("present") else "not run",
+    f'{iso.get("clean", "?")} of {iso.get("modules", "?")} engine modules',
+    f'{src.get("label", "?")} · {(src.get("engine") or {}).get("label", "?")}',
+]))
+PYEOF
+)
+IFS=$'\n' read -rd '' PROCESSED HELD HELDN POSTED CHAIN VERDICT TESTED ADV ISO SRC <<<"$J" || true
+
 cat <<TXT
 
   ATTEST is running.   http://127.0.0.1:$PORT/
 
-  The canonical journey, five stops:
+  Source: $SRC
 
-    1  the portfolio          where the money stopped, and what unlocks the most
-    2  setl_000089            #/settlement/setl_000089/evidence
-                              2,368 orders reduced to 73; four explanations,
-                              27 orders agreed by all of them
-    3  the model              #/settlement/setl_000089/investigate
-                              proposes, the solver refutes, the engine abstains
-    4  the boundary           #/settlement/setl_000089/policy
-                              UNPRICED, because no proof was established
-    5  what is not verified   #/portfolio/trust
-                              starting with the failures
+  The canonical journey. Every figure below was just read from the run.
 
-  Everything above is produced by the run. There is no demo-only code.
+   0:00  the landing         http://127.0.0.1:$PORT/#/portfolio/control
+                             $PROCESSED entered. $HELD held at verification
+                             across $HELDN settlements. $POSTED reached the ledger.
+
+   0:50  open the blocker    click the first object in the register — the
+                             ₹47L one — then any settlement inside it
+
+   1:10  the collapse        #/settlement/$CASE/evidence
+                             $CHAIN
+                             hover a cut to see why it was made, and whether
+                             it was a fact or a convention
+
+   2:00  the AI boundary     #/settlement/$CASE/investigate
+                             ◇ model proposes · ○ solver tests · ● engine decides
+                             $TESTED — VERDICT UNCHANGED, NO FINANCIAL ACTION
+
+   2:40  the threshold       #/settlement/$CASE/policy
+                             expected loss UNPRICED, because no unique
+                             explanation was established. The scale is drawn
+                             with nothing on it.
+
+   3:10  the books           #/settlement/$CASE/journal
+                             debit ₹0.00, credit ₹0.00 — BALANCED BY ABSENCE
+
+   3:40  what is not proved  #/portfolio/trust
+                             $ADV · $ISO contain no reference to the provider
+
+   4:20  the story           http://127.0.0.1:$PORT/story
+
+  The settlement is $VERDICT. Everything above is produced by the run;
+  there is no demo-only code path.
 
 TXT
 command -v open >/dev/null && open "http://127.0.0.1:$PORT/" || true

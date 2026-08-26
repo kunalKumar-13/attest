@@ -363,13 +363,23 @@ class LensStrip {
   }
 
   update(lenses, active) {
-    const keys = lenses.map(l => l.key).join(',');
+    const keys = lenses.map(l => `${l.key}:${l.state || ''}`).join(',');
     if (keys !== this.keys) {
       this.keys = keys;
-      this.host.innerHTML = lenses.map(l =>
+      /* §29.5. Index, name, question, and what the instrument currently
+         answers. The ordinal encodes the product loop, so reading the dock top
+         to bottom teaches the order an operator moves through; the state makes
+         it a summary of this case rather than a list of places. An instrument
+         with nothing to say yet renders no state line — a placeholder would be
+         the dock inventing an answer the engine has not reached. */
+      this.host.innerHTML = lenses.map((l, i) =>
         `<button data-lens="${esc(l.key)}" role=tab title="${esc(l.question)}"
-           aria-selected=false><span class=c-lens-n>${esc(l.label)}</span>
-           <span class=c-lens-q>${esc(l.question)}</span></button>`).join('');
+           aria-selected=false><span class=c-lens-i aria-hidden=true>${
+             String(i + 1).padStart(2, '0')}</span><span class=c-lens-n>${
+             esc(l.label)}</span>
+           <span class=c-lens-q>${esc(l.question)}</span>${
+             l.state ? `<span class=c-lens-s>${esc(l.state)}</span>` : ''
+           }</button>`).join('');
     }
     // The sliding ink indicator went with the horizontal tab band it belonged
     // to. Absolutely positioned inside what is now a two-column grid in the
@@ -438,6 +448,6 @@ function Conclusion({ fact, figure, figureLabel, because, tone, second }) {
 window.C = {
   esc, rupees, plural, Conclusion, FromBlocker,
   Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
-  DataTable, EmptyState, LoadingState, ErrorState, StateSpine,
+  DataTable, EmptyState, LoadingState, ErrorState, StateSpine, ownerOf,
   SubjectHeader, LensStrip,
 };

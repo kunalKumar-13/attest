@@ -63,6 +63,91 @@
     },
   };
 
+
+  /* ══════════════════════════════════════════════════════ §30.1 THE OVERTURE
+   *
+   * The landing's opening statement, and the only place in the product where
+   * type is allowed to be larger than money.
+   *
+   * It exists because of what a stranger does in the first three seconds: they
+   * decide what kind of thing this is. A screen that opens on a ranked list of
+   * blockers reads as an internal queue, and everything true about the product
+   * after that is read as an internal queue's details.
+   *
+   * It REPLACES the Conclusion block that used to open this room rather than
+   * sitting above it — §19 forbids the redesign from making the product
+   * heavier, and the leading fact ("one change unlocks 197 settlements") is
+   * still stated, at the bottom, where it is the reading of the diagram rather
+   * than an assertion made before the diagram.
+   */
+  function Overture(rec, spine, top) {
+    const meta = Object.fromEntries((rec.meta || []).map(m => [m.k, m.v]));
+    const src = rec.source || {};
+
+    // Linear in what CONTINUES. The floor keeps a survivor visible; it is
+    // 0.7% of the width and it is the only non-linearity, because a bar of
+    // zero width is a claim that nothing continued and something did.
+    const vals = spine.stages.map(s => s.continues_paise);
+    const top_v = Math.max(...vals, 1);
+    const FLOOR = 0.7;
+
+    const stages = spine.stages.map((s, i) => {
+      const pct = Math.max(s.continues_paise / top_v * 100,
+                           s.continues_paise > 0 ? FLOOR : 0);
+      const owner = window.C.ownerOf(s);
+      return `<button class="o-stage ${esc(s.state)}"
+        data-stage="${esc(s.key)}" data-lens="${esc(owner)}"
+        title="${esc(s.detail)} — open ${esc(owner)}">
+        <span class=o-stage-n><i>${String(i + 1).padStart(2, '0')}</i>${esc(s.label)}</span>
+        <span class=o-bar><i style="width:${pct.toFixed(3)}%;animation-delay:${
+          i * 70}ms"></i></span>
+        <span class=o-stage-v>${esc(s.value)}</span>
+        <span class=o-stage-x>${s.held
+          ? `<b>${esc(s.held_value || '')}</b> held · ${esc(s.detail)}`
+          : esc(s.detail)}</span>
+      </button>`;
+    }).join('');
+
+    /* The reading. Derived, so it cannot rot when the figures move — and
+     * deliberately NOT a restatement of the bars. Each stage already says what
+     * it holds and why; what the diagram cannot say is that this is the
+     * intended outcome rather than a failure. */
+    const held = spine.stages.reduce((n, s) => n + (s.held || 0), 0);
+    const read = `Of ${esc(rupees(spine.processed_paise))} that entered,
+      <b>${esc(rupees(spine.posted_paise))}</b> reached the ledger.
+      The other ${held} settlements did not fail — they stopped, and every
+      stage above states what is holding them. Nothing was posted on a guess.`;
+
+    return `<section class=o>
+      <div class=o-top>
+        <span class=o-wm>ATTEST</span>
+        <span class=o-kind>settlement reconciliation</span>
+        <span class=sp></span>
+        <span class=o-kind title="${esc(src.detail || '')}">${
+          esc(src.label || '')}${src.engine ? ' · ' + esc(src.engine.label) : ''}</span>
+      </div>
+
+      <h1 class=o-stmt><i>Financial reconciliation</i>
+        that refuses to invent certainty.</h1>
+
+      <div class=o-figs>
+        <div class=o-fig><b>${esc(rupees(rec.amount_paise))}</b>
+          <span>${esc(rec.amount_label || 'processed')}</span></div>
+        <div class="o-fig sm"><b>${esc(meta.settlements || '')}</b>
+          <span>settlements</span></div>
+        <div class="o-fig sm"><b>${esc(meta.orders || '')}</b>
+          <span>orders</span></div>
+      </div>
+
+      <div class=o-collapse>
+        <div class=o-h><span class=n>01</span><b>The collapse</b>
+          <em>every stage is an instrument — open it</em></div>
+        ${stages}
+        <p class=o-read>${read}</p>
+      </div>
+    </section>`;
+  }
+
   async function portfolio(S) {
     const api = window.shellApi;
     const [spine, acts, att, dec] = await Promise.all([
@@ -73,9 +158,12 @@
         + `&review=${S.review}&exposure=${S.exposure}`),
     ]);
 
-    // The spine is rendered by the shell, above every lens. Drawing it again
-    // here made Control the only view with two of them.
-    const spineBlock = '';
+    /* The rail keeps its spine — that is the case object, and it holds still
+       while the room changes. The room's copy is a different instrument for a
+       different purpose: the rail's says "this is the case you are looking
+       at", the overture's says "this is what this product is". They are drawn
+       from the same payload, so they cannot disagree. */
+    const spineBlock = Overture(S.record || {}, spine, (acts.actions || [])[0]);
 
     // The palette navigates to settlements, and these are the ones this run
     // actually flagged. Published from data already fetched rather than by
@@ -86,6 +174,10 @@
         hint: `${g.label}${it.amount_paise ? ' · ' + rupees(it.amount_paise) : ''}`,
       }))).filter(r => r.id);
 
+    /* The leading fact, kept — but moved BELOW the diagram it is a reading of.
+       Asserting "one change unlocks 197 settlements" before showing where the
+       money stopped asks the reader to trust a claim; showing the collapse
+       first makes the same sentence an observation they have already made. */
     const top = (acts.actions || [])[0];
     const answer = top ? Conclusion({
       fact: `One change unlocks ${plural(top.settlements, 'settlement')}`,
@@ -106,7 +198,7 @@
       body: acts.actions.map((a, i) => {
         const k = KIND[a.kind] || KIND.per_item;
         return `<button class="c-blk ${esc(a.kind)}" data-context="action:${esc(a.reason)}">
-          <span class=c-blk-i>${i + 1}</span>
+          <span class=c-blk-i>${String(i + 1).padStart(2, '0')}</span>
           <span class=c-blk-v>${esc(rupees(a.leverage_paise || a.value_paise))}</span>
           <span class=c-blk-s>
             <i class="c-status s-${k.tone.toUpperCase()} sm">${esc(k.scope)}</i>
@@ -188,7 +280,7 @@
       </div>`,
     });
 
-    return answer + spineBlock + actionBlock + lever + queue;
+    return spineBlock + answer + actionBlock + lever + queue;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the

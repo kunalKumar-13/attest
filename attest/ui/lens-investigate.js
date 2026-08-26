@@ -71,11 +71,25 @@
     const step = (mark, actor, did) =>
       `<div class=i-bound-s><i class="i-bound-dot ${mark}" aria-hidden=true></i>
          <b>${actor}</b><span>${did}</span></div>`;
+    /* §30.4 — the experiment's terminal, stated at the size of the claim.
+     *
+     * Every piece of this was already on screen and it read as a footnote: the
+     * three actors as three small rows, and the sentence that matters — that
+     * the loop moved no money — as the first clause of a paragraph. It is the
+     * one thing a judge is meant to leave with, so it is now the largest thing
+     * in the room. No new words: "No financial action." was lifted out of the
+     * prose below rather than written a second time. */
     return `<div class=i-bound>
-      <div class=i-bound-k>the boundary</div>
-      ${step('model', 'MODEL', 'proposed an anchor')}
-      ${step('solver', 'SOLVER', 'tested whether the anchor discriminates')}
-      ${step('engine', 'ENGINE', 'original verdict retained')}
+      <div class=i-bound-k><span class=n>03</span>the boundary</div>
+      <div class=i-bound-seq>
+        ${step('model', 'MODEL', 'proposed an anchor')}
+        ${step('solver', 'SOLVER', 'tested whether the anchor discriminates')}
+        ${step('engine', 'ENGINE', 'original verdict retained')}
+      </div>
+      <div class=i-bound-t>
+        <b>Verdict unchanged</b>
+        <b>No financial action</b>
+      </div>
       <div class=i-bound-r>
         <span><i>tested</i><b>${d.tested}</b></span>
         <span><i>discriminative</i><b>${d.discriminative}</b></span>
@@ -84,9 +98,9 @@
           >${esc(d.verdict)}</b></span>
         <span><i>changed</i><b>No</b></span>
       </div>
-      <div class=i-bound-x>No financial action. The loop's conclusion is
-        recorded as evidence and discarded; it is not eligible to become the
-        verdict, and nothing downstream reads it.</div>
+      <div class=i-bound-x>The loop's conclusion is recorded as evidence and
+        discarded; it is not eligible to become the verdict, and nothing
+        downstream reads it.</div>
       ${m && m.resolved ? `<p class=i-bound-m-note>Benchmark, not this
         settlement: re-measured across the evaluation panel, the loop resolved
         <b>${m.correct} of ${m.resolved}</b> correctly

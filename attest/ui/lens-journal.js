@@ -37,14 +37,25 @@
    * Zeroes are the point. "Balanced by absence" is a true statement about a
    * ledger that was not written, and it is different from a ledger that
    * balanced because a transaction cancelled out. */
-  function LedgerEffect({ debit, credit, written, note }) {
+  /* §30.6 — three figures and the sentence that makes them mean something.
+   *
+   * ₹0.00 debit, ₹0.00 credit, ₹0.00 net is indistinguishable from an entry
+   * that happened to cancel out, and the difference between those two is the
+   * whole idea. So the reading — "balanced by absence" — is lifted out of the
+   * footnote it was living in and set as the conclusion of the object, at the
+   * size of a conclusion. The figures stay exactly as they were: still zero,
+   * still stated, still not hidden. */
+  function LedgerEffect({ debit, credit, written, stamp, note }) {
     return `<div class="j-eff ${written ? 'written' : 'absent'}">
-      <div class=j-eff-r><span class=j-eff-k>debit</span>
-        <b class=j-eff-v>${esc(debit)}</b></div>
-      <div class=j-eff-r><span class=j-eff-k>credit</span>
-        <b class=j-eff-v>${esc(credit)}</b></div>
-      <div class="j-eff-r net"><span class=j-eff-k>net</span>
-        <b class=j-eff-v>${esc(written ? '₹0.00' : '₹0.00')}</b></div>
+      <div class=j-eff-t>
+        <div class=j-eff-r><span class=j-eff-k>debit</span>
+          <b class=j-eff-v>${esc(debit)}</b></div>
+        <div class=j-eff-r><span class=j-eff-k>credit</span>
+          <b class=j-eff-v>${esc(credit)}</b></div>
+        <div class="j-eff-r net"><span class=j-eff-k>net</span>
+          <b class=j-eff-v>${esc(written ? '₹0.00' : '₹0.00')}</b></div>
+      </div>
+      <div class=j-eff-stamp>${esc(stamp)}</div>
       <div class=j-eff-n>${esc(note)}</div>
     </div>`;
   }
@@ -121,8 +132,9 @@
         title: 'Ledger effect',
         body: LedgerEffect({
           debit: '₹0.00', credit: '₹0.00', written: false,
-          note: 'Balanced by absence — nothing was written, rather than an '
-              + 'entry that happens to net to zero.',
+          stamp: 'Balanced by absence',
+          note: 'Nothing was written, rather than an entry that happens to '
+              + 'net to zero.',
         }) + EntryStatus([
           ['entry', 'Not written', 'stop'],
           // the reason leads the room as the conclusion; it was stated again here
@@ -181,7 +193,8 @@
       title: 'Ledger effect',
       body: LedgerEffect({
         debit: rupees(e.total_paise), credit: rupees(e.total_paise), written: true,
-        note: `Debits equal credits. The ${rupees(e.total_paise)} on each side `
+        stamp: 'Debits equal credits',
+        note: `The ${rupees(e.total_paise)} on each side `
             + `is the gross discharged: ${rupees(credit)} that reached the bank `
             + `plus ${rupees(charge)} of fee and tax the gateway kept. An entry `
             + `that does not balance cannot be constructed at all.`,

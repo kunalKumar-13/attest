@@ -84,9 +84,15 @@ def test_changing_subject_leaves_the_lens_and_the_strip_untouched(page):
     detail means, and Phase 1 was wrong to make it navigation. Promoting the
     inspected thing to the subject is a separate, deliberate act, and it is that
     act which must preserve the lens."""
+    rack = """() => [...document.querySelectorAll('.c-lenses [data-lens]')].map(
+        b => ({ key: b.dataset.lens,
+                q: (b.querySelector('.c-lens-q') || {}).textContent,
+                on: b.getAttribute('aria-selected') === 'true',
+                state: (b.querySelector('.c-lens-s') || {}).textContent || null }))"""
+
     page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
     page.wait_for_timeout(1600)
-    before_strip = page.inner_text(".c-lenses")
+    before = page.evaluate(rack)
 
     page.click(".c-row.link")
     page.wait_for_timeout(1300)
@@ -97,7 +103,25 @@ def test_changing_subject_leaves_the_lens_and_the_strip_untouched(page):
     assert subject.startswith("settlement:")
     assert lens == "journal", "the user already said what they wanted to know"
     assert context is None, "context does not survive a subject change"
-    assert page.inner_text(".c-lenses") == before_strip
+
+    after = page.evaluate(rack)
+    # The RACK is what must not move: same instruments, same order, same
+    # questions, same one selected. This was `inner_text(".c-lenses") ==
+    # before_strip`, which also pinned the states — and once Phase 29 gave each
+    # instrument the state of the subject it would open, that equality was
+    # pinning "no state text exists" rather than "the rack held still".
+    assert [i["key"] for i in after] == [i["key"] for i in before]
+    assert [i["q"] for i in after] == [i["q"] for i in before]
+    assert [i["on"] for i in after] == [i["on"] for i in before]
+
+    # The states are the half that MUST move, because they describe the subject
+    # rather than the rack. A dock still reporting the portfolio's states over a
+    # settlement is a dock disagreeing with the room it opens, so the weaker
+    # assertion above is paid for with a stronger one here.
+    assert all(i["state"] is None for i in before), \
+        "the portfolio has no per-lens verdict to report"
+    assert [i["state"] for i in after] != [i["state"] for i in before], \
+        "the dock must re-derive against the new subject"
 
 
 def test_the_url_addresses_both_axes_and_a_reload_restores_them(page):
@@ -719,8 +743,21 @@ def test_an_unproven_settlement_is_never_priced(page):
     # is now absolute rather than a marker-less box.
     assert "nothing was priced" in page.inner_text("#workspace").lower()
     assert page.eval_on_selector_all(".p-bound-mark", "x => x.length") == 0
-    assert page.eval_on_selector_all(".p-bound", "x => x.length") == 0, \
-        "an unpriced settlement drew a decision boundary"
+
+    # Phase 30 §5 draws the instrument on an unpriced case, with the word
+    # UNPRICED where the number would be. Hiding the whole scale also hid that
+    # a price was SUPPOSED to be here, and an absence nobody can see is not a
+    # statement. So the guarantee is pinned rather than the old mechanism: the
+    # slot may exist, but it may not contain money — which is stronger than
+    # "the box does not exist", because that check passed happily for any box
+    # that had not been built yet and would have said nothing about one built
+    # later with a fabricated zero in it.
+    lo = page.query_selector(".p-bound-k.lo")
+    if lo:
+        text = lo.inner_text()
+        assert "unpriced" in text.lower(), \
+            f"the expected-loss slot does not say it is empty: {text!r}"
+        assert "\u20b9" not in text, f"a price was drawn without a proof: {text!r}"
     # every proof gate failed, so no policy gate could pass
     ok = page.eval_on_selector_all(".p-gate.ok", "x => x.length")
     assert ok == 0, "a policy gate passed without proof"
@@ -1520,7 +1557,10 @@ def test_activity_does_not_count_refused_events_as_delivered(page):
 def _money_sizes(page, root):
     """Every painted ₹ amount under `root`, with its computed type size."""
     return page.evaluate("""(sel) => {
-      const r = document.querySelector(sel); if (!r) return [];
+      // querySelectorAll, not querySelector: a screen may state the same fact
+      // in more than one instrument, and measuring only the first one let the
+      // others paint money at any size they liked.
+      const roots = [...document.querySelectorAll(sel)]; if (!roots.length) return [];
       const out = [];
       const vis = e => { const s = getComputedStyle(e);
         return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0'; };
@@ -1532,7 +1572,7 @@ def _money_sizes(page, root):
             t: n.textContent.trim(),
             px: parseFloat(getComputedStyle(n.parentElement).fontSize)});
         } else if (n.nodeType === 1 && vis(n)) walk(n); } };
-      walk(r); return out; }""", root)
+      roots.forEach(walk); return out; }""", root)
 
 
 def test_money_never_renders_at_annotation_size(page):
@@ -1560,7 +1600,11 @@ def test_the_money_that_stopped_outranks_any_single_blocker(page):
     ₹48,03,127.81 held at verification rendered at 9px. A ₹6,316 problem was
     painted 2.2x larger than ₹48 lakh of stuck money."""
     _ev(page, "#/portfolio/control")
-    held = [m for m in _money_sizes(page, ".c-state") if m["px"]]
+    # Wherever the landing states it. Phase 30 made the room's collapse the
+    # landing's central instrument, so the rail is no longer the only place the
+    # money that stopped is stated — and pinning the rail alone would have let
+    # the room paint that figure at any size it liked.
+    held = [m for m in _money_sizes(page, ".c-state, .o-stage-x") if m["px"]]
     assert held, "no money in the state spine"
     stopped = max(m["px"] for m in held)
     # an individual work item, not the room's headline conclusion — that
@@ -1645,8 +1689,30 @@ def test_no_type_size_outside_the_declared_scale(page):
     not a scale.
 
     `<html>` is excluded: it carries the browser's 16px root default and never
-    paints text of its own."""
-    SCALE = {10, 11, 13, 15, 20, 34}
+    paints text of its own.
+
+    Phase 30 added two display tiers — `--type-statement` and `--type-hero` —
+    for the landing's thesis and the instruments' terminal statements. The
+    scale is therefore READ from `:root` rather than restated here: a hard-coded
+    set has to be edited whenever a tier is added, and an edit to the test is
+    exactly how an undeclared tier gets declared retroactively.
+
+    Both new tiers are `clamp()`, and reading the custom property gives back
+    the raw `clamp(28px,3.4vw,44px)` text — `parseFloat` on that returns 28 at
+    every viewport, so the resolved size is measured off a probe element
+    instead. Getting this wrong reports the product as off-scale at 15 places
+    it is not."""
+    SCALE = {round(px) for px in page.evaluate("""() => {
+        const probe = document.createElement('span');
+        probe.style.position = 'absolute'; probe.style.visibility = 'hidden';
+        document.body.appendChild(probe);
+        const px = tok => { probe.style.fontSize = `var(${tok})`;
+          return parseFloat(getComputedStyle(probe).fontSize); };
+        const out = ['--type-display','--type-title','--type-data','--type-body',
+                     '--type-label','--type-micro','--type-statement','--type-hero']
+          .map(px).filter(n => n);
+        probe.remove(); return out; }""")}
+    assert len(SCALE) >= 6, f"the declared scale did not resolve: {SCALE}"
     off = {}
     for subject in ("portfolio", "settlement/setl_000089"):
         for lens in ("control", "evidence", "investigate", "policy",
@@ -2342,3 +2408,228 @@ def test_the_execution_path_is_named_beside_the_source(page):
     assert truth["engine"]["label"].upper() == shown, \
         f"screen says {shown!r}, the module says {truth['engine']['label']!r}"
     assert shown in ("PORTABLE", "NATIVE KERNEL"), shown
+
+
+def test_each_instrument_reports_its_own_state(page):
+    """Phase 29 §5. The dock listed a name and a question. It now also reports
+    what that instrument currently answers, so reading it top to bottom is a
+    summary of the case rather than a menu of places.
+
+    The state is read from the record, never composed in the dock — an
+    instrument that cannot answer yet shows nothing rather than a placeholder."""
+    _ev(page, "#/settlement/setl_000225/control")
+    rows = page.evaluate("""() =>
+      [...document.querySelectorAll('.c-lenses button')].map(b => ({
+        lens: b.dataset.lens,
+        idx: (b.querySelector('.c-lens-i') || {}).textContent || '',
+        state: (b.querySelector('.c-lens-s') || {}).textContent || ''}))""")
+    assert len(rows) == 7
+    # the ordinal encodes the product loop
+    assert [r["idx"] for r in rows] == ["01", "02", "03", "04", "05", "06", "07"]
+    assert [r["lens"] for r in rows] == ["control", "evidence", "investigate",
+                                         "policy", "journal", "activity", "trust"]
+    stated = {r["lens"]: r["state"].strip().upper() for r in rows if r["state"].strip()}
+    assert len(stated) >= 5, f"only {len(stated)} instruments report a state: {stated}"
+    # and the states are this case's, not a constant
+    assert "AMBIGUOUS" in stated.get("control", "") or \
+           "VERIFICATION" in stated.get("control", ""), stated
+    assert "UNPRICED" in stated.get("policy", "") or \
+           "REVIEW" in stated.get("policy", ""), stated
+    assert "NOT VERIFIED" in stated.get("trust", ""), stated
+
+
+def test_the_dock_state_changes_with_the_case(page):
+    """A proven settlement and an ambiguous one cannot report the same states,
+    or the line is decoration."""
+    _ev(page, "#/settlement/setl_000225/control")
+    amb = page.evaluate("""() => [...document.querySelectorAll('.c-lens-s')]
+      .map(e => e.textContent.trim()).join('|')""")
+    _ev(page, "#/settlement/setl_000020/control")
+    prov = page.evaluate("""() => [...document.querySelectorAll('.c-lens-s')]
+      .map(e => e.textContent.trim()).join('|')""")
+    assert amb != prov, f"the dock reports the same state for both cases: {amb}"
+    assert "PROVEN" in prov.upper()
+
+
+# ══════════════════════════════════════════════════ PHASE 30 · THE INSTRUMENTS
+#
+# Phase 30 rebuilt every room's grammar. These pin the parts that carry an
+# argument rather than the parts that carry a style — a border-radius is a
+# preference, but a bar whose width is not proportional to what it represents
+# is a diagram that lies, and that is worth a test.
+
+
+def test_the_overture_states_the_thesis_before_any_work(page):
+    """§30.1. The landing's first statement is what the product refuses to do.
+
+    A landing that opens on a ranked list of blockers reads as an internal
+    queue, and everything true about the product after that is read as an
+    internal queue's details."""
+    _ev(page, "#/portfolio/control")
+    o = page.query_selector(".o")
+    assert o, "the landing has no overture"
+    stmt = page.inner_text(".o-stmt").lower()
+    assert "refuses" in stmt and "certainty" in stmt, \
+        f"the opening statement does not state the thesis: {stmt!r}"
+    # and it is the largest type on the screen, because nothing has happened yet
+    size = page.evaluate(
+        "() => parseFloat(getComputedStyle(document.querySelector('.o-stmt')).fontSize)")
+    assert size >= 30, f"the thesis is set at {size:.0f}px"
+
+
+def test_the_collapse_is_proportional_to_what_continues(page):
+    """§30.1. The shrinking width IS the argument, so it has to be true.
+
+    A stage that keeps 9.4% of the money gets 9.4% of the width. The only
+    licensed departure is a floor, so a surviving sliver does not render as
+    zero — and the floor is checked to be small enough that it cannot make a
+    collapse look like a continuation."""
+    _ev(page, "#/portfolio/control")
+    rows = page.evaluate("""() => [...document.querySelectorAll('.o-stage')].map(r => ({
+        w: r.querySelector('.o-bar i').getBoundingClientRect().width,
+        track: r.querySelector('.o-bar').getBoundingClientRect().width,
+        v: r.querySelector('.o-stage-v').textContent.trim()}))""")
+    assert len(rows) >= 4, "the collapse has too few stages to be a collapse"
+    fracs = [r["w"] / r["track"] for r in rows]
+    assert max(fracs) > 0.9, "no stage is drawn at full width"
+    assert min(fracs) < 0.05, \
+        f"nothing collapses — narrowest bar is {min(fracs) * 100:.1f}% of the track"
+    # monotone: money that has stopped cannot un-stop further down the chain
+    assert fracs == sorted(fracs, reverse=True), \
+        f"the collapse is not monotone: {[round(f, 4) for f in fracs]}"
+
+
+def test_a_blocker_is_an_object_and_its_amount_leads(page):
+    """§30.2. Value decides whether the work is worth the next ten minutes.
+
+    The register was a six-column row; the reader had to hunt for the figure
+    that decides. In the rebuilt object the amount is the largest thing in it."""
+    _ev(page, "#/portfolio/control")
+    m = page.evaluate("""() => {
+      const b = document.querySelector('.c-blk'); if (!b) return null;
+      const px = s => { const e = b.querySelector(s);
+        return e ? parseFloat(getComputedStyle(e).fontSize) : 0; };
+      return {amount: px('.c-blk-v'), why: px('.c-blk-w'),
+              cap: px('.c-blk-c'), radius: getComputedStyle(b).borderRadius}; }""")
+    assert m, "no blocker objects on the landing"
+    assert m["amount"] > m["why"] > m["cap"], (
+        f"the hierarchy is not value, then reason, then boundary: {m}")
+    # objects, not cards
+    assert m["radius"].startswith("0px"), \
+        f"the blocker is drawn as a rounded card ({m['radius']})"
+
+
+def test_the_reduction_chain_states_each_cut_without_being_asked(page):
+    """§30.3. The kind of a cut is never hidden behind a hover.
+
+    Whether a reduction is a deterministic fact or a convention is what the
+    32/92 failure was about. The justification is the reward for asking; the
+    KIND is not, because a reader who never hovers must still see that the
+    boundary rests on a convention."""
+    _ev(page, "#/settlement/setl_000225/evidence")
+    kinds = page.evaluate("""() => [...document.querySelectorAll('.e-uni-k')]
+        .filter(e => { const s = getComputedStyle(e);
+          return s.display !== 'none' && s.visibility !== 'hidden'
+                 && parseFloat(s.opacity) > 0 && e.getBoundingClientRect().height > 0; })
+        .map(e => e.textContent.trim().toLowerCase())""")
+    assert kinds, "no cut states its kind"
+    assert "convention" in kinds, "no cut is labelled a convention on arrival"
+    # and the figures are the composition, not an annotation on it
+    n = page.evaluate("""() => parseFloat(getComputedStyle(
+        document.querySelector('.e-uni-end .e-uni-n')).fontSize)""")
+    body = page.evaluate("() => parseFloat(getComputedStyle(document.body).fontSize)")
+    assert n >= body * 1.8, f"the surviving count is set at {n:.0f}px"
+
+
+def test_the_threshold_is_drawn_even_when_nothing_was_priced(page):
+    """§30.5. The absence of a number is the point, and an absence you cannot
+    see is not a statement.
+
+    The instrument used to render nothing at all on an unpriced case, which
+    also hid that a price was SUPPOSED to be here. A zero is never drawn:
+    zero expected loss would claim the posting was proved safe, which is the
+    opposite of what happened."""
+    _ev(page, "#/settlement/setl_000225/policy")
+    b = page.query_selector(".p-bound")
+    assert b, "no threshold on an unpriced case"
+    lo = page.inner_text(".p-bound-k.lo")
+    assert "unpriced" in lo.lower(), f"the empty slot does not say so: {lo!r}"
+    assert "0.00" not in lo, "a zero was drawn where nothing was priced"
+    assert not page.query_selector(".p-bound .p-bound-mark"), \
+        "a marker was placed on the scale with no price to place it at"
+    # the review cost is real and still stated
+    assert "₹" in page.inner_text(".p-bound-k.rv")
+
+    # and on a priced case the marker exists and sits on the cheaper side
+    _ev(page, "#/settlement/setl_000020/policy")
+    pos = page.evaluate("""() => {
+      const m = document.querySelector('.p-bound-mark');
+      const l = document.querySelector('.p-bound-line');
+      if (!m || !l) return null;
+      return m.getBoundingClientRect().left < l.getBoundingClientRect().left; }""")
+    assert pos is True, "expected loss below the review cost is not drawn below it"
+
+
+def test_balanced_by_absence_is_stated_as_the_conclusion(page):
+    """§30.6. ₹0.00 / ₹0.00 / ₹0.00 is indistinguishable from an entry that
+    cancelled out. The difference between those two is the whole idea, and it
+    was living in a footnote."""
+    _ev(page, "#/settlement/setl_000225/journal")
+    stamp = page.query_selector(".j-eff-stamp")
+    assert stamp, "the ledger effect states no conclusion"
+    assert "absence" in stamp.inner_text().lower()
+    sizes = page.evaluate("""() => ({
+        stamp: parseFloat(getComputedStyle(document.querySelector('.j-eff-stamp')).fontSize),
+        fig: parseFloat(getComputedStyle(document.querySelector('.j-eff-v')).fontSize)})""")
+    assert sizes["stamp"] > sizes["fig"], (
+        f"the reading is smaller than the zeroes it explains: {sizes}")
+    # the note must not repeat the stamp
+    note = page.inner_text(".j-eff-n").lower()
+    assert "balanced by absence" not in note, "the conclusion is stated twice"
+
+
+def test_the_isolation_claim_is_measured_rather_than_typed(page):
+    """§30.8. ATTEST's strongest architectural claim, checked instead of said.
+
+    Every module that produces a verdict is read and searched for the
+    provider's name. The count of modules scanned is on screen beside the
+    result, so a reader who disbelieves it can name them and grep."""
+    truth = page.evaluate("""async () => {
+      const r = await fetch(`/api/claims?run=${SHELL.run}`);
+      return (await r.json()).isolation; }""")
+    assert truth, "the payload carries no isolation measurement"
+    assert truth["modules"] >= 15, \
+        f"only {truth['modules']} modules were scanned — too few to be the engine"
+    assert truth["isolated"] is True, (
+        f"the provider reaches the engine via {truth['mentions']}"
+        f"{'; unreadable: ' + str(truth['unreadable']) if truth['unreadable'] else ''}")
+
+    _ev(page, "#/portfolio/trust")
+    iso = page.inner_text(".t-iso")
+    assert "does not know" in iso.lower()
+    assert str(truth["modules"]) in iso, \
+        "the claim is made without saying how many modules were read"
+
+
+def test_the_attack_counts_come_from_the_pass_that_ran_them(page):
+    """§30.8. A defended-attack count with nothing behind it is exactly the
+    kind of claim this lens exists to refuse.
+
+    The counts are read from benchmark/adversarial.json, written by the pass
+    itself. If the artifact is absent the surface says the pass has not been
+    run rather than falling back to a number."""
+    adv = page.evaluate("""async () => {
+      const r = await fetch(`/api/claims?run=${SHELL.run}`);
+      return (await r.json()).adversarial; }""")
+    _ev(page, "#/portfolio/trust")
+    room = page.inner_text("#w-main")
+    if not adv or not adv.get("present"):
+        assert "has not been run" in room.lower(), \
+            "no artifact, yet the room does not say the pass has not been run"
+        return
+    assert adv["defended"] + adv["breached"] <= adv["attacks"]
+    shown = page.inner_text(".t-adv")
+    for n in (adv["attacks"], adv["defended"], adv["breached"]):
+        assert str(n) in shown, f"{n} is measured but not shown"
+    # a harness error is not a defence, and the room has to say so
+    assert "harness" in shown.lower()

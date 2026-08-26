@@ -32,23 +32,50 @@
      here word for word — and on an unpriced case this section contained
      nothing else, so it was a heading over a repeat. §13 asks for no marker
      when nothing was priced; the honest form of that is no boundary at all. */
-  function Boundary(b) {
-    if (!b.priced) return '';
-    const loss = b.expected_loss_paise, rev = b.review_paise;
-    const span = Math.max(loss, rev) * 2;
+  function Boundary(b, decision) {
+    /* §30.5 — the threshold as a measuring instrument.
+     *
+     * Two comparable numbers and the line between them. This existed and was
+     * four small rows; the comparison IS the decision, so it is now the
+     * largest thing in the room.
+     *
+     * On an unpriced case it used to render nothing at all, on the reasoning
+     * that "no marker" is the honest form of "nothing was priced". That was
+     * half right: hiding the instrument also hides that a price was SUPPOSED
+     * to be here. The scale is drawn, the review cost is real, and where the
+     * expected loss would sit there is the word UNPRICED and the reason — the
+     * absence is the point, and an absence you cannot see is not a statement.
+     *
+     * A zero is never drawn. Zero expected loss would mean the engine had
+     * proved the posting safe, which is the opposite of what happened. */
+    const rev = b.review_paise;
+    const loss = b.priced ? b.expected_loss_paise : null;
+    const span = Math.max(loss || 0, rev) * 2;
     const pos = v => Math.min(v / span * 100, 96);
-    const cheaper = loss < rev;
-    return `<div class="p-bound ${cheaper ? 'auto' : 'review'}">
+    const cheaper = b.priced && loss < rev;
+    return `<div class="p-bound ${b.priced ? (cheaper ? 'auto' : 'review')
+                                           : 'unpriced'}">
+      <div class=p-bound-hd>
+        <div class="p-bound-k lo">
+          <i>expected loss</i>
+          <b>${b.priced ? esc(rupees(loss)) : 'Unpriced'}</b>
+        </div>
+        <div class="p-bound-k rv">
+          <i>cost of a review</i>
+          <b>${esc(rupees(rev))}</b>
+        </div>
+      </div>
       <div class=p-bound-t>
         <i class=p-bound-line style="left:${pos(rev)}%"></i>
-        <i class=p-bound-mark style="left:${pos(loss)}%"></i>
+        ${b.priced ? `<i class=p-bound-mark style="left:${pos(loss)}%"></i>` : ''}
         <span class=p-bound-zl>automating is cheaper</span>
         <span class=p-bound-zr>checking is cheaper</span>
       </div>
-      <div class=p-bound-k>
-        <span class=lo><b>${esc(rupees(loss))}</b> expected loss</span>
-        <span class=rv><b>${esc(rupees(rev))}</b> to check</span>
-      </div>
+      <div class=p-bound-out>${b.priced
+        ? `<b>${esc(rupees(Math.abs(rev - loss)))}</b> ${
+            cheaper ? 'cheaper to automate than to check'
+                    : 'cheaper to check than to risk automating'}`
+        : 'nothing to compare against'}</div>
     </div>`;
   }
 
@@ -78,11 +105,15 @@
     // Policy's answer is the decision, and where no proof exists the honest
     // answer is that nothing was priced — never a fabricated zero.
     const b = d.boundary || {};
+    /* One fact each. The room's question is "what is safe to automate", so the
+       conclusion answers with the DECISION and the reason for it; the
+       threshold below states the two figures that produced it and draws the
+       comparison. Both used to state both, which is how REVIEW came to be
+       painted twice at hero weight and the reason sentence twice verbatim. */
     const answer = Conclusion({
-      fact: b.priced ? esc(d.decision).replace('_', '-') : 'Unpriced',
+      fact: esc(d.decision).replace('_', '-'),
       tone: d.decision === 'AUTO_POST' ? 'go' : 'hold',
-      figure: b.priced ? rupees(b.expected_loss_paise) : esc(d.decision).replace('_', '-'),
-      figureLabel: b.priced ? `expected loss · ${rupees(b.review_paise)} to check` : null,
+      figure: null, figureLabel: null,
       because: b.statement || '',
     });
 
@@ -98,9 +129,10 @@
           <b class="c-status s-${esc(d.verdict)} sm">${esc(d.verdict)}</b>
           — policy reads it and does not change it</div>
       </div>`
-      + (b.priced
-          ? Section({ title: 'The boundary', body: Boundary(d.boundary) })
-          : '')
+      /* Drawn whether or not it was priced. The unpriced case is the one a
+         judge should see: the scale exists, the review cost is real, and the
+         slot where a price would go says UNPRICED and why. */
+      + Section({ title: 'The threshold', body: Boundary(b, d.decision) })
       + Section({
           title: 'What had to hold',
           aside: `<span class=c-muted>${d.gates.filter(g => g.ok).length}/${d.gates.length} passed</span>`,

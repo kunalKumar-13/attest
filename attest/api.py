@@ -12,11 +12,13 @@ the ledger is the whole failure.
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from attest.certificate import issue
@@ -309,6 +311,78 @@ def policy_view(r: Run, review_paise: int, exposure_paise: int) -> dict[str, Any
 def _wilson(w: int, t: int) -> float:
     from attest.policy import _wilson_upper
     return _wilson_upper(w, t) if t else 1.0
+
+
+# The engine modules. Everything the verdict depends on, and nothing that
+# talks to the outside — the adapters, the HTTP surface and the webhook
+# receiver are deliberately excluded because they are the parts that ARE
+# allowed to know about a provider.
+_ENGINE_MODULES = (
+    "model", "verdict", "subsetsum", "searchspace", "partition", "policy",
+    "ledger", "pipeline", "layers", "blocking", "evidence", "rules",
+    "certificate", "graph", "hypothesis", "coincidence", "whatchanged",
+    "money", "actions", "agents", "exceptions",
+)
+
+
+def engine_isolation(provider: str = "razorpay") -> dict[str, Any]:
+    """Does the engine know the provider exists?
+
+    ATTEST's strongest claim about its own architecture is that the part which
+    decides is separated from the part which integrates: swap Razorpay for a
+    bank file and the verdict is produced by exactly the same code, because the
+    verdict's code has never heard of Razorpay.
+
+    That is checkable, so it is checked rather than asserted. Every engine
+    module is read and searched for the provider's name; the count of modules
+    and the count of mentions are both reported, so a reader can see the claim
+    is a measurement over a named set rather than a slogan. A module that goes
+    missing is reported as unreadable rather than silently counted as clean —
+    an absent file is not evidence of isolation.
+    """
+    here = Path(__file__).resolve().parent
+    needle = provider.lower()
+    clean: list[str] = []
+    mentions: list[str] = []
+    unreadable: list[str] = []
+    for name in _ENGINE_MODULES:
+        f = here / f"{name}.py"
+        try:
+            body = f.read_text(encoding="utf-8").lower()
+        except OSError:
+            unreadable.append(name)
+            continue
+        (mentions if needle in body else clean).append(name)
+    return {
+        "provider": provider,
+        "modules": len(_ENGINE_MODULES),
+        "clean": len(clean),
+        "mentions": mentions,
+        "unreadable": unreadable,
+        "isolated": not mentions and not unreadable,
+        # where the provider IS allowed to be named
+        "boundary": ["adapters/razorpay.py", "adapters/base.py",
+                     "adapters/money.py", "webhooks.py", "api.py", "web.py"],
+    }
+
+
+def adversarial_measurement() -> dict[str, Any]:
+    """The adversarial pass's own record, read from its artifact.
+
+    Written by `python -m attest.eval.adversarial`. If the artifact is absent
+    the surface says the pass has not been run — it does not fall back to a
+    number, because a count of defended attacks that nothing produced is the
+    kind of claim this lens exists to refuse.
+    """
+    art = Path(__file__).resolve().parents[1] / "benchmark" / "adversarial.json"
+    try:
+        d = json.loads(art.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"present": False}
+    return {"present": True, "attacks": d.get("attacks"),
+            "defended": d.get("defended"), "breached": d.get("breached"),
+            "harness_errors": d.get("harness_errors"),
+            "stages": d.get("stages") or [], "breaches": d.get("breaches") or []}
 
 
 def anchoring_measurement() -> dict[str, Any]:
@@ -1107,6 +1181,51 @@ def lenses_for(subject_type: str) -> list[dict[str, str]]:
             for k in LENS_LABELS if subject_type in LENS_MATRIX.get(k, ())]
 
 
+def lens_states(r: Run | None, stype: str, sid: str) -> dict[str, str]:
+    """What each instrument currently answers for this subject.
+
+    §29.5. The dock listed a name and a question; reading it told you where you
+    could go, not what was true. With a state per row it becomes a summary of
+    the case — and because the states come from the same finding, judgement and
+    ledger the rooms read, the dock cannot disagree with the room it opens.
+
+    An instrument with nothing to say yet returns nothing. A placeholder would
+    be the dock inventing a state the engine has not reached.
+    """
+    if stype != "settlement" or r is None:
+        return {}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None:
+        return {}
+
+    out: dict[str, str] = {}
+    verdict = f.verdict.value
+    out["control"] = verdict
+    out["evidence"] = ("no unique proof" if verdict == "AMBIGUOUS"
+                       else "no explanation" if verdict == "CONTRADICTED"
+                       else "out of envelope" if verdict == "INSUFFICIENT"
+                       else "kernel re-derived")
+    if verdict == "AMBIGUOUS":
+        out["investigate"] = "engine abstained"
+
+    st = {x.settlement_id: x for x in r.settlements}
+    if sid in st:
+        j = _judge(r, f, st[sid])
+        out["policy"] = ("unpriced" if j.expected_loss_paise is None
+                         else str(j.decision.value).replace("_", "-").lower())
+
+        # Whether an entry exists is decided by the same `post` the Journal
+        # lens calls, not by re-deriving the condition here. A dock that
+        # computed its own answer could disagree with the room it opens.
+        from attest.ledger import JournalEntry, post
+        written = isinstance(
+            post(f, st[sid], j, {o.order_id: o for o in r.orders}), JournalEntry)
+        out["journal"] = "entry written" if written else "not written"
+
+    out["trust"] = "not verified"
+    return out
+
+
 def source_mode(r: Run | None) -> dict[str, Any]:
     """Which source produced the records on screen, read from the adapter.
 
@@ -1165,6 +1284,11 @@ def subject_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
     rec = _subject_record(r, stype, sid)
     if isinstance(rec, dict) and "error" not in rec:
         rec["source"] = source_mode(r)
+        states = lens_states(r, stype, sid)
+        for lens in rec.get("lenses", ()):
+            state = states.get(lens.get("key"))
+            if state:
+                lens["state"] = state
     return rec
 
 
@@ -2400,4 +2524,9 @@ def trust_claims(r: Run | None = None) -> dict[str, Any]:
                     "problem. Deferred deliberately — see the ADR."},
         ],
         "ai_permissions": agents_view(None),
+        # Both measured, neither typed. The adversarial counts come from the
+        # pass's own artifact and the isolation from reading the engine's
+        # source; if either is unavailable the surface says so.
+        "adversarial": adversarial_measurement(),
+        "isolation": engine_isolation(),
     }
