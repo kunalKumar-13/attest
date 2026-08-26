@@ -2633,3 +2633,33 @@ def test_the_attack_counts_come_from_the_pass_that_ran_them(page):
         assert str(n) in shown, f"{n} is measured but not shown"
     # a harness error is not a defence, and the room has to say so
     assert "harness" in shown.lower()
+
+
+def test_motion_resolves_to_the_three_declared_tiers(page):
+    """§30.12. Three tiers, and every animation is one of them.
+
+    micro 80-120ms for interaction feedback, standard 180-240ms for a state
+    change, spatial 300-450ms for something opening out of the thing that owns
+    it. A duration outside those bands is a decision made at a call site, which
+    is how a hover tint and a drawer opening came to run on the same token.
+
+    This measures what is PAINTED rather than what is declared: a token nothing
+    uses proves nothing, and a hard-coded `0.6s` on one rule would never show
+    up in `:root`."""
+    _ev(page, "#/portfolio/control")
+    painted = page.evaluate("""() => { const out = {};
+      document.querySelectorAll('#app *').forEach(e => { const s = getComputedStyle(e);
+        [s.transitionDuration, s.animationDuration].forEach(v =>
+          (v || '').split(',').map(x => x.trim()).forEach(x => {
+            const ms = x.endsWith('ms') ? parseFloat(x) : parseFloat(x) * 1000;
+            if (ms > 0) out[ms] = (out[ms] || 0) + 1; })); });
+      return out; }""")
+    assert painted, "nothing on the landing animates at all"
+    BANDS = ((80, 120), (180, 240), (300, 450))
+    stray = {ms: n for ms, n in painted.items()
+             if not any(lo <= float(ms) <= hi for lo, hi in BANDS)}
+    assert not stray, (
+        "durations outside the three declared tiers: "
+        + ", ".join(f"{ms}ms on {n} elements" for ms, n in stray.items()))
+    assert len(painted) <= 4, \
+        f"more distinct durations than tiers: {sorted(map(float, painted))}"
