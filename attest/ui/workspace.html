@@ -2,45 +2,49 @@
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>ATTEST — workspace</title>
 <link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
 <style>
 :root{
-  /* ═══════════════════════════════════════════ PHASE 31 · THE DARK FIELD
-     Dark is not an option here, it is the product. A forensic instrument is
-     read in a room where the only lit things are the ones that matter, and
-     every earlier palette was a light interface with its lamps turned down —
-     blue-tinted greys, and a chart-green loud enough to outshout the sentence
-     beside it.
+  /* ═════════════════════════════════════ PHASE 32 · THE SAME WORLD
+     The investigation at `/` and this workspace are one product, and the
+     reference this family is drawn from is WARM PAPER, not dark. Phase 31 had
+     that backwards — it darkened the workspace and then darkened the front
+     door to match, which made both of them consistent and both of them wrong.
 
-     The field is neutral charcoal. Nothing is tinted unless the tint means
-     something. Four surfaces and one hairline; a component that wants a fifth
-     is a component drawing a box it has not earned.
+     So the ground is paper here too. What changes between the two surfaces is
+     DENSITY, not identity: the front door is a reading, the workspace is an
+     instrument, and an instrument is allowed to be dense. It is not allowed to
+     be a different product.
 
-     COLOUR IS RARE. Money is white, because money is the subject and a subject
-     does not need decorating. Colour appears only where a fact has a state —
-     held, proved, ambiguous — or to name which of the three actors did a
-     thing. Everything else is white at some opacity. If two colours compete
-     for the eye on one screen, one of them is wrong. */
-  --bg:#0a0a0b;              /* the field */
-  --sur:#111113;             /* raised: the rail, a seated instrument */
-  --sur2:#171719;            /* raised twice: context, hover */
-  --sur3:#1e1e21;            /* the ground a bar sits in */
-  --line:rgba(255,255,255,.09);
-  --line2:rgba(255,255,255,.18);
-  --ink:#f2f2f3;             /* statements, money */
-  --dim:#a8a8ad;             /* explanations */
-  --dim2:#7c7c83;            /* supporting */
-  --dim3:#55555c;            /* metadata, ordinals, the almost-invisible */
-  --acc:#7aa2ff;  --acc-d:#141722;
-  --rail-bg:#0d0d0f;
-  --hov:rgba(255,255,255,.035);
-  /* Desaturated until they read as ink rather than as a chart legend. */
-  --st-PROVEN:#5fbf9b;       --st-PROVEN-bg:rgba(95,191,155,.10);
-  --st-AMBIGUOUS:#d9a441;    --st-AMBIGUOUS-bg:rgba(217,164,65,.10);
-  --st-CONTRADICTED:#d9705c; --st-CONTRADICTED-bg:rgba(217,112,92,.10);
-  --st-INSUFFICIENT:#7c7c83; --st-INSUFFICIENT-bg:rgba(255,255,255,.05);
-  --st-SYSTEMIC:#5fbf9b;     --st-SYSTEMIC-bg:rgba(95,191,155,.10);
-  --st-INVESTIGATE:#7aa2ff;  --st-INVESTIGATE-bg:rgba(122,162,255,.10);
+     Colour still says only three things — proved, held, and the marker that
+     numbers a section or names a boundary. */
+  --bg:#f2f1ec;              /* the paper */
+  --sur:#fbfaf7;             /* a specimen laid on it */
+  --sur2:#eeece5;            /* hover, context */
+  --sur3:#e4e2d9;            /* the ground a bar sits in */
+  --line:rgba(18,19,15,.13);
+  --line2:rgba(18,19,15,.26);
+  --ink:#12130f;
+  --dim:#55564e;
+  /* Contrast on paper is not the same problem as contrast on black. These
+     tiers were carried over from the dark build, where #a9a99f was a legible
+     grey; on this ground it measures 2.10:1 and the section numbers were
+     effectively invisible to anyone who needs contrast. Measured against
+     #f2f1ec: dim 6.57, dim2 5.05, dim3 4.70 — all clear of AA.
+
+     The quietness now comes from SIZE, which is where the reference gets it
+     too: its own 8px labels are near-black, not washed out. */
+  --dim2:#666760;
+  --dim3:#676860;
+  --acc:#b4462a;  --acc-d:rgba(180,70,42,.09);
+  --rail-bg:#edebe4;
+  --hov:rgba(18,19,15,.04);
+  --st-PROVEN:#2f6b4f;       --st-PROVEN-bg:rgba(47,107,79,.09);
+  --st-AMBIGUOUS:#8a5f1c;    --st-AMBIGUOUS-bg:rgba(168,116,35,.10);
+  --st-CONTRADICTED:#b4462a; --st-CONTRADICTED-bg:rgba(180,70,42,.09);
+  --st-INSUFFICIENT:#666760; --st-INSUFFICIENT-bg:rgba(18,19,15,.05);
+  --st-SYSTEMIC:#2f6b4f;     --st-SYSTEMIC-bg:rgba(47,107,79,.09);
+  --st-INVESTIGATE:#2f5aa8;  --st-INVESTIGATE-bg:rgba(47,90,168,.09);
   --shadow:none;
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -93,19 +97,21 @@
 /* Light remains reachable for anyone who needs it, but it is no longer a
    switch in the primary interaction path: the first control on the page should
    never be a question about the product's appearance. */
-:root[data-theme=light]{
-  --bg:#f6f7f9; --sur:#ffffff; --sur2:#f7f8fa; --sur3:#eceef1;
-  --line:#e6e9ed; --line2:#d6dbe2;
-  --ink:#101418; --dim:#414953; --dim2:#585f69; --dim3:#8a939e;
-  --acc:#1669ea; --acc-d:#eef4fe;
-  --rail-bg:#f1f3f6; --hov:rgba(0,0,0,.03);
-  --st-PROVEN:#0c7d5a;       --st-PROVEN-bg:#eaf7f1;
-  --st-AMBIGUOUS:#946811;    --st-AMBIGUOUS-bg:#fdf5e4;
-  --st-CONTRADICTED:#b4442e; --st-CONTRADICTED-bg:#fdeeeb;
-  --st-INSUFFICIENT:#585f69; --st-INSUFFICIENT-bg:#f7f8fa;
-  --st-SYSTEMIC:#0c7d5a;     --st-SYSTEMIC-bg:#eaf7f1;
-  --st-INVESTIGATE:#1669ea;  --st-INVESTIGATE-bg:#eef4fe;
-  --shadow:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
+/* Dark is still reachable with ?theme=dark for anyone who wants it, but it is
+   not the product: the family this is drawn from is paper. */
+:root[data-theme=dark]{
+  --bg:#0f0f0d; --sur:#161613; --sur2:#1c1c18; --sur3:#232320;
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.18);
+  --ink:#f2f1ec; --dim:#a9a89f; --dim2:#7d7e74; --dim3:#55564e;
+  --acc:#e0805f; --acc-d:rgba(224,128,95,.12);
+  --rail-bg:#131311; --hov:rgba(255,255,255,.04);
+  --st-PROVEN:#5fbf9b;       --st-PROVEN-bg:rgba(95,191,155,.10);
+  --st-AMBIGUOUS:#d9a441;    --st-AMBIGUOUS-bg:rgba(217,164,65,.10);
+  --st-CONTRADICTED:#d9705c; --st-CONTRADICTED-bg:rgba(217,112,92,.10);
+  --st-INSUFFICIENT:#666760; --st-INSUFFICIENT-bg:rgba(255,255,255,.05);
+  --st-SYSTEMIC:#5fbf9b;     --st-SYSTEMIC-bg:rgba(95,191,155,.10);
+  --st-INVESTIGATE:#7aa2ff;  --st-INVESTIGATE-bg:rgba(122,162,255,.10);
+  --shadow:none;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:var(--type-body)/1.55 var(--s);
@@ -1469,7 +1475,12 @@ gap:var(--s-5)}
 text-transform:uppercase;color:var(--dim3);font-weight:600;margin-bottom:7px}
 .t-perm-i{display:inline-block;font-family:var(--m);font-size:var(--t-micro);
 background:var(--sur3);border-radius:var(--r-1);padding:3px 8px;margin:0 4px 4px 0}
-.t-perm-i.no{color:var(--st-CONTRADICTED);background:var(--st-CONTRADICTED-bg)}
+/* the -bg tints became alpha versions of their own hue when the palette moved
+   to paper, so this chip was painting its text colour behind its text colour —
+   a measured contrast ratio of exactly 1.00, i.e. invisible. The refusal is
+   said in words; it does not need a fill. */
+.t-perm-i.no{color:var(--st-CONTRADICTED);background:none;
+  border:1px solid var(--st-CONTRADICTED)}
 
 .t-fails{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));
 gap:0 var(--sp-4);padding-top:var(--sp-3)}
@@ -2518,10 +2529,11 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 
    Only the first tier moves. Money stays monospace, because money is the
    machine speaking, and a serif ₹48,03,127.81 would be a decorated figure. */
-:root{--dsp:"Instrument Serif",Georgia,serif}
-.o-stmt,.i-q h2{font-family:var(--dsp);font-weight:400;letter-spacing:-.012em}
-.o-stmt i{font-style:italic}
-.i-q h2{line-height:1.02}
+/* One family across both surfaces, at the ratios the reference actually uses:
+   weight 500, tracking near −.045em, leading equal to the size. The serif was
+   my invention — the reference has no serif anywhere in it. */
+.o-stmt,.i-q h2{font-weight:500;letter-spacing:-.045em;line-height:1}
+.o-stmt i{font-style:normal;color:var(--dim2)}
 /* the way back. The investigation is the front door; a workspace with no door
    back to it is a room with the corridor removed. */
 #bar a.back{font-family:var(--m);font-size:var(--type-label);
@@ -2568,7 +2580,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 const root = document.documentElement;
 const forced = new URLSearchParams(location.search).get('theme')
             || localStorage.getItem('attest.theme');
-if (forced === 'light') root.dataset.theme = 'light';
+if (forced === 'dark') root.dataset.theme = 'dark';
 document.getElementById('run').onclick = () => bootShell();
 document.getElementById('hint').textContent = 'subject × lens';
 bootShell();
