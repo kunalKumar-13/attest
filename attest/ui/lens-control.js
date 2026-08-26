@@ -91,20 +91,33 @@
     const top_v = Math.max(...vals, 1);
     const FLOOR = 0.7;
 
+    /* §31 — a spatial composition, not a bar chart.
+     *
+     * A track with a fill inside it is a chart, and a chart is read as a
+     * decoration beside the real content. What this is saying is that a
+     * quantity got smaller, and the way to say that is to make the thing
+     * physically smaller: no well, no container, just a rule whose length is
+     * the magnitude, with the figure sitting above the left end of it.
+     *
+     * A stage whose figure repeats the one above it prints nothing. Matching
+     * carries the same ₹53,02,701.96 as Source, and the landing was showing
+     * that number four times in one viewport. The rule still runs full width
+     * there, which is the honest statement: nothing was lost at that stage. */
     const stages = spine.stages.map((s, i) => {
       const pct = Math.max(s.continues_paise / top_v * 100,
                            s.continues_paise > 0 ? FLOOR : 0);
       const owner = window.C.ownerOf(s);
+      const same = i > 0 && spine.stages[i - 1].value === s.value;
       return `<button class="o-stage ${esc(s.state)}"
         data-stage="${esc(s.key)}" data-lens="${esc(owner)}"
         title="${esc(s.detail)} — open ${esc(owner)}">
         <span class=o-stage-n><i>${String(i + 1).padStart(2, '0')}</i>${esc(s.label)}</span>
+        <span class=o-stage-v>${same ? '' : esc(s.value)}</span>
         <span class=o-bar><i style="width:${pct.toFixed(3)}%;animation-delay:${
           i * 70}ms"></i></span>
-        <span class=o-stage-v>${esc(s.value)}</span>
         <span class=o-stage-x>${s.held
-          ? `<b>${esc(s.held_value || '')}</b> held · ${esc(s.detail)}`
-          : esc(s.detail)}</span>
+          ? `<b>${esc(s.held_value || '')}</b> held — ${esc(s.detail)}`
+          : ''}</span>
       </button>`;
     }).join('');
 

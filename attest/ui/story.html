@@ -10,21 +10,20 @@
    page changes, and if the API is unreachable the page says so rather than
    rendering a plausible number. That is the same rule the product holds
    itself to, applied to its own marketing surface. */
+/* §31 — dark is the product, and this page is part of it. It was light with
+   a dark override, so a reader on a light-preference machine met a different
+   ATTEST here than the one the link came from. */
 :root{
-  --ink:#101418; --dim:#4a5560; --dim2:#6b7681; --dim3:#98a2ac;
-  --bg:#fbfbfa; --sur:#fff; --line:#e6e6e3; --line2:#d2d2ce;
-  --go:#0c7d5a; --hold:#a06a00; --stop:#b4453a;
-  --model:#7c5cbf; --solver:#1566e5;
+  --ink:#f2f2f3; --dim:#a8a8ad; --dim2:#7c7c83; --dim3:#55555c;
+  --bg:#0a0a0b; --sur:#111113; --line:rgba(255,255,255,.09);
+  --line2:rgba(255,255,255,.18);
+  --go:#5fbf9b; --hold:#d9a441; --stop:#d9705c;
+  --model:#a98ae0; --solver:#7aa2ff;
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --statement:clamp(32px,5.4vw,72px);
+  --statement:clamp(30px,5.4vw,72px);
   --hero:clamp(26px,3.6vw,46px);
 }
-@media (prefers-color-scheme:dark){:root{
-  --ink:#eef1f4; --dim:#aab4be; --dim2:#8a949e; --dim3:#69737d;
-  --bg:#0d1116; --sur:#141a21; --line:#232b34; --line2:#333d48;
-  --go:#3fbc92; --hold:#d9a53c; --stop:#e0705f;
-  --model:#a98ae0; --solver:#5a9bff;}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--s);

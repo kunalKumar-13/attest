@@ -147,7 +147,22 @@
       }) + Resolvers(d);
     }
 
+    /* §31 — the order the room is read in.
+     *
+     * The three actors and what they produced is the single thing this
+     * instrument exists to show, and it was FOURTH: conclusion, question, a
+     * five-row trail of solver output, a section on why one lens was silent,
+     * and only then the boundary. A judge scrolling past the question hit a
+     * log, and the sentence the whole product turns on — the engine keeping a
+     * verdict the model could not move — was below the fold on every screen
+     * size we test.
+     *
+     * So the boundary comes straight after the question, and the trail becomes
+     * what it always was: the evidence for a claim already made. Nothing was
+     * removed; the order changed, which is the difference between a story and
+     * a log. */
     return head
+      + AiBoundary(d)
       + Section({
           title: 'What was tried',
           aside: `<span class=c-muted>${plural(d.tested, 'test')} ·
@@ -173,7 +188,6 @@
               adds nothing on top of it.</p>`,
           }) : ''),
         }) : '')
-      + AiBoundary(d)
       + Resolvers(d);
   }
 

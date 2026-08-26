@@ -4,22 +4,44 @@
 <link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
 <style>
-:root, :root[data-theme=light]{
-  --bg:#f6f7f9; --sur:#ffffff; --sur2:#f7f8fa; --sur3:#eceef1;
-  --line:#e6e9ed; --line2:#d6dbe2;
-  /* --dim3 and the two status colours are set against their TINTED
-     surfaces, not against white — a status chip sits on its own -bg,
-     which is the case that failed. */
-  --ink:#101418; --dim:#414953; --dim2:#585f69; --dim3:#636d7a;
-  --acc:#1669ea; --acc-d:#eef4fe;
-  --rail-bg:#f1f3f6;
-  --st-PROVEN:#0c7d5a;       --st-PROVEN-bg:#eaf7f1;
-  --st-AMBIGUOUS:#946811;    --st-AMBIGUOUS-bg:#fdf5e4;
-  --st-CONTRADICTED:#b4442e; --st-CONTRADICTED-bg:#fdeeeb;
-  --st-INSUFFICIENT:#585f69; --st-INSUFFICIENT-bg:#f7f8fa;
-  --st-SYSTEMIC:#0c7d5a;     --st-SYSTEMIC-bg:#eaf7f1;
-  --st-INVESTIGATE:#1566e5;  --st-INVESTIGATE-bg:#eef4fe;
-  --shadow:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
+:root{
+  /* ═══════════════════════════════════════════ PHASE 31 · THE DARK FIELD
+     Dark is not an option here, it is the product. A forensic instrument is
+     read in a room where the only lit things are the ones that matter, and
+     every earlier palette was a light interface with its lamps turned down —
+     blue-tinted greys, and a chart-green loud enough to outshout the sentence
+     beside it.
+
+     The field is neutral charcoal. Nothing is tinted unless the tint means
+     something. Four surfaces and one hairline; a component that wants a fifth
+     is a component drawing a box it has not earned.
+
+     COLOUR IS RARE. Money is white, because money is the subject and a subject
+     does not need decorating. Colour appears only where a fact has a state —
+     held, proved, ambiguous — or to name which of the three actors did a
+     thing. Everything else is white at some opacity. If two colours compete
+     for the eye on one screen, one of them is wrong. */
+  --bg:#0a0a0b;              /* the field */
+  --sur:#111113;             /* raised: the rail, a seated instrument */
+  --sur2:#171719;            /* raised twice: context, hover */
+  --sur3:#1e1e21;            /* the ground a bar sits in */
+  --line:rgba(255,255,255,.09);
+  --line2:rgba(255,255,255,.18);
+  --ink:#f2f2f3;             /* statements, money */
+  --dim:#a8a8ad;             /* explanations */
+  --dim2:#7c7c83;            /* supporting */
+  --dim3:#55555c;            /* metadata, ordinals, the almost-invisible */
+  --acc:#7aa2ff;  --acc-d:#141722;
+  --rail-bg:#0d0d0f;
+  --hov:rgba(255,255,255,.035);
+  /* Desaturated until they read as ink rather than as a chart legend. */
+  --st-PROVEN:#5fbf9b;       --st-PROVEN-bg:rgba(95,191,155,.10);
+  --st-AMBIGUOUS:#d9a441;    --st-AMBIGUOUS-bg:rgba(217,164,65,.10);
+  --st-CONTRADICTED:#d9705c; --st-CONTRADICTED-bg:rgba(217,112,92,.10);
+  --st-INSUFFICIENT:#7c7c83; --st-INSUFFICIENT-bg:rgba(255,255,255,.05);
+  --st-SYSTEMIC:#5fbf9b;     --st-SYSTEMIC-bg:rgba(95,191,155,.10);
+  --st-INVESTIGATE:#7aa2ff;  --st-INVESTIGATE-bg:rgba(122,162,255,.10);
+  --shadow:none;
   --s:"Space Grotesk",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --m:"Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   /* ------------------------------------------------------------- TYPE
@@ -68,19 +90,22 @@
   --spatial:.3s cubic-bezier(.16,1,.3,1);   /* context open and close */
   --fast:var(--micro); --med:var(--standard);
 }
-:root[data-theme=dark]{
-  --bg:#0b0f14; --sur:#0f151c; --sur2:#131b24; --sur3:#18222c;
-  --line:#151d26; --line2:#22303d;
-  --ink:#dfe7ee; --dim:#a6b2be; --dim2:#8796a4; --dim3:#6c8298;
-  --acc:#5185af; --acc-d:#0c1720;
-  --rail-bg:#0d1218;
-  --st-PROVEN:#7ee3c1;       --st-PROVEN-bg:#0d2019;
-  --st-AMBIGUOUS:#e2b34e;    --st-AMBIGUOUS-bg:#1c1708;
-  --st-CONTRADICTED:#e0715a; --st-CONTRADICTED-bg:#241310;
-  --st-INSUFFICIENT:#8796a4; --st-INSUFFICIENT-bg:#131b24;
-  --st-SYSTEMIC:#7ee3c1;     --st-SYSTEMIC-bg:#0d2019;
-  --st-INVESTIGATE:#5185af;  --st-INVESTIGATE-bg:#0c1720;
-  --shadow:none;
+/* Light remains reachable for anyone who needs it, but it is no longer a
+   switch in the primary interaction path: the first control on the page should
+   never be a question about the product's appearance. */
+:root[data-theme=light]{
+  --bg:#f6f7f9; --sur:#ffffff; --sur2:#f7f8fa; --sur3:#eceef1;
+  --line:#e6e9ed; --line2:#d6dbe2;
+  --ink:#101418; --dim:#414953; --dim2:#585f69; --dim3:#8a939e;
+  --acc:#1669ea; --acc-d:#eef4fe;
+  --rail-bg:#f1f3f6; --hov:rgba(0,0,0,.03);
+  --st-PROVEN:#0c7d5a;       --st-PROVEN-bg:#eaf7f1;
+  --st-AMBIGUOUS:#946811;    --st-AMBIGUOUS-bg:#fdf5e4;
+  --st-CONTRADICTED:#b4442e; --st-CONTRADICTED-bg:#fdeeeb;
+  --st-INSUFFICIENT:#585f69; --st-INSUFFICIENT-bg:#f7f8fa;
+  --st-SYSTEMIC:#0c7d5a;     --st-SYSTEMIC-bg:#eaf7f1;
+  --st-INVESTIGATE:#1669ea;  --st-INVESTIGATE-bg:#eef4fe;
+  --shadow:0 1px 2px rgba(16,20,24,.05), 0 4px 14px rgba(16,20,24,.045);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:var(--type-body)/1.55 var(--s);
@@ -2160,6 +2185,326 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 /* the badge was the last pill in the product */
 .a-badge{border-radius:0;border:0;border-bottom:2px solid currentColor;
   padding:0 0 2px;font-family:var(--m);letter-spacing:.14em}
+
+/* ═══════════════════════════════════════════ PHASE 31 · THE VISUAL RESET
+   Phase 30 gave each room its own grammar. Held up against the running
+   product, three things were still making it read as a terminal rather than
+   an instrument, and none of them was a colour choice.
+
+   ONE — the rail drew the collapse the room was already drawing, so the first
+   screen carried the same five figures twice. Fixed in components.js; the
+   rail is the case now, and nothing else.
+
+   TWO — the bars were saturated mint. On near-black, mint at full chroma is
+   the loudest thing that can be put on a screen, and it was sitting next to
+   the sentence the product exists to say. The bar carries MAGNITUDE, which is
+   a length, not a hue; length says it without shouting. Colour is now spent
+   on exactly one thing per screen: the money that stopped.
+
+   THREE — everything was a label. PROCESSED, ALL SETTLEMENTS, SETTLEMENTS,
+   ORDERS, SOURCE, MATCHING, VERIFICATION, WHY, WOULD UNBLOCK, BLOCKED AT — a
+   screen where every element wears a tiny uppercase tag has no hierarchy,
+   because the tags all look identical and the eye cannot rank them. Labels
+   that name a thing you can already see are gone; labels that create
+   hierarchy stay, and drop to the dimmest tier. */
+
+/* ── the collapse: length is the argument, colour is the exception ───────── */
+.o-bar{background:var(--sur3);height:26px}
+.o-bar i{background:rgba(255,255,255,.22)}
+/* the stage that lost the money is the only one wearing a colour */
+.o-stage.stopped .o-bar i{background:var(--st-AMBIGUOUS);opacity:.85}
+.o-stage-n{color:var(--dim2);letter-spacing:.16em}
+.o-stage-n i{color:var(--dim3)}
+.o-stage-v{color:var(--dim)}
+.o-stage.stopped .o-stage-v{color:var(--ink)}
+.o-stage{border-bottom-color:var(--line)}
+/* the held figure is the loudest thing on the landing, and the only red */
+.o-stage-x b{color:var(--st-CONTRADICTED)}
+.o-stage-x{color:var(--dim2)}
+
+/* ── the eyebrow, once ──────────────────────────────────────────────────── */
+.o-top{border-bottom-color:var(--line)}
+.o-wm{color:var(--ink);letter-spacing:.28em}
+.o-kind{color:var(--dim3)}
+.o-stmt{color:var(--ink);letter-spacing:-.032em}
+.o-stmt i{color:var(--dim3)}
+.o-fig b{color:var(--ink)}
+.o-fig span{color:var(--dim3)}
+.o-h b{color:var(--dim);font-weight:400}
+.o-h em{color:var(--dim3)}
+.o-h .n{color:var(--dim3)}
+.o-read{color:var(--dim2)}
+.o-read b{color:var(--ink)}
+
+/* ── the rail: a case, not a second dashboard ───────────────────────────── */
+#subject{background:var(--rail-bg);border-right:1px solid var(--line)}
+/* the chain is an instrument's status column, not a bar chart. The tracks go;
+   a tick and a name remain, and only the stage that stopped says a figure. */
+.c-flow.rail{gap:0}
+.c-flow.rail .c-flow-r{position:relative;padding:var(--sp-2) 0 var(--sp-2) var(--sp-5);
+  grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
+.c-flow.rail .c-flow-track{display:none}
+.c-flow.rail .c-flow-r::before{content:"";position:absolute;left:2px;
+  top:calc(var(--sp-2) + 5px);width:6px;height:6px;border-radius:999px;
+  border:1px solid var(--dim3);background:var(--rail-bg)}
+.c-flow.rail .c-flow-r.passed::before{background:var(--dim2);border-color:var(--dim2)}
+.c-flow.rail .c-flow-r.stopped::before{background:var(--st-AMBIGUOUS);
+  border-color:var(--st-AMBIGUOUS)}
+/* the connector between ticks: the chain is one movement */
+.c-flow.rail .c-flow-r::after{content:"";position:absolute;left:4.5px;
+  top:calc(var(--sp-2) + 11px);bottom:-2px;width:1px;background:var(--line2)}
+.c-flow.rail .c-flow-r:last-of-type::after{display:none}
+.c-flow.rail .c-flow-n{grid-column:1;font-size:var(--type-micro);
+  letter-spacing:.16em;color:var(--dim3)}
+.c-flow.rail .c-flow-r.stopped .c-flow-n{color:var(--ink)}
+.c-flow.rail .c-flow-v{grid-column:2;font-size:var(--type-body);
+  color:var(--dim2);font-family:var(--m)}
+.c-flow.rail .c-flow-r.stopped .c-flow-v{color:var(--ink)}
+.c-flow.rail .c-flow-x{display:none}
+.c-flow.rail .c-flow-r.stopped .c-flow-x{display:block;grid-column:1/3;
+  padding-top:var(--sp-1)}
+.c-flow.rail .c-flow-h{color:var(--st-CONTRADICTED);font-size:var(--type-data)}
+.c-flow.rail .c-flow-r:hover{background:var(--hov)}
+.c-flow.rail .c-flow-d{display:none}
+
+/* ── the dock: a quiet index. No boxes, no filled row. ──────────────────── */
+.c-lenses{background:var(--rail-bg);border-top:1px solid var(--line);
+  padding:var(--sp-3) 0}
+.c-lenses button{padding:var(--sp-2) var(--sp-5) var(--sp-2) var(--sp-8);
+  border-left:0}
+.c-lens-i{color:var(--dim3);opacity:.5;top:calc(var(--sp-2) + 1px)}
+.c-lens-n{color:var(--dim3);letter-spacing:.16em;transition:color var(--micro)}
+.c-lens-q{color:var(--dim3);opacity:.55;transition:opacity var(--micro)}
+.c-lens-s{color:var(--dim3);opacity:.5}
+/* Inactive instruments almost disappear — but they still state what they
+   ask. Hiding the question entirely turns the dock back into the menu it was
+   built to stop being, and the whole point of an index is that you can read
+   it. "Almost disappear" is an opacity, not a display:none. */
+.c-lenses button:not(.on) .c-lens-q{opacity:.4}
+.c-lenses button:not(.on):hover .c-lens-n{color:var(--dim)}
+.c-lenses button:not(.on):hover{box-shadow:none;background:var(--hov)}
+/* the seated one carries the room's own field, and a single rule */
+.c-lenses button.on{background:var(--bg);box-shadow:inset 2px 0 0 var(--ink);
+  padding-top:var(--sp-3);padding-bottom:var(--sp-3)}
+.c-lenses button.on .c-lens-i{color:var(--dim2);opacity:1}
+.c-lenses button.on .c-lens-n{color:var(--ink);font-weight:600}
+.c-lenses button.on .c-lens-q{color:var(--dim);opacity:1;height:auto}
+.c-lenses button.on .c-lens-s{color:var(--dim2);opacity:1;font-weight:400}
+
+/* ── the utility bar: furniture, at furniture's weight ──────────────────── */
+#bar{background:var(--rail-bg);border-top:1px solid var(--line)}
+#bar .wm{color:var(--dim3);opacity:1}
+#source-mode,#exec-path{color:var(--dim3)}
+.btn{background:transparent;border-color:var(--line2);color:var(--dim2)}
+.btn:hover{color:var(--ink);border-color:var(--dim3)}
+.btn.go{background:transparent;border-color:var(--line2);color:var(--dim)}
+.btn.go:hover{color:var(--ink);border-color:var(--ink)}
+#bar a.story{color:var(--dim3);border-bottom-color:var(--line2)}
+
+/* ── the collapse, rebuilt: no well, no track, no chart ─────────────────── */
+.o-stage{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"n v" "b b" "x x";
+  gap:var(--sp-2) var(--sp-4);align-items:baseline;
+  padding:var(--sp-4) 0 var(--sp-5);border-bottom:0}
+.o-stage + .o-stage{border-top:1px solid var(--line)}
+.o-stage-n{grid-area:n;font-size:var(--type-micro);letter-spacing:.18em}
+.o-stage-v{grid-area:v;font-size:var(--type-title);letter-spacing:-.02em;
+  min-width:0;text-align:right}
+.o-stage.stopped .o-stage-v{font-size:var(--type-title)}
+/* the rule IS the quantity. It has no container, because a quantity is not a
+   proportion of a box — it is a length beside the lengths above it. */
+.o-bar{grid-area:b;height:3px;background:none;border-radius:0;overflow:visible;
+  margin-top:var(--sp-1)}
+.o-bar i{position:static;display:block;height:3px;border-radius:0}
+.o-stage-x{grid-area:x;padding-top:var(--sp-3)}
+.o-stage.stopped{padding-bottom:var(--sp-6)}
+
+/* The landing must answer five things without scrolling, so the collapse is
+   given exactly the room it needs and no more. The held sentence keeps hero
+   weight — it is the answer to "what happened" — and the blockers below step
+   down to display, because they answer "how big", which is Level 2. */
+.o-stage{padding:var(--sp-3) 0 var(--sp-4)}
+.o-stage.stopped{padding-bottom:var(--sp-5)}
+.o-stage-x{padding-top:var(--sp-2)}
+.o-figs{margin-bottom:var(--sp-6)}
+.o-collapse{margin-bottom:var(--sp-7)}
+.o-h{margin-bottom:var(--sp-3)}
+.c-blk-v{font-size:var(--type-display)}
+
+/* ── the rail on the landing ─────────────────────────────────────────────
+   Same rule as the spine: the rail never draws what the room is drawing. On
+   a settlement the rail is the case — identity, amount, verdict, where it
+   stopped — and the room has no copy of it. On the portfolio the room's own
+   overture states the money, the settlement count and the order count at the
+   size of a headline, so the rail stating them again in miniature was the
+   landing carrying its own summary twice.
+
+   What survives is what the room does NOT say: who this is, and what to do
+   next. */
+.c-subject[data-type=portfolio] .c-case-amt,
+.c-subject[data-type=portfolio] .c-case-meta{display:none}
+.c-subject[data-type=portfolio] .c-case-id{margin-top:0}
+
+/* The dock keeps its natural height and the case takes what is left, so a
+   tall case scrolls inside the rail instead of pushing the instruments off
+   the bottom of the screen. Making the case row `auto` to close the gap on
+   the landing did exactly that: on a settlement the dock ran under the
+   utility bar and INVESTIGATE was printed on top of the wordmark. */
+#subject{overflow-y:auto;min-height:0}
+.c-lenses{align-self:end}
+
+/* ── Trust: the claim is the interface, the state is metadata ────────────
+   Eleven identical bordered badges down the left edge read as a grid, and a
+   grid is the thing this phase set out to remove. Worse, the badge was the
+   first thing on every row and the loudest thing in the section — so the
+   column the eye scanned said NOT VERIFIED eleven times and the sentences
+   that actually name what is not verified were secondary.
+
+   Inverted: the statement leads at reading size, the reason sits under it,
+   and the state moves to the right at metadata weight. Nothing is hidden and
+   nothing is softened — the section still opens on NOT VERIFIED at hero size,
+   once, where it means something. */
+.t-bound{grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) auto;
+  grid-template-areas:"w y s";gap:var(--sp-4) var(--sp-6);
+  align-items:baseline;padding:var(--sp-4) 0}
+.t-bound-w{grid-area:w;font-size:var(--type-data);font-weight:500;
+  color:var(--ink);line-height:1.4}
+.t-bound-y{grid-area:y;font-size:var(--type-body);color:var(--dim2)}
+.t-bound-s{grid-area:s;justify-self:end;border:0;background:none;padding:0;
+  border-radius:0;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.16em;color:var(--dim3);white-space:nowrap}
+.t-bounds .t-bound:first-child{border-top:1px solid var(--line)}
+
+/* the three counts: one colour, on the one that is zero */
+.t-adv-f b{color:var(--ink)}
+.t-adv-f:last-child b{color:var(--st-PROVEN)}
+.t-head-k,.t-assert-k{color:var(--dim3)}
+.t-iso{border-top-color:var(--line2)}
+.t-iso-s{color:var(--ink)}
+/* inline code was given a tint and a border, which turned seven filenames
+   into seven little boxes inside one paragraph — the container grammar this
+   phase removes, reintroduced by the fix for it. A monospace face against
+   ink is already the whole signal. */
+.t-iso-n code,.t-adv-n code{background:none;border:0;padding:0;
+  color:var(--ink);font-family:var(--m)}
+
+/* the one remaining ledger box: a state, not a container */
+.j-mv-x{border:0;background:none;padding:0;color:var(--dim2);
+  font-family:var(--m);letter-spacing:.16em}
+
+/* ── the verdict, said rather than badged ────────────────────────────────
+   A pill is a container, and this one appears in the rail, in three rooms and
+   inside two metric strips — the most repeated box in the product. The verdict
+   is a WORD, and the four verdicts are already distinguishable by the word
+   alone; the pill was adding a shape that carried nothing the word did not.
+
+   What replaces it is monospace, letter-spaced, in the verdict's own tone.
+   That still reads as a state rather than as prose, still colour-codes, and
+   still passes a grayscale reading — but it stops drawing a box. */
+.c-status{background:none;border-radius:0;padding:0;font-family:var(--m);
+  font-weight:400;letter-spacing:.16em;text-transform:uppercase}
+.c-status.sm{padding:0}
+.s-PROVEN{background:none} .s-AMBIGUOUS{background:none}
+.s-CONTRADICTED{background:none} .s-INSUFFICIENT{background:none}
+
+/* ── the T-account's closing rule ────────────────────────────────────────
+   The rule is what closes an account, so it runs under BOTH columns as one
+   line. It was drawn as two border-tops on two grid cells with the column gap
+   between them, which reads as two unrelated marks rather than as a total. */
+.j-eff-t{gap:var(--sp-2) 0}
+.j-eff-k{padding-right:var(--sp-7)}
+.j-eff-r.net .j-eff-k,.j-eff-r.net .j-eff-v{border-top:1px solid var(--dim3);
+  padding-top:var(--sp-3);margin-top:var(--sp-2)}
+
+/* ═════════════════════════════════════════════ PHASE 31 · ON A PHONE
+   Not the desktop composition squeezed vertically. Measured at 390×844 the
+   room had 260px and the dock had 240 — the navigation furniture was as tall
+   as the instrument, and Investigate's question was cut off mid-word.
+
+   The reading order is the one the phase specifies: who this is, how much,
+   where it stopped, what this instrument asks, then the answer. So the
+   instrument strip moves ABOVE the room — a person on a phone needs to know
+   which instrument they are in before they read its conclusion — and it
+   becomes one horizontal line instead of seven stacked rows.
+
+   The room gets everything that is left, which is most of the screen. */
+@media (max-width:767px){
+  #app{grid-template-rows:auto auto minmax(0,1fr) auto;
+       grid-template-areas:"case" "inst" "room" "bar"}
+
+  /* the case, in three lines: identity, money, where it stopped */
+  #subject{max-height:none;overflow:visible;border-bottom:1px solid var(--line)}
+  .c-case{padding:var(--sp-3) var(--sp-4);gap:var(--sp-1) var(--sp-3);
+    grid-template-areas:"id amt" "state state" "next next"}
+  .c-case-meta,.c-now{display:none}   /* value date, UTR, agreed/disputed: the rooms own these */
+  .c-case-id .sub{display:none}
+  .c-case-amt .v{font-size:var(--type-title)}
+  .c-case-id .lbl{font-size:var(--type-data)}
+  /* only the stage that stopped — the other four are a chain nobody can read
+     in a 60px band, and the room states the whole chain anyway */
+  .c-state .c-flow-r{display:none}
+  .c-state .c-flow-r.stopped{display:grid;grid-template-columns:auto minmax(0,1fr);
+    padding:var(--sp-2) 0 0 var(--sp-5)}
+  .c-state .c-flow-r.stopped::after{display:none}
+  .c-state .c-flow-x{display:block}
+  .c-next{display:none}               /* the landing's own next action is in the room */
+  .c-subject[data-type=portfolio] .c-next{display:block}
+
+  /* the instrument strip: one line, scrolled sideways, the active one open */
+  .c-lenses{flex-direction:row;align-items:stretch;gap:0;padding:0;
+    overflow-x:auto;scrollbar-width:none;border-top:0;
+    border-bottom:1px solid var(--line);background:var(--rail-bg)}
+  .c-lenses::-webkit-scrollbar{display:none}
+  .c-lenses button{width:auto;flex:0 0 auto;white-space:nowrap;
+    padding:var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-6);border-left:0}
+  .c-lens-i{left:var(--sp-2);top:50%;transform:translateY(-50%)}
+  .c-lens-n{display:inline}
+  .c-lens-q,.c-lens-s{display:none}
+  .c-lenses button.on{background:var(--bg);
+    box-shadow:inset 0 -2px 0 var(--ink),inset 2px 0 0 transparent}
+  .c-lenses button.on .c-lens-q{display:inline;opacity:1;height:auto;
+    margin-left:var(--sp-3);color:var(--dim)}
+
+  #workspace{padding:var(--sp-5) var(--sp-4) var(--sp-8)}
+}
+
+/* The landing owes five answers on the first screen, and on a 390×844 phone
+   the fifth — ₹48,03,127.81 held — was landing at y=877, thirty-three pixels
+   past the fold. Everything above it gives back a little rather than any one
+   fact being dropped or moved somewhere it does not belong. */
+@media (max-width:767px){
+  .o-top{padding-bottom:var(--sp-2);margin-bottom:var(--sp-4)}
+  .o-stmt{margin-bottom:var(--sp-5)}
+  .o-figs{margin-bottom:var(--sp-5);gap:var(--sp-4) var(--sp-6)}
+  .o-h{margin-bottom:var(--sp-2)}
+  .o-stage{padding:var(--sp-2) 0 var(--sp-3)}
+  .o-stage.stopped{padding-bottom:var(--sp-4)}
+  /* the rail's next action keeps its sentence; the value and the case count
+     are stated again by the blocker it points at */
+  .c-subject[data-type=portfolio] .c-nx-v{display:none}
+}
+
+/* At 360×780 — the smallest screen we support — the thesis wraps to four
+   lines and the fifth answer lands 25px past the fold. The thesis is the one
+   element that can give: at 26px it is still by some distance the largest
+   thing on the screen, and it buys back the row that carries ₹48,03,127.81. */
+@media (max-width:400px){
+  :root{--type-statement:26px}
+  .o-figs{gap:var(--sp-3) var(--sp-5)}
+  /* The money that STOPPED outranks the money that entered — on every
+     screen, including this one. So the processed figure gives up the tier,
+     not the held figure: shrinking the wrong one would have inverted the
+     hierarchy the whole landing is built on, and it also buys the vertical
+     space that brings "198 settlements" above the fold. */
+  .o-fig b{font-size:var(--type-title)}
+  .o-stage-x b{font-size:var(--type-display)}
+  .o-stage-x{gap:var(--sp-1) var(--sp-2)}
+  /* "every stage is an instrument — open it" is an invitation to hover, and
+     there is no hover on a phone. Removing it is removing noise rather than
+     shaving a fact, and it is the last row between the reader and the reason
+     the money stopped. */
+  .o-h em{display:none}
+}
 </style>
 <div id=app>
   <div id=subject></div>
@@ -2171,7 +2516,6 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
     <span id=hint></span>
     <span class=sp></span>
     <a class=story href="/story">the story</a>
-    <button class=btn id=theme aria-label="Toggle theme">◐</button>
     <select class=btn id=size aria-label="Portfolio size">
       <option>120</option><option selected>250</option><option>500</option></select>
     <button class="btn go" id=run>Run</button>
@@ -2193,13 +2537,14 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 <script src=palette.js></script>
 <script>
 'use strict';
+/* §31 — dark is the product, so nothing decides it at boot. A stored
+   preference is still honoured for anyone who set one, and `?theme=light`
+   still works, but neither is offered as a control: the first interactive
+   element on the page was a question about the product's appearance. */
 const root = document.documentElement;
-root.dataset.theme = localStorage.getItem('attest.theme')
-  || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-document.getElementById('theme').onclick = () => {
-  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('attest.theme', root.dataset.theme);
-};
+const forced = new URLSearchParams(location.search).get('theme')
+            || localStorage.getItem('attest.theme');
+if (forced === 'light') root.dataset.theme = 'light';
 document.getElementById('run').onclick = () => bootShell();
 document.getElementById('hint').textContent = 'subject × lens';
 bootShell();

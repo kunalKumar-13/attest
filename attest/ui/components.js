@@ -310,6 +310,21 @@ class SubjectHeader {
       n.hidden = !html;
     };
 
+    /* §31. The landing was carrying the portfolio's state twice — five bars
+     * and four repeated figures in the rail, beside the room's full-width
+     * collapse — and that duplication is most of why it read as two
+     * dashboards side by side.
+     *
+     * The first fix was to drop the rail's copy on the landing. That was
+     * wrong, and two contracts said so in the same run: dropping it for the
+     * whole portfolio took "where did the money stop" off portfolio Trust and
+     * Journal, and dropping it for portfolio×control alone made the RAIL
+     * change when the LENS changed — which is the one thing the case object
+     * must never do.
+     *
+     * So the rail keeps its chain on every screen, and the duplication is
+     * answered where it actually lived: the weight. It is a tick column with
+     * names now, not a bar chart with the money written four times. */
     put('c-state', spine ? StateSpine(spine, { rail: true, lens }) : '');
 
     const k = kase || {};
@@ -386,11 +401,28 @@ class LensStrip {
     // rail, it stretched to 136x888 and painted over the case. The active
     // instrument is carried by weight and ground instead — and the ROOM is
     // what should be telling you which instrument you are holding.
+    let held = null;
     this.host.querySelectorAll('[data-lens]').forEach(b => {
       const on = b.dataset.lens === active;
       b.setAttribute('aria-selected', String(on));
       b.classList.toggle('on', on);
+      if (on) held = b;
     });
+
+    /* §31 — on a phone the dock is one horizontal line, so the instrument you
+       are holding can be scrolled off the edge of it. Bring it back. Only when
+       the strip actually scrolls: on a desktop rail this is a no-op, and
+       calling scrollIntoView there would move the page. */
+    if (held && this.host.scrollWidth > this.host.clientWidth + 1) {
+      const r = held.getBoundingClientRect();
+      const h = this.host.getBoundingClientRect();
+      if (r.left < h.left || r.right > h.right) {
+        this.host.scrollTo({
+          left: held.offsetLeft - (h.width - r.width) / 2,
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches
+                    ? 'auto' : 'smooth' });
+      }
+    }
   }
 }
 

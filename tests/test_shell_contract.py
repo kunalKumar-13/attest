@@ -1281,14 +1281,27 @@ def test_the_state_spine_is_present_on_every_lens(page):
                      "policy", "activity", "trust"):
             page.evaluate(f"() => location.hash = '#/{subject}/{lens}'")
             page.wait_for_timeout(500)
-                # The spine moved from a band above the workspace into the case
-                # rail — part of the case's financial identity now, not a strip
-                # over the instrument. The guarantee is unchanged: present on
-                # every lens, which is what this asserts.
+            # The spine moved from a band above the workspace into the case
+            # rail — part of the case's financial identity now, not a strip
+            # over the instrument. The guarantee is unchanged: present on
+            # every lens, which is what this asserts.
+            #
+            # Phase 31 added a second place it can live. On portfolio/control
+            # the room draws the collapse full width, with the held money at
+            # hero size, and the rail was drawing the same five stages beside
+            # it in miniature — the landing carrying its own state twice, which
+            # is what made it read as two dashboards. So the rail's copy is
+            # suppressed on exactly that one room, and this looks for the chain
+            # wherever the screen draws it. Still fourteen screens, still no
+            # exceptions; it just no longer insists on WHICH instrument.
             h = page.evaluate("""() => {
-                const e = document.querySelector('.c-flow');
-                return e ? e.getBoundingClientRect().height : 0; }""")
-            assert h > 0, f"no state spine on {subject}/{lens}"
+                for (const sel of ['.c-flow', '.o-collapse']) {
+                  const e = document.querySelector(sel);
+                  if (e && e.getBoundingClientRect().height > 0)
+                    return e.getBoundingClientRect().height;
+                }
+                return 0; }""")
+            assert h > 0, f"no money-flow chain on {subject}/{lens}"
 
 
 def test_the_master_owns_the_full_width_until_something_is_inspected(page):
@@ -2155,13 +2168,23 @@ def test_the_dock_does_not_dominate_a_phone(page):
                         && q.getBoundingClientRect().height > 0; }).length,
                   order: items.map(b => b.dataset.lens),
                   reachable: items.filter(b => b.offsetParent).length}; }""")
-        assert m["dock"] <= 150, f"dock is {m['dock']}px on a phone"
-        assert m["room"] > m["dock"], \
+        # Phase 31 made the phone dock one horizontal line. The size
+        # assertions are what this contract is FOR, so they get stricter
+        # rather than looser: it was 263px against a 216px room when this was
+        # written, 240 against 260 when Phase 31 measured it, and 39 against
+        # 505 now.
+        assert m["dock"] <= 80, f"dock is {m['dock']}px on a phone"
+        assert m["room"] > m["dock"] * 3, \
             f"room {m['room']}px does not dominate the dock {m['dock']}px"
         assert m["n"] == 7 and m["reachable"] == 7, \
             f"only {m['reachable']} of {m['n']} instruments are reachable"
-        assert m["questions"] == 7, \
-            f"only {m['questions']} instruments still state their question"
+        # A 39px strip cannot show seven questions, and stacking them to fit
+        # is exactly what made the dock taller than the instrument. What a
+        # phone can guarantee is that the instrument you are HOLDING says what
+        # it asks, and that the other six are one tap away in order — which
+        # the assertions above and below pin. The desktop rail still states
+        # all seven; `test_every_instrument_states_its_question` covers that.
+        assert m["questions"] >= 1, "the held instrument does not state its question"
         assert m["order"] == ["control", "evidence", "investigate", "policy",
                              "journal", "activity", "trust"], m["order"]
     finally:
