@@ -2924,3 +2924,68 @@ def test_every_shape_on_the_investigation_names_a_job(inv):
         "shapes that name no job: " + ", ".join(stray)
         + " — give it one of quantity/state/transition/evidence/boundary/"
           "actor/navigation/specimen-structure, or delete it")
+
+
+
+def test_the_population_field_carries_its_own_legend(inv):
+    """§32.A. The field is evidence, not an ornament.
+
+    It rendered as two coloured blocks and a lone dot, with the counts three
+    sections away on the specimen — a reader saw a decoration. Every label is
+    pinned to the lane it names and reads its count from the same group object
+    that drew the points, so the two cannot disagree.
+
+    The labels are DOM rather than canvas on purpose: a legend that cannot be
+    selected, read aloud, or found by the comprehension audit is not a
+    legend."""
+    truth = inv.evaluate("""async () => {
+      const r = await (await fetch('/api/run?n=250')).json(); return r.counts; }""")
+    inv.evaluate("() => document.getElementById('population').scrollIntoView()")
+    inv.wait_for_timeout(1500)
+    labels = inv.evaluate("""() => [...document.querySelectorAll('#population .fld-l')]
+      .map(e => { const b = e.querySelector('b');
+        return {n: b.textContent.replace(/,/g, ''),
+                t: e.textContent.replace(b.textContent, '').trim().toLowerCase(),
+                y: Math.round(e.getBoundingClientRect().y),
+                lane: Math.round(e.getBoundingClientRect().x)}; })""")
+    assert labels, "the field has no legend"
+
+    by = {l["t"]: l["n"] for l in labels}
+    for verdict in ("proven", "ambiguous", "contradicted"):
+        n = truth[verdict.upper()]
+        if not n:
+            continue
+        assert by.get(verdict) == str(n), (
+            f"the field says {by.get(verdict)!r} {verdict}, the run says {n}")
+
+    # one legend, not three unrelated notes
+    assert len({l["y"] for l in labels}) == 1, "the labels are not on one baseline"
+    # and each sits under its own lane, left to right in the field's order
+    xs = [l["lane"] for l in labels]
+    assert xs == sorted(xs), "the labels are not in lane order"
+
+
+def test_the_candidate_field_carries_its_own_legend(inv):
+    """The same guarantee for the reduction: 2,368 -> 164 -> 4 is the product's
+    signature figure, and the field that draws it must say which is which."""
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const d = await (await fetch(
+        `/api/settlement?run=${run.run_id}&id=setl_000225`)).json();
+      return {universe: d.space.universe, candidates: d.space.candidates,
+              survivors: (d.proofs || []).length}; }""")
+    inv.evaluate("() => document.getElementById('proof').scrollIntoView()")
+    inv.wait_for_timeout(1500)
+    labels = inv.evaluate("""() => [...document.querySelectorAll('#proof .fld-l')]
+      .map(e => { const b = e.querySelector('b');
+        return {n: b.textContent.replace(/,/g, ''),
+                t: e.textContent.replace(b.textContent, '').trim().toLowerCase()}; })""")
+    assert labels, "the candidate field has no legend"
+    by = {l["t"]: l["n"] for l in labels}
+    assert by.get("candidates") == str(truth["candidates"]), \
+        f"the field says {by.get('candidates')!r} candidates, the case says {truth['candidates']}"
+    assert by.get("explanations") == str(truth["survivors"]), \
+        f"the field says {by.get('explanations')!r} explanations, the case says {truth['survivors']}"
+    cut = truth["universe"] - truth["candidates"]
+    assert by.get("cut by the reductions") == str(cut), \
+        f"the field says {by.get('cut by the reductions')!r} cut, the case says {cut}"

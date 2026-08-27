@@ -328,8 +328,10 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
 .bench-h span:nth-child(3),.bench-h span:nth-child(4){text-align:right}
 
 /* ── the population field ────────────────────────────────────────────── */
-.stage{position:relative;width:100%;min-height:clamp(200px,32vh,340px)}
-.stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.stage{position:relative;width:100%;min-height:clamp(200px,32vh,340px);
+  padding-bottom:58px}
+.stage canvas{position:absolute;inset:0 0 58px 0;display:block;
+  width:100%;height:calc(100% - 58px)}
 .stage.tall{min-height:clamp(260px,46vh,470px)}
 
 /* ── the collapse ────────────────────────────────────────────────────── */
@@ -659,6 +661,15 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
 #loop span.on{color:var(--ink)}
 #loop span.on i.st{background:var(--coral);transform:scale(1.5)}
 @media (max-width:1000px){#loop{display:none}}
+
+/* the field's own legend, pinned under the lane it names */
+.fld-l{position:absolute;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;
+  display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.fld-l b{font-size:clamp(15px,1.5vw,20px);font-weight:400;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;line-height:1}
+.fld-l::before{content:"";display:block;height:1px;background:currentColor;
+  opacity:.45;margin-bottom:7px;width:100%}
 </style>
 <div id=field aria-hidden=true></div>
 
@@ -724,7 +735,7 @@ const NAV = [
 function Field(host, spec) {
   const cv = document.createElement('canvas'); host.appendChild(cv);
   const cx = cv.getContext('2d');
-  let W=0,H=0,pts=[],shown=false,raf=0,t0=0,seed=20260821;
+  let W=0,H=0,pts=[],lanes=[],shown=false,raf=0,t0=0,seed=20260821;
   const rnd=()=>(seed=(seed*1664525+1013904223)%4294967296)/4294967296;
   const TONE={ink:'#ffffff',dim:'rgba(255,255,255,.26)',coral:'#ff655a',
               proven:'#5fbf9b',lit:'#dcf23c'};
@@ -737,18 +748,59 @@ function Field(host, spec) {
     const gap=Math.min(spec.lane||40, W*.07), gaps=gs.length-1;
     const per=(W-gaps*gap)/total;
     let x0=0;
+    lanes=[];
     gs.forEach(g=>{
       const cols=Math.max(1,Math.round(Math.sqrt(g.n*1.7)));
       const rows=Math.ceil(g.n/cols);
       const cell=Math.min((g.n*per)/cols, H/rows, spec.cell||13);
+      const top=(H-rows*cell)/2;
       for(let i=0;i<g.n;i++)
         pts.push({x:x0+(i%cols)*cell+cell/2+(rnd()-.5)*1.3,
-                  y:(H-rows*cell)/2+((i/cols)|0)*cell+cell/2+(rnd()-.5)*1.3,
+                  y:top+((i/cols)|0)*cell+cell/2+(rnd()-.5)*1.3,
                   r:g.r||1.9, c:g.tone, d:rnd()});
+      // the lane's own rect, so a label can be pinned to the points it names
+      lanes.push({g, x:x0, w:cols*cell, y:top, h:rows*cell});
       x0+=cols*cell+gap;
     });
     const shift=Math.max(0,(W-(x0-gap))/2);
     pts.forEach(p=>{p.x+=shift;});
+    lanes.forEach(l=>{l.x+=shift;});
+    paintLabels();
+  }
+
+  /* §32.A — the field carries its own legend.
+   *
+   * The population rendered as two coloured blocks and a lone dot with the
+   * counts three sections away, on the specimen. A reader saw an ornament.
+   * Every label here is pinned to the lane it names and reads its count from
+   * the same group that drew the points, so the two cannot disagree — change
+   * the disposition and the label changes with it.
+   *
+   * They are DOM, not canvas: a legend that cannot be selected, read by a
+   * screen reader, or found by the comprehension audit is not a legend. */
+  function paintLabels(){
+    if(!spec.groups.some(g=>g.label)) return;
+    host.querySelectorAll('.fld-l').forEach(n=>n.remove());
+    // one baseline for every label. Lanes are vertically centred and differ in
+    // height, so hugging each lane's own bottom edge staggered them and the
+    // legend read as three unrelated notes rather than one reading of one
+    // population.
+    const floor=Math.max(...lanes.map(l=>l.y+l.h))+11;
+    for(const l of lanes){
+      if(!l.g.label) continue;
+      const el=document.createElement('span');
+      el.className='fld-l';
+      const wide = W > 620;
+      el.style.top=`${floor}px`;
+      el.style.minWidth=`${Math.max(l.w, 54)}px`;
+      el.style.maxWidth=`${Math.max(l.w + (wide ? 120 : 40), 90)}px`;
+      // never start a label where it cannot finish
+      el.style.left=`${Math.max(0, Math.min(l.x, W - 90))}px`;
+      if(!wide) el.style.whiteSpace='normal';
+      el.style.color=TONE[l.g.tone]||TONE.dim;
+      el.innerHTML=`<b>${l.g.n.toLocaleString()}</b>${esc(l.g.label)}`;
+      host.appendChild(el);
+    }
   }
   function draw(t){
     cx.clearRect(0,0,W,H);
@@ -1182,15 +1234,20 @@ async function build(){
 function wire(data){
   const stages=[...document.querySelectorAll('.stage')];
   const fields=[];
-  if(stages[0]) fields.push([stages[0], Field(stages[0], {cell:15, lane:52,
-    groups:[{n:data.counts.PROVEN,tone:'proven'},
-            {n:data.counts.AMBIGUOUS,tone:'coral'},
-            {n:data.counts.CONTRADICTED,tone:'ink',r:4.5},
-            {n:data.counts.INSUFFICIENT,tone:'dim'}].filter(g=>g.n>0)})]);
-  if(stages[1]) fields.push([stages[1], Field(stages[1], {cell:6, lane:56,
-    groups:[{n:data.space.universe-data.space.candidates,tone:'dim',r:1.3},
-            {n:data.space.candidates,tone:'ink',r:2},
-            {n:data.survivors,tone:'lit',r:7}].filter(g=>g.n>0)})]);
+  /* Counts and labels come from the same group object that draws the points,
+     so the legend cannot drift from the field. Nothing here is written down. */
+  if(stages[0]) fields.push([stages[0], Field(stages[0], {cell:15, lane:56,
+    groups:[{n:data.counts.PROVEN,       tone:'proven', label:'proven'},
+            {n:data.counts.AMBIGUOUS,    tone:'coral',  label:'ambiguous'},
+            {n:data.counts.CONTRADICTED, tone:'ink', r:4.5, label:'contradicted'},
+            {n:data.counts.INSUFFICIENT, tone:'dim',   label:'insufficient'}]
+      .filter(g=>g.n>0)})]);
+  if(stages[1]) fields.push([stages[1], Field(stages[1], {cell:6, lane:60,
+    groups:[{n:data.space.universe-data.space.candidates, tone:'dim', r:1.3,
+             label:'cut by the reductions'},
+            {n:data.space.candidates, tone:'ink', r:2, label:'candidates'},
+            {n:data.survivors, tone:'lit', r:7, label:'explanations'}]
+      .filter(g=>g.n>0)})]);
 
   if(!STILL){
     const rev=new IntersectionObserver(es=>{
