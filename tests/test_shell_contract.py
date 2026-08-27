@@ -3050,3 +3050,39 @@ def test_both_verdicts_are_painted_the_same(inv):
     assert any("no financial action" in t or "external evidence" in t
                for t in coral), \
         f"coral is on {coral[:4]} rather than on the consequence"
+
+
+
+def test_the_narrowing_is_one_continuous_chain(inv):
+    """§32.C. 250 -> 197 -> one of them -> 2,368 -> 164 -> 4 is a single act of
+    narrowing the evidence space, and it was four sections with nothing
+    carrying the thread between them. A reader met four good moments and no
+    movie.
+
+    Every figure is the run's, and the lit step advances section by section, so
+    a reader always knows how far in they are and what the number in front of
+    them narrowed from."""
+    truth = inv.evaluate("""async () => {
+      const r = await (await fetch('/api/run?n=250')).json();
+      const d = await (await fetch(
+        `/api/settlement?run=${r.run_id}&id=setl_000225`)).json();
+      return [r.settlements, r.counts.AMBIGUOUS, 1,
+              d.space.universe, d.space.candidates, (d.proofs || []).length]; }""")
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(300)
+
+    seen = []
+    for sec in ("population", "exception", "proof", "ai"):
+        r = inv.evaluate("""(id) => {
+          const s = document.getElementById(id); if (!s) return null;
+          const rows = [...s.querySelectorAll('.nrw-r')];
+          return {steps: rows.map(e => e.querySelector('b').textContent.replace(/,/g, '')),
+                  lit: rows.findIndex(e => e.classList.contains('on'))}; }""", sec)
+        assert r, f"no narrowing in {sec}"
+        assert r["steps"] == [str(n) for n in truth], (
+            f"{sec}: the chain says {r['steps']}, the run says {truth}")
+        assert r["lit"] >= 0, f"{sec}: no step is lit"
+        seen.append(r["lit"])
+
+    assert seen == sorted(seen) and len(set(seen)) == len(seen), \
+        f"the narrowing does not advance section by section: {seen}"

@@ -689,6 +689,31 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
    they are equally unresolved. Coral is spent on the CONSEQUENCE only. */
 .cf-c b{color:var(--ink)}
 .safe-s.hot{color:var(--coral)}
+
+/* ── §32.C · THE NARROWING ───────────────────────────────────────────────
+   Six steps down the marker column, the current one lit. Steps already passed
+   keep their figure at reading weight and drop their label; steps still ahead
+   are barely there. The reader always knows what the number in front of them
+   narrowed from. */
+.nrw{margin-top:18px;padding-top:14px;border-top:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:0}
+.nrw-r{display:flex;align-items:baseline;gap:8px;padding:3px 0;
+  color:var(--dim3);transition:color .2s}
+.nrw-r b{font-family:var(--m);font-weight:400;font-variant-numeric:tabular-nums;
+  font-size:var(--t-micro);letter-spacing:-.02em;min-width:4.2ch;text-align:right}
+.nrw-r span{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
+  text-transform:uppercase;opacity:.75}
+.nrw-r.past{color:var(--dim2)}
+.nrw-r.past span{opacity:0}
+.nrw-r.on{color:var(--coral)}
+.nrw-r.on b{font-size:var(--t-small)}
+.nrw-r.on span{opacity:1}
+@media (max-width:1000px){
+  .nrw{flex-direction:row;flex-wrap:wrap;gap:4px 14px;margin-top:12px;
+    padding-top:10px}
+  .nrw-r span{display:none}
+  .nrw-r.on span{display:inline}
+}
 </style>
 <div id=field aria-hidden=true></div>
 
@@ -843,8 +868,25 @@ function Field(host, spec) {
 <script>
 'use strict';
 const rise=(c,h,d)=>`<div class="rise${d?' d'+d:''}${c?' '+c:''}">${h}</div>`;
-const mk=(n,l,note)=>`<div class=mk><b>${String(n).padStart(2,'0')}</b>${esc(l)}${
-  note?`<em>${esc(note)}</em>`:''}</div>`;
+const mk=(n,l,note,step)=>`<div class=mk><b>${String(n).padStart(2,'0')}</b>${esc(l)}${
+  note?`<em>${esc(note)}</em>`:''}${step!==undefined?chain(step):''}</div>`;
+
+/* §32.C — THE NARROWING, carried between the sections that do it.
+ *
+ * 250 becomes 197 becomes one case becomes 2,368 candidate orders becomes 164
+ * becomes 4. That is one continuous act of narrowing the evidence space, and
+ * it was four separate sections with nothing carrying the thread between them.
+ * A reader met four good moments and no movie.
+ *
+ * The chain rides in the marker column of each of those sections with the
+ * current step lit, so a reader always knows how far in they are and what the
+ * number in front of them narrowed FROM. Every value is the run's; nothing
+ * here is written down. */
+let CHAIN = [];
+const chain = (step) => `<div class=nrw>${CHAIN.map((c,i)=>`
+  <div class="nrw-r${i===step?' on':''}${i<step?' past':''}">
+    <b>${c.n.toLocaleString()}</b><span>${esc(c.l)}</span>
+  </div>`).join('')}</div>`;
 
 async function build(){
   const main=document.getElementById('main');
@@ -871,6 +913,16 @@ async function build(){
     const rupee=p=>`₹${(p/100).toLocaleString('en-IN',
       {minimumFractionDigits:2,maximumFractionDigits:2})}`;
     const stop=spine.stages.find(s=>s.state==='stopped')||{};
+
+    /* the narrowing, in the order the engine performs it */
+    CHAIN = [
+      {n: run.settlements,     l: 'settlements'},
+      {n: c.AMBIGUOUS,         l: 'ambiguous'},
+      {n: 1,                   l: 'of them'},
+      {n: space.universe,      l: 'orders'},
+      {n: space.candidates,    l: 'candidates'},
+      {n: survivors,           l: 'explanations'},
+    ];
 
     document.getElementById('prov').innerHTML =
       `${esc(src.label||'')} · ${esc((src.engine||{}).label||'')} · seed ${
@@ -988,7 +1040,7 @@ async function build(){
 </section>
 
 <section id=population>
-  ${rise('row', mk(2,'the population',`${run.settlements} records`)
+  ${rise('row', mk(2,'the population',`${run.settlements} records`,1)
     + `<h2 class=chapter>The problem is not one bad settlement.</h2>`
     + `<div><p class=say>Every point is one settlement, in the lane its verdict
         put it in. The ${c.CONTRADICTED} contradicted case sits alone, which is
@@ -997,7 +1049,7 @@ async function build(){
 </section>
 
 <section id=exception>
-  ${rise('row', mk(3,'the exception','one reason')
+  ${rise('row', mk(3,'the exception','one reason',2)
     + `<h2 class=chapter>One missing field is holding
        ${esc(rupee(blocker.leverage_paise||blocker.value_paise||0))}.</h2>`
     + `<div><p class=say>${cap(blocker.why)}.</p>
@@ -1010,7 +1062,7 @@ async function build(){
 </section>
 
 <section id=proof>
-  ${rise('row', mk(4,'the proof',esc(CASE))
+  ${rise('row', mk(4,'the proof',esc(CASE),3)
     + `<h2 class=chapter>Inside one settlement, the search space collapses.</h2>`
     + `<div><p class=say>Some of these cuts are <b>conventions rather than
         facts</b>, and the chain says which. Uniqueness inside a space that
@@ -1038,7 +1090,7 @@ async function build(){
 </section>
 
 <section id=ai>
-  ${rise('row', mk(5,'the model','model · solver · engine')
+  ${rise('row', mk(5,'the model','model · solver · engine',5)
     /* one cell, not two: the row has three tracks, and a fourth child wraps
        to a new row in the marker column — which is what turned the prose
        beside it into a 200px ribbon. */
