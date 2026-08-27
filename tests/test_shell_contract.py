@@ -2989,3 +2989,64 @@ def test_the_candidate_field_carries_its_own_legend(inv):
     cut = truth["universe"] - truth["candidates"]
     assert by.get("cut by the reductions") == str(cut), \
         f"the field says {by.get('cut by the reductions')!r} cut, the case says {cut}"
+
+
+
+def test_the_refusal_is_the_largest_thing_in_its_own_section(inv):
+    """§32.B. The product's strongest claim was set at 24px.
+
+    The section ran a 44px headline, a 34px counterfactual, and NO FINANCIAL
+    ACTION — the sentence the whole product exists for — at 24px. A judge
+    scrolling at pace read the headline and passed the claim. It leads the
+    section now."""
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(300)
+    sizes = inv.evaluate("""() => {
+      const out = [];
+      document.querySelectorAll('#ai *').forEach(e => {
+        if (e.childElementCount || !e.textContent.trim()) return;
+        const s = getComputedStyle(e);
+        out.push({px: parseFloat(s.fontSize), color: s.color,
+                  t: e.textContent.trim()}); });
+      return out.sort((a, b) => b.px - a.px); }""")
+    assert sizes, "the model section has no text"
+    top = sizes[0]
+    assert "no financial action" in top["t"].lower(), (
+        f"the largest thing in the section is {top['t'][:44]!r} at "
+        f"{top['px']:.0f}px, not the refusal")
+
+
+def test_both_verdicts_are_painted_the_same(inv):
+    """§32.B. The model concluded AMBIGUOUS and the engine kept AMBIGUOUS.
+
+    Painting the engine's coral and the model's white implied the engine's was
+    the worse of the two. Coral means unresolved in this product, and they are
+    equally unresolved — it is spent on the CONSEQUENCE, not on either verdict.
+    """
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(300)
+    cells = inv.evaluate("""() => [...document.querySelectorAll('.cf-c b')]
+      .map(e => ({t: e.textContent.trim(), color: getComputedStyle(e).color}))""")
+    if not cells:
+        return                       # no counterfactual on this run
+    verdicts = [c for c in cells if c["t"].isupper() and len(c["t"]) > 3]
+    assert len(verdicts) >= 2, f"expected two verdict cells, saw {verdicts}"
+    assert len({c["color"] for c in verdicts}) == 1, (
+        "the two verdicts are painted differently: "
+        + ", ".join(f"{c['t']}={c['color']}" for c in verdicts))
+
+    # and the coral in this section belongs to the consequence
+    coral = inv.evaluate("""() => {
+      const c = getComputedStyle(document.documentElement)
+        .getPropertyValue('--coral').trim();
+      const probe = document.createElement('span');
+      probe.style.color = c; document.body.appendChild(probe);
+      const rgb = getComputedStyle(probe).color; probe.remove();
+      return [...document.querySelectorAll('#ai *')]
+        .filter(e => !e.childElementCount && e.textContent.trim()
+                  && getComputedStyle(e).color === rgb)
+        .map(e => e.textContent.trim().toLowerCase()); }""")
+    assert coral, "nothing in the section carries the boundary colour"
+    assert any("no financial action" in t or "external evidence" in t
+               for t in coral), \
+        f"coral is on {coral[:4]} rather than on the consequence"

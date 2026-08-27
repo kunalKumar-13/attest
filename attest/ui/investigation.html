@@ -670,6 +670,25 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   font-variant-numeric:tabular-nums;line-height:1}
 .fld-l::before{content:"";display:block;height:1px;background:currentColor;
   opacity:.45;margin-bottom:7px;width:100%}
+
+/* ── §32.B · THE REFUSAL IS THE HERO ─────────────────────────────────────
+   The hierarchy was backwards: a 44px section headline, a 34px counterfactual,
+   and NO FINANCIAL ACTION — the sentence the product exists for — at 24px. A
+   judge scrolling at pace read the headline and passed the claim.
+
+   It leads the section now, at chapter scale, in coral. Everything below it is
+   the working: who proposed, who tested, who decided, and what did not change. */
+.refuse-h{font-size:clamp(30px,3.6vw,52px);letter-spacing:-.05em;line-height:1;
+  color:var(--coral);font-weight:500;max-width:12ch}
+.refuse-sub{margin-top:16px;font-size:clamp(16px,1.4vw,21px);line-height:1.35;
+  color:var(--ink);max-width:26ch;letter-spacing:-.02em}
+
+/* ── colour semantics ───────────────────────────────────────────────────
+   Both verdicts are the same state. Painting the engine's coral and the
+   model's white implied the engine's was worse — coral means unresolved, and
+   they are equally unresolved. Coral is spent on the CONSEQUENCE only. */
+.cf-c b{color:var(--ink)}
+.safe-s.hot{color:var(--coral)}
 </style>
 <div id=field aria-hidden=true></div>
 
@@ -1020,11 +1039,17 @@ async function build(){
 
 <section id=ai>
   ${rise('row', mk(5,'the model','model · solver · engine')
-    + `<h2 class=chapter>${esc(inv.question||'What would separate them?')}</h2>`
+    /* one cell, not two: the row has three tracks, and a fourth child wraps
+       to a new row in the marker column — which is what turned the prose
+       beside it into a 200px ribbon. */
+    + `<div><h2 class=refuse-h>No financial action.</h2>
+       <p class=refuse-sub>${survivors} explanations satisfy the credit exactly.
+         The evidence does not establish one, so nothing was posted.</p></div>`
     + `<div><p class=say>The model is asked for a hypothesis, never for a
         verdict. Its conclusion is recorded as evidence and discarded — <b>not
         eligible to become the verdict</b>, and nothing downstream reads
-        it.</p></div>`)}
+        it.</p>
+       <p class=say style="margin-top:14px">${esc(inv.question||'')}</p></div>`)}
   ${rise('bound', `
     <div class=bound-r>
       <span class=bound-k>evidence</span>
@@ -1062,7 +1087,7 @@ async function build(){
       <em>diagnostic only · discarded</em></div>
     <div class=cf-op>${inv.would_have_concluded === inv.verdict ? '=' : '≠'}</div>
     <div class=cf-c><span class=lbl>engine verdict</span>
-      <b class=hot>${esc(inv.verdict)}</b>
+      <b>${esc(inv.verdict)}</b>
       <em>retained · deterministic</em></div>
     <div class=cf-c><span class=lbl>verdict changed</span>
       <b>${inv.changed_nothing ? 'No' : 'Yes'}</b>
@@ -1082,7 +1107,7 @@ async function build(){
     <div class=safe-s>Proof not unique</div>
     <div class=safe-s>Engine abstained</div>
     <div class=safe-s>Verdict unchanged</div>
-    <div class="safe-s hot">No financial action</div>
+    <div class="safe-s hot">Requires external evidence</div>
     <p class=safe-n><b>Ambiguity is not a failure.</b> It is the engine
       declining to post what it could not prove, and saying which evidence
       would settle it.</p>`, 4)}
