@@ -1,7 +1,9 @@
 # The five-minute pitch — spoken script
 
 Every figure below is on screen when it is spoken. Nothing is read from memory.
-Verified against the running product on seed `20260821`, run of 250.
+Verified against the running product on seed `20260821`, run of 250,
+**on the native kernel** — which is the path the recording uses. Confirm
+`run-demo` prints `ATTEST · GENERATED · NATIVE KERNEL` before you start.
 
 **One precision rule for the whole script:** ₹47,96,811.78 belongs to the **197
 ambiguous** settlements. **198** are held at verification — the extra one is the
@@ -32,9 +34,14 @@ two pauses; they are marked.
 > so the explanation has to be reconstructed — and often more than one
 > reconstruction fits exactly.
 >
-> Across this batch: fifty-two proved. One hundred and ninety-seven ambiguous.
-> One contradicted. A twenty-point-eight percent match rate, and a hundred and
-> ninety-eight exceptions it could not resolve.
+> In the native-kernel run, these two hundred and fifty separate into fifty-two
+> proved, one hundred and ninety-seven ambiguous, and one contradicted. A
+> twenty-point-eight percent match rate, and a hundred and ninety-eight
+> exceptions it could not resolve.
+>
+> The repository also has a portable path with a smaller solver envelope; the
+> portfolio counts differ there, and the case we are about to open is identical
+> on both.
 
 *Scroll to the population field. Every point is one settlement.*
 

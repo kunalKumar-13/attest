@@ -12,12 +12,12 @@ If it is not on screen, cut the line — do not speak it from memory.
 | 0:00 | `/` first viewport, static | none | — | thesis line | ₹53,02,701.96 · 250 · 2,368 |
 | 0:08 | same | none | — | "synthetic by design…" | seed 20260821 · GENERATED |
 | 0:15 | scroll to §01 the money | slow scroll | collapse bars draw | the loop, settlement→orders | ₹53,02,701.96 → ₹353.73 |
-| 0:26 | scroll to §02 the population | stop | field draws, legend lands | 52 / 197 / 1 | 52 PROVEN · 197 AMBIGUOUS · 1 CONTRADICTED |
+| 0:26 | scroll to §02 the population | stop | field draws, legend lands | 52 / 197 / 1 *(say "in the native-kernel run")* | 52 PROVEN · 197 AMBIGUOUS · 1 CONTRADICTED |
 | 0:34 | hold on the scoreboard | none | — | "20.8% match rate, 198 exceptions" | 20.8% · 198 |
 | 0:40 | scroll up to the benchmark | scroll up 1 screen | — | "held-out panel…" | LIVE RUN 250 · PANEL 500 · 2 seeds × 250 |
 | 0:48 | hold | none | bars already drawn | the four methods | 84/500 4.8% · 22/500 0.0% · 462/500 95.0% |
 | 1:00 | hold | none | — | "exact-only is safer" | 0.0% |
-| 1:05 | scroll to §03 the exception | scroll down 2 | — | the blocked money | ₹47,96,811.78 · 197 settlements |
+| 1:05 | scroll to §03 the exception | scroll down 2 | — | the blocked money | ₹47,96,811.78 · 197 settlements *(native)* |
 | 1:22 | hold | none | — | "would unblock" | order-level reference |
 | 1:35 | scroll to §04 the proof | scroll | candidate field draws | 2,368 → 164 → 4 | 2,368 · 164 · 4 |
 | 1:52 | hold on the cuts | none | — | calendar / claimed / ceiling | −2,204 · CONVENTION |

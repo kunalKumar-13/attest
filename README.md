@@ -23,6 +23,36 @@ batch of synthetic data, **reporting its match rate and the exceptions it could
 not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate, and the
 198 exceptions it could not resolve are the product rather than a footnote.
 
+### Reproduce the demo
+
+```bash
+git clone https://github.com/kunalKumar-13/attest && cd attest
+python3.13 -m venv .venv && ./.venv/bin/pip install -e .
+cd native && maturin develop --release && cd ..   # optional kernel — see below
+./run-demo
+```
+
+**Two execution paths, and the demo uses the first.**
+
+| | solver envelope | this run of 250 |
+|---|---|---|
+| **Native kernel** — the recorded demo | ₹2,00,000 | 52 proven · 197 ambiguous · 1 contradicted |
+| **Portable** — no Rust toolchain needed | ₹30,000 | 51 proven · 161 ambiguous · 1 contradicted · **37 insufficient** |
+
+The 37 are not failures. They are settlements whose candidate space exceeds
+what the portable solver will attempt, so it reports INSUFFICIENT rather than
+searching a space it cannot finish — the same refusal the rest of this
+document is about, applied to compute instead of evidence.
+
+`./run-demo` prints which path is active **before** any portfolio figure, so
+the two can never be confused.
+
+**The canonical case is identical on both.** `setl_000225` — ₹27,208.12,
+AMBIGUOUS, 2,368 → 164 → 4, four surviving explanations, the model/solver/
+engine boundary, and the anchoring benchmark (`C-006` in
+[docs/CLAIMS.md](docs/CLAIMS.md)). It was chosen for that reason. Only
+portfolio-wide counts diverge.
+
 | | |
 |---|---|
 | **1. See it** | `./run-demo` — opens the investigation at `/`, the instrument at `/app`. Every figure on both is read from the running engine at load. |
@@ -321,8 +351,8 @@ stopped, what is agreed against what is disputed, and what to do next. Changing
 lens does not change the case, and opening a context moves neither.
 
 CONTROL opens on the work, ranked by what each item **unlocks** rather than by
-what is stuck — 197 ambiguous settlements are one action, not 197, because they
-are ambiguous for the same missing field. Each row states where it is blocked,
+what is stuck — in the native-kernel run, 197 ambiguous settlements are one
+action, not 197, because they are ambiguous for the same missing field. Each row states where it is blocked,
 why, what would unblock it, and whether ATTEST can do that itself. Three of them
 say it cannot.
 

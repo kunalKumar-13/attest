@@ -43,7 +43,8 @@ port, case = sys.argv[1], sys.argv[2]
 def get(p):
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{p}") as r:
         return json.load(r)
-run = get("/api/run?n=250")["run_id"]
+r0  = get("/api/run?n=250")
+run = r0["run_id"]
 sp  = get(f"/api/spine?run={run}&type=portfolio&review=15000&exposure=10000000")
 det = get(f"/api/settlement?run={run}&id={case}")
 src = get(f"/api/subject?run={run}&type=portfolio&id=portfolio").get("source", {})
@@ -53,7 +54,16 @@ stop = next((s for s in sp["stages"] if s["state"] == "stopped"), {})
 space = det.get("space") or {}
 adv = cl.get("adversarial") or {}
 iso = cl.get("isolation") or {}
+c = r0.get("counts", {})
+eng = (src.get("engine") or {})
+native = bool(eng.get("native"))
 print("\n".join([
+    "NATIVE KERNEL" if native else "PORTABLE",
+    format(int((eng.get("envelope_paise") or 0) / 100), ",d"),
+    f'{c.get("PROVEN",0)} proven · {c.get("AMBIGUOUS",0)} ambiguous · '
+    f'{c.get("CONTRADICTED",0)} contradicted'
+    + (f' · {c["INSUFFICIENT"]} insufficient' if c.get("INSUFFICIENT") else ""),
+    str(c.get("INSUFFICIENT", 0)),
     sp["stages"][0]["value"],
     stop.get("held_value", "—"),
     str(stop.get("held", "—")),
@@ -67,13 +77,35 @@ print("\n".join([
 ]))
 PYEOF
 )
-IFS=$'\n' read -rd '' PROCESSED HELD HELDN POSTED CHAIN VERDICT TESTED ADV ISO SRC <<<"$J" || true
+IFS=$'\n' read -rd '' PATHNAME ENVELOPE SPLIT INSUFF PROCESSED HELD HELDN POSTED \
+  CHAIN VERDICT TESTED ADV ISO SRC <<<"$J" || true
 
 cat <<TXT
 
+  ATTEST · GENERATED · $PATHNAME
+  solver envelope ₹$ENVELOPE per settlement
+
+TXT
+
+if [ "$PATHNAME" = "PORTABLE" ]; then
+cat <<TXT
+  The optional native kernel is not built, so the portable solver is running
+  with a smaller resource envelope. $INSUFF settlements exceed it and are
+  reported INSUFFICIENT — the engine declining to search a space it cannot
+  finish, not a failure to reconcile them.
+
+  Portfolio-wide figures below therefore differ from the recorded demo, which
+  uses the native kernel. The canonical case $CASE is identical on both paths.
+
+  To match the recording:  cd native && maturin develop --release
+
+TXT
+fi
+
+cat <<TXT
   ATTEST is running.   http://127.0.0.1:$PORT/
 
-  Source: $SRC
+  $SPLIT
 
   The canonical journey. Every figure below was just read from the run.
 
