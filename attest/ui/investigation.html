@@ -714,6 +714,44 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .nrw-r span{display:none}
   .nrw-r.on span{display:inline}
 }
+
+/* ── the two populations, said where they are compared ──────────────────
+   "84 / 500" printed directly under a live run of 250 reads as a
+   contradiction, and a judge who spots it stops trusting every other figure
+   on the page. The artifact says they are not in conflict: the same portfolio
+   size, two DIFFERENT seeds, neither of them the seed the live run uses.
+   Held out, in other words — which is a strength, and it was being kept to
+   ourselves. Both figures come from the payload; neither is written down. */
+.bench-pop{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:clamp(14px,2.4vw,40px);padding-bottom:clamp(16px,2.4vh,26px);
+  margin-bottom:clamp(14px,2.2vh,22px);border-bottom:1px solid var(--rule)}
+.bench-pop span{display:flex;flex-direction:column;gap:5px}
+.bench-pop i{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim3)}
+.bench-pop b{font-family:var(--m);font-weight:400;font-size:clamp(15px,1.5vw,20px);
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.bench-pop em{font-style:normal;font-size:var(--t-small);color:var(--dim2);
+  line-height:1.45}
+
+/* ── §34.P0-4 · THE MACHINERY ────────────────────────────────────────────
+   The strongest engineering evidence lived on screen 16, inside Trust, where
+   a judge at pace never arrives. Four properties, four figures, one screen —
+   placed directly after the refusal, because this is what a reader wants the
+   moment they have been told the engine declined to act: on what authority.
+
+   Not cards. Four columns on the page's own grammar: a micro label, one
+   measured figure, one sentence. */
+.proofs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:clamp(20px,3vw,52px);margin-top:clamp(26px,4vh,48px);
+  border-top:1px solid var(--rule2);padding-top:clamp(22px,3.4vh,40px)}
+.pf b{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  font-family:var(--m);font-weight:400;font-size:clamp(26px,3.2vw,46px);
+  letter-spacing:-.05em;line-height:1;margin:10px 0 12px;
+  font-variant-numeric:tabular-nums}
+.pf b i{font-style:normal;font-size:var(--t-nano);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim2);font-family:var(--m)}
+.pf p{color:var(--dim2);font-size:var(--t-small);line-height:1.55;max-width:34ch}
+.pf p em{font-style:normal;color:var(--coral)}
 </style>
 <div id=field aria-hidden=true></div>
 
@@ -763,7 +801,7 @@ const LOOP = [
 /* which stage of the loop each section is standing in */
 const STAGE = {
   open:'ingest', money:'reconcile', population:'prove', exception:'prove',
-  proof:'prove', ai:'prove', decision:'decide', books:'act',
+  proof:'prove', ai:'prove', proofs:'prove', decision:'decide', books:'act',
   activity:'audit', trust:'audit', boundary:'audit',
 };
 const NAV = [
@@ -909,6 +947,7 @@ async function build(){
     const held=spine.stages.reduce((n,s)=>n+(s.held||0),0);
     const iso=claims.isolation||{}, adv=claims.adversarial||{};
     const base=claims.baselines||{present:false}, anch=claims.anchoring||{};
+    const krn=claims.kernel||{present:false};
     const top=Math.max(...spine.stages.map(s=>s.continues_paise),1);
     const rupee=p=>`₹${(p/100).toLocaleString('en-IN',
       {minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -991,12 +1030,28 @@ async function build(){
   </div>
 
   ${rise('score', `
-    <div class=score-c><b>${esc(String(run.settlements))}</b><span>settlements</span></div>
-    <div class="score-c p"><b>${c.PROVEN}</b><span>proven</span></div>
-    <div class="score-c a"><b>${c.AMBIGUOUS}</b><span>ambiguous</span></div>
-    <div class="score-c a"><b>${c.CONTRADICTED}</b><span>contradicted</span></div>`, 2)}
+    <div class=score-c><b>${esc(String(run.settlements))}</b>
+      <span>settlements · one batch</span></div>
+    <div class="score-c p"><b>${(c.PROVEN/run.settlements*100).toFixed(1)}%</b>
+      <span>match rate · ${c.PROVEN} proved</span></div>
+    <div class="score-c a"><b>${c.AMBIGUOUS + c.CONTRADICTED + c.INSUFFICIENT}</b>
+      <span>exceptions it could not resolve</span></div>
+    <div class=score-c><b>${run.wrong}</b><span>wrongly auto-posted</span></div>`, 2)}
+  ${rise('', `<p class=say style="max-width:64ch;margin-top:18px">One finance-ops
+    loop, closed end to end: settlement credits in, orders matched against them,
+    a verdict proved or refused, policy priced, ledger posted or left alone.
+    <b>${c.AMBIGUOUS} of the ${c.AMBIGUOUS + c.CONTRADICTED + c.INSUFFICIENT}
+    exceptions share one cause</b>, which is why they are one piece of work
+    rather than ${c.AMBIGUOUS}.</p>`, 3)}
 
   ${base.present ? rise('bench', `
+    <div class=bench-pop>
+      <span><i>live run</i><b>${esc(String(run.settlements))} settlements</b>
+        <em>seed ${esc(String(run.seed))}</em></span>
+      <span><i>benchmark panel</i><b>${esc(String(base.panel.settlements))} settlements</b>
+        <em>${esc(String(base.panel.seeds))} seeds × ${esc(String(base.panel.per_seed))},
+          held out from the run above</em></span>
+    </div>
     <div class=bench-h><span>method</span><span>false proof rate</span>
       <span>rate</span><span>decided</span></div>
     ${base.methods.map(m=>`<div class="bench-r${m.key==='attest'?' me':''}">
@@ -1172,8 +1227,50 @@ async function build(){
     </p>`, 3) : ''}
 </section>
 
+<section id=proofs>
+  ${rise('row', mk(6,'the machinery','what backs the refusal')
+    + `<h2 class=chapter>Every money action is explainable, bounded and
+       gated.</h2>`
+    + `<div><p class=say>Four properties hold that up. Each is measured from
+        the running system rather than asserted — the counts below are read at
+        load, and the one that says NOT VERIFIED says it because it is
+        not.</p></div>`)}
+  ${rise('proofs', `
+    <div class=pf>
+      <span class=lbl>independent proof</span>
+      <b>${krn.present ? krn.lines : '—'}<i>line kernel</i></b>
+      <p>${krn.present && krn.independent
+        ? `The checker does not import the solver; the solver imports the
+           checker. A bug in the search cannot also be the bug that waves its
+           own answer through.`
+        : `The checker's independence could not be read.`}</p>
+    </div>
+    <div class=pf>
+      <span class=lbl>financial safety</span>
+      <b>${claims.gates.filter(g=>g.state==='PASS').length}<i>of ${
+        claims.gates.length} gates</i></b>
+      <p>Integer paise end to end — no float ever touches money.
+        ${adv.present ? `${adv.attacks} attempts to move money the engine
+        should not move, ${adv.breached} succeeded.` : ''}</p>
+    </div>
+    <div class=pf>
+      <span class=lbl>ai boundary</span>
+      <b>${anch.resolved ? `${(anch.precision*100).toFixed(1)}%` : '—'}<i>${
+        anch.resolved ? `${anch.correct} of ${anch.resolved}` : 'not measured'}</i></b>
+      <p>Below a coin flip, which is why the model proposes and never decides.
+        Its conclusion is diagnostic only and nothing downstream reads it.</p>
+    </div>
+    <div class=pf>
+      <span class=lbl>source boundary</span>
+      <b>${iso.clean}<i>of ${iso.modules} modules</i></b>
+      <p>Not one of the modules that produce a verdict names the provider. The
+        adapter is read-only, the data is synthetic by design, and live account
+        validation is <em>not verified</em>.</p>
+    </div>`, 1)}
+</section>
+
 <section id=decision>
-  ${rise('row', mk(6,'the decision','what is safe')
+  ${rise('row', mk(7,'the decision','what is safe')
     + `<h2 class=chapter>Automate only what is cheaper to get wrong than to
        check.</h2>`
     + `<div><p class=say>Across the run this priced <b>${c.PROVEN} proven
@@ -1202,7 +1299,7 @@ async function build(){
 </section>
 
 <section id=books>
-  ${rise('row', mk(7,'the books','the ledger effect')
+  ${rise('row', mk(8,'the books','the ledger effect')
     + `<h2 class=chapter>Nothing was written, which is not the same as writing
        nothing.</h2>`
     + `<div><p class=say>An entry that happens to net to zero and an entry that
@@ -1217,7 +1314,7 @@ async function build(){
 </section>
 
 <section id=activity>
-  ${rise('row', mk(8,'the activity',`${(act.events||[]).length} events`)
+  ${rise('row', mk(9,'the activity',`${(act.events||[]).length} events`)
     + `<h2 class=chapter>Every step is recorded, including the ones that
        changed nothing.</h2>`
     + `<div><p class=say>Each step names what caused it, so the chain from a
@@ -1232,7 +1329,7 @@ async function build(){
 </section>
 
 <section id=trust>
-  ${rise('row', mk(9,'trust','what is not claimed')
+  ${rise('row', mk(10,'trust','what is not claimed')
     + `<h2 class=chapter>Live Razorpay account validation: not verified.</h2>`
     + (adv.present?`<div><p class=say>Each attack is an attempt to move money
         the engine should not be able to move. A refusal counts as a defence;
@@ -1267,7 +1364,7 @@ async function build(){
 </section>
 
 <div class=warm id=boundary>
-  ${rise('row', mk(10,'the boundary','where it stops')
+  ${rise('row', mk(11,'the boundary','where it stops')
     + `<h2 class=chapter>The engine knows when to stop.</h2>`
     + `<div><p class=say>${iso.isolated
         ? `All <b>${iso.clean} of ${iso.modules}</b> modules that produce a

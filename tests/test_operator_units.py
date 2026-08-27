@@ -186,18 +186,24 @@ def test_no_product_code_quotes_a_superseded_anchoring_precision():
     import re
     HISTORICAL_FILES = {
         "FAILURES.md",                    # D8's own record
-        "docs/UX-AUDIT.md",               # dated audit note
-        "docs/JUDGE-ATTACK.md",           # the audit that found this drift
         "attest/eval/anchoring.py",       # explains why it was re-measured
         "tests/test_operator_units.py",   # this file
     }
+    # `docs/archive/` IS the historical record — that is the whole reason it
+    # exists, and its own README says nothing in it is part of the reading
+    # path. Two files were exempted here by their old paths and the exemption
+    # broke the moment they were archived; the directory is the right unit,
+    # and it maintains itself as more history moves in.
+    HISTORICAL_DIRS = ("docs/archive/",)
     CHRONOLOGY = ("supersed", "hand-taken", "by hand", "d8 measured",
                   "d8 first measured", "d8 recorded", "d8 disabled",
                   "earlier", "historical", "first measured")
     offenders = []
     for path in sorted(ROOT.rglob("*.py")) + sorted(ROOT.rglob("*.md")):
         rel = path.relative_to(ROOT).as_posix()
-        if rel.startswith((".venv", "native/.venv", ".git")) or rel in HISTORICAL_FILES:
+        if (rel.startswith((".venv", "native/.venv", ".git"))
+                or rel.startswith(HISTORICAL_DIRS)
+                or rel in HISTORICAL_FILES):
             continue
         text = path.read_text(errors="ignore")
         for m in re.finditer(r"0\.521|52\.1\s?%", text):

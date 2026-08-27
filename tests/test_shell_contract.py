@@ -3086,3 +3086,48 @@ def test_the_narrowing_is_one_continuous_chain(inv):
 
     assert seen == sorted(seen) and len(set(seen)) == len(seen), \
         f"the narrowing does not advance section by section: {seen}"
+
+
+
+def test_the_two_populations_are_named_where_they_are_compared(inv):
+    """§34.P0-1. "84 / 500" printed under a live run of 250 reads as a
+    contradiction, and a judge who spots one stops trusting every other figure
+    on the page.
+
+    The artifact says they are not in conflict: the same portfolio size, two
+    DIFFERENT seeds, neither of them the seed the live run uses. That is
+    held-out evaluation — a strength that was being kept to ourselves.
+
+    Both figures are read from their sources, and both must be visible at the
+    benchmark itself: not in Trust, not in a tooltip, not in a document."""
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const cl = await (await fetch(`/api/claims?run=${run.run_id}`)).json();
+      return {liveN: run.settlements, liveSeed: run.seed,
+              panel: (cl.baselines || {}).panel}; }""")
+    panel = truth["panel"]
+    assert panel and panel.get("settlements"), "the artifact reports no panel shape"
+
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(300)
+    strip = inv.query_selector(".bench-pop")
+    assert strip, "the benchmark does not name its populations"
+    t = strip.inner_text()
+
+    assert str(truth["liveN"]) in t, f"the live run's {truth['liveN']} is not stated"
+    assert str(truth["liveSeed"]) in t, "the live run's seed is not stated"
+    assert str(panel["settlements"]) in t, \
+        f"the panel's {panel['settlements']} is not stated"
+    assert str(panel["seeds"]) in t and str(panel["per_seed"]) in t, \
+        f"the panel's shape ({panel['seeds']} seeds x {panel['per_seed']}) is not stated"
+    assert "held out" in t.lower(), \
+        "nothing says the panel is held out from the live run"
+
+    # and the two must be distinguishable, not two bare numbers side by side
+    assert "live" in t.lower() and "benchmark" in t.lower(), \
+        "the two populations are not labelled as different things"
+
+    # the panel really is held out: its seeds are not the live seed
+    assert truth["liveSeed"] not in (panel.get("seed_ids") or []), (
+        "the benchmark panel shares a seed with the live run, so 'held out' "
+        "is not true")

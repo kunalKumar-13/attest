@@ -16,6 +16,25 @@ POLICY    permits.
 LEDGER    records.
 ```
 
+## For a reviewer — the five-minute path
+
+Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
+batch of synthetic data, **reporting its match rate and the exceptions it could
+not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate, and the
+198 exceptions it could not resolve are the product rather than a footnote.
+
+| | |
+|---|---|
+| **1. See it** | `./run-demo` — opens the investigation at `/`, the instrument at `/app`. Every figure on both is read from the running engine at load. |
+| **2. Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/ARCHITECTURE-DIAGRAM.md](docs/ARCHITECTURE-DIAGRAM.md) |
+| **3. Measurement** | [docs/EVALUATION.md](docs/EVALUATION.md) · `benchmark/baselines.json` — four methods over 500 held-out settlements, and `exact_only` beats us on precision |
+| **4. Razorpay boundary** | [docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md) — read-only adapter, no live account contacted, and the engine's 21 modules contain no reference to the provider |
+| **5. What we refuse to claim** | [docs/CLAIMS.md](docs/CLAIMS.md) · [docs/FAILURE-STORY.md](docs/FAILURE-STORY.md) |
+
+Fifteen documents in `docs/`. The working record — phase audits, design
+explorations, reversed decisions — is in [docs/archive/](docs/archive/) and is
+not part of the reading path.
+
 ### The problem
 
 Reconciliation systems are measured on how many cases they resolve, so they are
@@ -323,7 +342,7 @@ rather than transcribed.
 
 `⌘K` reaches any lens and any settlement in the attention queue.
 
-See `docs/UX-AUDIT.md` for what the audit found and the defects that reading the
+See `docs/archive/UX-AUDIT.md` for what the audit found and the defects that reading the
 screens turned up.
 
 Optional: build the Rust kernel for the wider envelope and the 52× DP.
@@ -415,7 +434,7 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md)** — capability matrix with an evidence column, and the frozen boundaries
 - **[docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md)** — IMPLEMENTED / SIMULATED / NOT VERIFIED, capability by capability
 - **[docs/GOLDEN-DATASET.md](docs/GOLDEN-DATASET.md)** — the canonical dataset and the eleven states it produces
-- **[docs/WINNING-SUBMISSION.md](docs/WINNING-SUBMISSION.md)** — fifteen questions a reviewer would ask, answered from artifacts
+- **[docs/archive/WINNING-SUBMISSION.md](docs/archive/WINNING-SUBMISSION.md)** — fifteen questions a reviewer would ask, answered from artifacts
 - **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 34 attacks from source to ledger, and the defect they found
 - **[docs/REPRODUCE.md](docs/REPRODUCE.md)** — clone to running, with the three things that did not work
 - **[docs/MONEY-MODEL.md](docs/MONEY-MODEL.md)** — integer paise, tolerance, rounding direction
