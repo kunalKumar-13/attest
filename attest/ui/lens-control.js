@@ -134,7 +134,14 @@
     return `<section class=o>
       <div class=o-top>
         <span class=o-wm>ATTEST</span>
-        <span class=o-kind>control · where did the money stop</span>
+        <!-- The workspace is a real entry point: a reader can land here
+             without passing the front door. Dropping the thesis sentence cost
+             them "what does it do" and "what does it refuse to do" — the
+             stranger test fell from 10/10 to 8/10 and I nearly shipped that.
+             The identity belongs here at masthead weight; the front door keeps
+             it as a hero. Neither repeats the other's emphasis. -->
+        <span class=o-kind>settlement reconciliation · refuses to invent certainty</span>
+        <span class=o-kind>control — where did the money stop</span>
         <span class=sp></span>
         <span class=o-kind title="${esc(src.detail || '')}">${
           esc(src.label || '')}${src.engine ? ' · ' + esc(src.engine.label) : ''}</span>
