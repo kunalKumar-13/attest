@@ -2202,13 +2202,27 @@ def test_the_held_instrument_is_still_seated_on_a_phone(page):
           const off = document.querySelector('.c-lenses button:not(.on)');
           if (!on || !off) return null;
           const a = getComputedStyle(on), b = getComputedStyle(off);
+          // A leading-edge rule can be a border or an inset shadow; Phase 31
+          // draws it as the latter, and reading only borderLeft and
+          // backgroundColor missed an affordance that was plainly on screen.
+          const insetRule = ss => (ss || '').split(/,(?![^()]*\))/)
+            .some(part => part.includes('inset'));
           return {lens: on.dataset.lens,
                   edge: a.borderLeftColor !== b.borderLeftColor
-                     || a.borderLeftWidth !== b.borderLeftWidth,
-                  surface: a.backgroundColor !== b.backgroundColor}; }""")
+                     || a.borderLeftWidth !== b.borderLeftWidth
+                     || (insetRule(a.boxShadow) && !insetRule(b.boxShadow)),
+                  surface: a.backgroundColor !== b.backgroundColor,
+                  weight: a.fontWeight !== b.fontWeight
+                       || a.color !== b.color,
+                  // what it must NOT be: a filled chip
+                  filled: parseFloat(a.borderTopLeftRadius) > 2
+                       && a.backgroundColor !== 'rgba(0, 0, 0, 0)'}; }""")
         assert m, "no held instrument"
         assert m["lens"] == "journal"
-        assert m["edge"] or m["surface"], "the held instrument is not distinguished"
+        assert m["edge"] or m["surface"] or m["weight"], \
+            "the held instrument is not distinguished"
+        assert not m["filled"], \
+            "the held instrument is a filled chip — it should be a rule"
     finally:
         page.set_viewport_size({"width": 1280, "height": 900})
 
@@ -2482,21 +2496,38 @@ def test_the_dock_state_changes_with_the_case(page):
 # is a diagram that lies, and that is worth a test.
 
 
-def test_the_overture_states_the_thesis_before_any_work(page):
-    """§30.1. The landing's first statement is what the product refuses to do.
+def test_the_overture_opens_on_the_money_before_any_work(page):
+    """§30.1. Control opens on where the money stopped, not on a ranked queue.
 
-    A landing that opens on a ranked list of blockers reads as an internal
-    queue, and everything true about the product after that is read as an
-    internal queue's details."""
+    A room that opens on a list of blockers reads as an internal queue, and
+    everything true about the product after that is read as an internal
+    queue's details.
+
+    The THESIS used to be asserted here. Phase 31 moved it: `/` is the front
+    door now and states it there, and repeating it in the workspace meant a
+    judge who followed "open the investigation" met the same sentence twice.
+    `test_the_front_door_states_the_thesis` holds that guarantee — this one
+    holds what Control itself owes."""
     _ev(page, "#/portfolio/control")
-    o = page.query_selector(".o")
-    assert o, "the landing has no overture"
-    stmt = page.inner_text(".o-stmt").lower()
+    assert page.query_selector(".o"), "Control has no overture"
+    o = page.inner_text(".o")
+    assert "\u20b9" in o, "the overture states no money"
+    stages = page.eval_on_selector_all(".o-stage", "x => x.length")
+    assert stages >= 4, f"the collapse shows {stages} stages"
+    # the money is the largest thing here, because nothing has happened yet
+    fig = page.evaluate(
+        "() => parseFloat(getComputedStyle(document.querySelector('.o-fig b')).fontSize)")
+    assert fig >= 20, f"the processed total is set at {fig:.0f}px"
+
+
+def test_the_front_door_states_the_thesis(inv):
+    """The guarantee the workspace's overture used to carry, now held where
+    the sentence actually lives."""
+    stmt = inv.inner_text(".hero-t").lower()
     assert "refuses" in stmt and "certainty" in stmt, \
-        f"the opening statement does not state the thesis: {stmt!r}"
-    # and it is the largest type on the screen, because nothing has happened yet
-    size = page.evaluate(
-        "() => parseFloat(getComputedStyle(document.querySelector('.o-stmt')).fontSize)")
+        f"the front door does not state the thesis: {stmt!r}"
+    size = inv.evaluate(
+        "() => parseFloat(getComputedStyle(document.querySelector('.hero-t')).fontSize)")
     assert size >= 30, f"the thesis is set at {size:.0f}px"
 
 

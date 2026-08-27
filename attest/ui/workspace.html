@@ -2354,7 +2354,12 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
    the landing did exactly that: on a settlement the dock ran under the
    utility bar and INVESTIGATE was printed on top of the wordmark. */
 #subject{overflow-y:auto;min-height:0}
-.c-lenses{align-self:end}
+/* `align-self:end` was written for the grid, where it pinned the dock to the
+   bottom of its row. Inside the spine's COLUMN flex container that same
+   property is the cross axis — it right-aligned the dock and shrank it to its
+   content, so the instruments sat 81px in from the rail's edge. The push to
+   the bottom is margin-top:auto here. */
+.c-lenses{align-self:stretch}
 
 /* ── Trust: the claim is the interface, the state is metadata ────────────
    Eleven identical bordered badges down the left edge read as a grid, and a
@@ -2543,10 +2548,41 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
     linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
   background-size:44px 44px}
 :root[data-theme=light] #app::before{display:none}
+
+
+/* ══════════════════════════════════════════ PHASE 31 · THE CASE FILE SPINE
+   The case and the instruments are ONE object, and they scroll as one.
+
+   They were two grid rows: the case took what the dock left it. Measured at
+   1024x768 that was 179px for 432px of content — all five stages of the
+   chain cut off, a rule terminating in mid-air, and a judge reading a case
+   file with its middle missing. Nobody scrolls a rail; they read what is
+   there and move on.
+
+   As one column the arithmetic disappears. On a tall screen everything shows.
+   On a short one the whole spine scrolls, which is a thing a reader
+   understands, rather than one half of it being silently truncated. */
+#spine{grid-area:case;display:flex;flex-direction:column;min-height:0;
+  overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;
+  background:var(--rail-bg);border-right:1px solid var(--line)}
+#spine::-webkit-scrollbar{width:4px}
+#spine::-webkit-scrollbar-thumb{background:var(--line2)}
+#app{grid-template-areas:"case room" "case room" "bar room"}
+#subject{grid-area:auto;overflow:visible;border-right:0;flex:none}
+#lenses{grid-area:auto;flex:none;margin-top:auto}
+/* the held instrument is one vertical rule — not a filled panel */
+.c-lenses button.on{background:transparent;transform:none;margin-right:0;
+  box-shadow:inset 2px 0 0 var(--ink)}
+@media (max-width:767px){
+  #spine{grid-area:auto;overflow:visible;border-right:0;background:none;
+    display:contents}
+}
 </style>
 <div id=app>
-  <div id=subject></div>
-  <div id=lenses></div>
+  <div id=spine>
+    <div id=subject></div>
+    <div id=lenses></div>
+  </div>
   <div id=bar>
     <span class=wm>ATTEST</span>
     <span id=source-mode title="Where the records on screen came from"></span>

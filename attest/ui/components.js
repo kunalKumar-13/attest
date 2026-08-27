@@ -327,28 +327,19 @@ class SubjectHeader {
      * names now, not a bar chart with the money written four times. */
     put('c-state', spine ? StateSpine(spine, { rail: true, lens }) : '');
 
-    const k = kase || {};
-    const rows = [];
-    if (k.agreed_paise != null) {
-      rows.push(`<div class=c-fact><span class=c-fk>agreed</span>
-        <b class=c-fv>${esc(rupees(k.agreed_paise))}</b>
-        <em>${esc(plural(k.shared_n || 0, 'order'))} in every explanation</em></div>`);
-    }
-    if (k.disputed_paise != null) {
-      rows.push(`<div class="c-fact hot"><span class=c-fk>disputed</span>
-        <b class=c-fv>${esc(rupees(k.disputed_paise))}</b>
-        <em>turns on ${esc(plural(k.differing || 0, 'order'))}</em></div>`);
-    }
-    put('c-now', rows.join(''));
-
-    const n = k.next;
-    put('c-next', n ? `<div class=c-nx>
-      <span class=c-fk>next</span>
-      <div class=c-nx-w>${esc(n.what)}</div>
-      ${n.value_paise != null ? `<div class=c-nx-v><b>${esc(rupees(n.value_paise))}</b>
-        <em>unlocked${n.cases ? ` · ${esc(plural(n.cases, 'case'))}` : ''}${
-          n.steps ? ` · ${esc(plural(n.steps, 'step'))}` : ''}</em></div>` : ''}
-    </div>` : '');
+    /* §31.11 — the rail is the CASE FILE SPINE: who this is, how much, what
+     * state it is in, and the chain it is standing in. Nothing else.
+     *
+     * It used to carry the agreed/disputed split and the next action as well,
+     * and at 1024x768 the result was 633px of content in a 179px slot — all
+     * five stages of the spine cut off, with a rule terminating in mid-air.
+     * A judge does not scroll a rail; they read a truncated case file and move
+     * on. Both blocks are already stated by the rooms that own them: Evidence
+     * states what the explanations agree on, and the blocker register states
+     * what would unblock the work. The rail stopped repeating them.
+     */
+    put('c-now', '');
+    put('c-next', '');
   }
 }
 

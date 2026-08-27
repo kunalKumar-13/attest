@@ -134,15 +134,21 @@
     return `<section class=o>
       <div class=o-top>
         <span class=o-wm>ATTEST</span>
-        <span class=o-kind>settlement reconciliation</span>
+        <span class=o-kind>control · where did the money stop</span>
         <span class=sp></span>
         <span class=o-kind title="${esc(src.detail || '')}">${
           esc(src.label || '')}${src.engine ? ' · ' + esc(src.engine.label) : ''}</span>
       </div>
 
-      <h1 class=o-stmt><i>Financial reconciliation</i>
-        that refuses to invent certainty.</h1>
-
+      <!-- The thesis lives on the front door, which is where a reader arrives
+           first and where it is the whole point of the screen. Repeating it
+           here meant a judge who followed "open the investigation" met the
+           same sentence twice, and the workspace read as the landing page
+           again rather than as the instrument behind it. Control keeps what
+           Control owes: how much entered, and where it stopped.
+           (Backticks are not safe in here — this comment sits inside a
+           template literal, and a stray pair silently turned the overture
+           into NaN.) -->
       <div class=o-figs>
         <div class=o-fig><b>${esc(rupees(rec.amount_paise))}</b>
           <span>${esc(rec.amount_label || 'processed')}</span></div>

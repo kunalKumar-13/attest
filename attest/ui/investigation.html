@@ -128,11 +128,15 @@ a{color:inherit}
 #nav .sys{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
   text-transform:uppercase;color:var(--dim2);line-height:2}
 #nav .sp{flex:1;min-height:16px}
-#nav .keys{display:flex;border:1px solid var(--rule2);margin-right:24px;
-  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.12em;flex:none}
-#nav .keys b{flex:1;padding:10px 11px;font-weight:400;color:var(--dim)}
-#nav .keys i{font-style:normal;padding:10px 12px;color:var(--dim2);
-  border-left:1px solid var(--rule2)}
+/* the way in, in the corner the reference keeps its shortcuts panel — ATTEST
+   has no shortcuts, and an affordance that leads nowhere is worse than none */
+#nav .enter{display:flex;justify-content:space-between;gap:8px;
+  border:1px solid var(--lime);color:var(--lime);margin-right:24px;flex:none;
+  font-family:var(--m);font-size:var(--t-micro);letter-spacing:.14em;
+  text-transform:uppercase;text-decoration:none;padding:11px 12px;
+  transition:background .18s,color .18s}
+#nav .enter:hover{background:var(--lime);color:var(--canvas)}
+#nav .enter i{font-style:normal}
 
 /* ── the strip ───────────────────────────────────────────────────────────
    What produced the page, in the machine's own voice, pinned above it. */
@@ -490,7 +494,8 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
     padding:10px var(--gut);border-right:0;border-bottom:1px solid var(--rule);
     overflow-x:auto;scrollbar-width:none}
   #nav::-webkit-scrollbar{display:none}
-  #nav .grp,#nav .sp,#nav .keys,#nav .sys{display:none}
+  #nav .grp,#nav .sp,#nav .sys{display:none}
+  #nav .enter{margin:0;padding:8px 10px}
   #nav .wm{margin:0 8px 0 0}
   #nav a{white-space:nowrap;padding:2px 0}
   #strip{position:static;left:0;height:auto;padding:8px var(--gut);
@@ -662,7 +667,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   <span class=wm>ATTEST</span>
   <div id=index></div>
   <span class=sp></span>
-  <div class=keys><b>KEYS</b><i>?</i></div>
+  <a class=enter href="/app" id=open-app>open the investigation <i>↗</i></a>
 </nav>
 
 <div id=strip>
