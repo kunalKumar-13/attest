@@ -18,7 +18,7 @@ It lived in `policy.py` as `_rs`, where its docstring made the argument:
 
 `exceptions.py` had independently written the same rule into its own module
 docstring — promising "Six orders explain all but ₹680.74" — and then emitted
-integer paise at four sites anyway. Phase 12's stranger test found the drift on
+integer paise at four sites anyway. A stranger reading the screen found the drift
 screen: a contradicted settlement reading "4 orders explain 586898 paise of
 631603" directly beneath the ₹447.05 residual it had already formatted
 correctly.

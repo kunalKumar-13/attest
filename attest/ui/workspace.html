@@ -5,7 +5,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel=stylesheet>
 <style>
 :root{
-  /* ══════════════════════════════════ PHASE 32 · THE INSTRUMENT ROOM
+  /* ══════════════════════════════════════════ THE INSTRUMENT ROOM
      Same world as the front door, measured off the reference's DARK
      rendering: canvas rgb(14,14,14), surface rgb(17,17,17), coral
      rgb(255,101,90) for what is unresolved, and a lime reserved for actions.
@@ -427,7 +427,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .c-sim-tag{font-size:var(--type-micro);letter-spacing:.11em;color:var(--st-AMBIGUOUS);
   border:1px dashed var(--st-AMBIGUOUS);border-radius:var(--r-sm);padding:1px 5px}
 
-/* CONTROL · THE BLOCKERS — rebuilt in Phase 30 as evidence objects; see
+/* CONTROL · THE BLOCKERS — evidence objects rather than a grid; see
    §30.2 at the foot of this stylesheet. The old grid was retired WITH it
    rather than left behind to win cascade fights against its replacement:
    `width:112px` on the label spans outlived the rebuild and blew a 112px hole
@@ -502,7 +502,7 @@ padding:5px 11px;font-size:var(--t-label);cursor:pointer;color:var(--dim2)}
 .j-mv-s.through .j-mv-v{color:var(--ink)}
 
 /* the ledger effect — three accounting rows, right-aligned like a book */
-/* rebuilt in Phase 30 · §30.6, at the foot of this stylesheet */
+/* rebuilt as evidence objects · §30.6, at the foot of this stylesheet */
 
 /* entry status — fixed questions, short answers, no prose */
 .j-st{display:flex;flex-direction:column;margin:0}
@@ -941,7 +941,7 @@ padding:0 0 9px 108px;line-height:1.5;max-width:96ch}
  * must be visible as a drop, and the reductions that are conventions rather
  * than facts must say so. That distinction is what the 32/92 failure was about.
  */
-/* rebuilt in Phase 30 · §30.3, at the foot of this stylesheet */
+/* rebuilt as evidence objects · §30.3, at the foot of this stylesheet */
 .e-red{margin-top:var(--s-4);display:flex;flex-direction:column;gap:2px}
 
 /* agreement as a block, disagreement as the sliver beside it */
@@ -1175,7 +1175,7 @@ color:var(--st-INVESTIGATE);border:1px dashed var(--st-INVESTIGATE);
 border-radius:var(--r-full);padding:2px 9px}
 
 /* the boundary itself */
-/* rebuilt in Phase 30 · §30.5, at the foot of this stylesheet */
+/* rebuilt as evidence objects · §30.5, at the foot of this stylesheet */
 
 /* the safety chain — proof, then policy, in that order */
 .p-gates{display:flex;flex-direction:column;gap:var(--s-3)}
@@ -1627,8 +1627,8 @@ border-radius:var(--r-0)}
   .c-table th:nth-child(4),.c-table td:nth-child(4){display:none}
 }
 
-/* ════════════════════════════════════════════════ PHASE 30 · THE INSTRUMENTS
-   Phase 29 designed the system; this builds it. The premise is that a screen
+/* ═══════════════════════════════════════════════════════ THE INSTRUMENTS
+   The premise is that a screen
    which looks like every other screen teaches the reader nothing about what
    changed, so each lens gets its own grammar while the shell holds still.
 
@@ -1700,7 +1700,7 @@ border-radius:var(--r-0)}
   text-transform:uppercase;color:var(--dim2)}
 
 /* ── the collapse ──────────────────────────────────────────────────────────
-   The centrepiece. Phase 29 found this living as a bar list inside a 296px
+   The centrepiece. It used to live as a bar list inside a 296px
    rail, which is the correct place for it while a case is open and the wrong
    place for it as the product's opening statement.
 
@@ -1985,7 +1985,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 /* The margin — how close the call was, which is the one thing the comparison
    knows and nothing else on the screen says. It was the decision word, which
    the conclusion above already paints at hero weight; two heroes for one word
-   is what Phase 13B removed from this exact room. */
+   is what was removed from this exact room once already. */
 .p-bound-out{font-size:var(--type-title);color:var(--dim);line-height:1.3}
 .p-bound-out b{font-family:var(--m);font-variant-numeric:tabular-nums;
   font-weight:500;letter-spacing:-.02em;color:var(--ink)}
@@ -2061,7 +2061,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
   background:var(--sur3);padding:1px 4px;border-radius:var(--r-obj)}
 
 /* ──────────────────────────────────────────── 9 · THE DOCK AS A RACK
-   Phase 29 gave every instrument its state. What was left was the gesture:
+   Every instrument already carries its state. What was left was the gesture:
    the held instrument should read as SEATED into the room it opened, not as
    a highlighted row in a list.
 
@@ -2095,7 +2095,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
   transition:color var(--micro),border-color var(--micro)}
 #bar a.story:hover{color:var(--ink);border-color:var(--ink)}
 
-/* ══════════════════════════════════════════ PHASE 30 · ON A PHONE
+/* ═══════════════════════════════════════════════════════ ON A PHONE
    Not the desktop composition shrunk. Each instrument keeps its argument and
    loses only what a 390px column cannot hold without breaking a word. */
 @media (max-width:767px){
@@ -2189,8 +2189,8 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 .a-badge{border-radius:0;border:0;border-bottom:2px solid currentColor;
   padding:0 0 2px;font-family:var(--m);letter-spacing:.14em}
 
-/* ═══════════════════════════════════════════ PHASE 31 · THE VISUAL RESET
-   Phase 30 gave each room its own grammar. Held up against the running
+/* ══════════════════════════════════════════════════ THE VISUAL RESET
+   Each room has its own grammar. Held up against the running
    product, three things were still making it read as a terminal rather than
    an instrument, and none of them was a colour choice.
 
@@ -2424,7 +2424,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 .j-eff-r.net .j-eff-k,.j-eff-r.net .j-eff-v{border-top:1px solid var(--dim3);
   padding-top:var(--sp-3);margin-top:var(--sp-2)}
 
-/* ═════════════════════════════════════════════ PHASE 31 · ON A PHONE
+/* ═══════════════════════════════════════════ THE VISUAL RESET · ON A PHONE
    Not the desktop composition squeezed vertically. Measured at 390×844 the
    room had 260px and the dock had 240 — the navigation furniture was as tall
    as the instrument, and Investigate's question was cut off mid-word.
@@ -2515,7 +2515,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 }
 
 
-/* ═══════════════════════════════ PHASE 31 · ONE VOICE ACROSS BOTH SURFACES
+/* ════════════════════════════════════ ONE VOICE ACROSS BOTH SURFACES
    The investigation at `/` and this workspace are one product, and a reader
    who follows "open the instrument" should arrive somewhere that sounds like
    where they came from. Three faces, and each one means something:
@@ -2550,7 +2550,7 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 :root[data-theme=light] #app::before{display:none}
 
 
-/* ══════════════════════════════════════════ PHASE 31 · THE CASE FILE SPINE
+/* ═══════════════════════════════════════════════════ THE CASE FILE SPINE
    The case and the instruments are ONE object, and they scroll as one.
 
    They were two grid rows: the case took what the dock left it. Measured at

@@ -10,11 +10,12 @@
 #
 #   BROWSER CONTRACTS silently SKIP when attest.web is not listening, and a
 #   skip is reported as a pass. This starts the server and then asserts that the
-#   number that RAN equals the number DEFINED in the file, so a suite that
-#   quietly ran nothing fails. The expected number is counted from the source
-#   rather than written here: a literal goes stale the first time a contract is
-#   added, and a stale literal fails a green suite, which teaches whoever sees
-#   it to stop believing this stage.
+#   number that RAN equals the number pytest COLLECTED, so a suite that quietly
+#   ran nothing fails. The expected number is never written here: a literal goes
+#   stale the first time a contract is added, and a stale literal fails a green
+#   suite, which teaches whoever sees it to stop believing this stage. Counting
+#   `def test_` had the same fault one step removed — it misses parametrized
+#   contracts, and it did, the moment one was added.
 #
 #   CLAIM REGISTER regenerates the README blocks from the artifacts. Running it
 #   is not the check — the check is that running it changed nothing, which is
@@ -23,7 +24,13 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 PY=${PY:-./.venv/bin/python}
-CONTRACTS=$(grep -c "^def test_" tests/test_shell_contract.py)
+# Collected, not grepped. `grep -c "^def test_"` counts DEFINITIONS, and a
+# parametrized contract is one definition that runs several times — so the
+# moment a contract gained @pytest.mark.parametrize this stage went red on a
+# green suite, which is the exact failure mode the note above warns about.
+# pytest's own collection is the only count that cannot drift from what runs.
+CONTRACTS=$($PY -m pytest tests/test_shell_contract.py --collect-only -q 2>/dev/null \
+            | tail -1 | grep -oE "^[0-9]+")
 fail=0; n=0
 STAGES=10
 

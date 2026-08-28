@@ -465,8 +465,8 @@ function Conclusion({ fact, figure, figureLabel, because, tone, second }) {
   </div>`;
 }
 
-/* Exported because a lens uses it. Amount and Panel were declared in Phase 1
-   and called by nothing, so they are gone — a component with no caller is a
+/* Exported because a lens uses it. Amount and Panel were declared here and
+   called by nothing, so they are gone — a component with no caller is a
    guess about the future, and it will be the wrong guess. */
 window.C = {
   esc, rupees, plural, Conclusion, FromBlocker,

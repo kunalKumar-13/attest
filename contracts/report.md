@@ -1,6 +1,6 @@
 # Contract: `report`
 
-**Owns:** `eval/report.py` · On the critical path for the D7 video.
+**Owns:** `attest/eval/report.py` · On the critical path for the D7 video.
 
 ## Why this exists
 

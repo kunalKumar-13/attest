@@ -53,7 +53,10 @@
         <div class=j-eff-r><span class=j-eff-k>credit</span>
           <b class=j-eff-v>${esc(credit)}</b></div>
         <div class="j-eff-r net"><span class=j-eff-k>net</span>
-          <b class=j-eff-v>${esc(written ? '₹0.00' : '₹0.00')}</b></div>
+          <!-- Zero on both paths, for two different reasons: an entry that was
+               never written has no effect, and one that was written balances.
+               A ternary here had identical branches and read as a live choice. -->
+          <b class=j-eff-v>₹0.00</b></div>
       </div>
       <div class=j-eff-stamp>${esc(stamp)}</div>
       <div class=j-eff-n>${esc(note)}</div>

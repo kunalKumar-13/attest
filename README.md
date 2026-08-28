@@ -22,6 +22,13 @@ OPERATOR  resolves what evidence could not.
 
 ## For a reviewer — the five-minute path
 
+If you only open three files: [`attest/verdict.py`](attest/verdict.py) is the
+28-line proof kernel and it does not import the solver — the solver imports it.
+[`attest/eval/baseline_panel.py`](attest/eval/baseline_panel.py) is the
+benchmark that ATTEST loses on precision. [`attest/adapters/razorpay.py`](attest/adapters/razorpay.py)
+is the only module that knows Razorpay exists; it is read-only and has no write
+scope. Everything on screen describes generated data, always labelled as such.
+
 Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
 batch of synthetic data, **reporting its match rate and the exceptions it could
 not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate, and the
@@ -407,7 +414,7 @@ attest/generate/       hazard taxonomy + generator — FROZEN
 attest/policy.py       Wilson-priced risk, the auto-post inequality
 attest/ledger.py       the journal entry a proof implies, balanced to the paisa
 attest/actions.py      the work ranked by value unlocked per step
-eval/baseline_panel.py ATTEST against three baselines, identical conditions
+attest/eval/          harness, baselines, ablations, regression gates
 attest/rules.py        content-hashed rule set + run provenance
 attest/agents.py       capabilities, and the four granted to nothing
 attest/whatchanged.py  run-to-run diff with computed attribution (CLI)
@@ -415,7 +422,7 @@ attest/webhooks.py     raw-byte HMAC, idempotency on id AND payload hash
 attest/api.py          the JSON API behind the Case Desk
 attest/adapters/       source adapters; money.py reads amounts exactly or refuses
 attest/ui/             the Case Desk — one subject, seven lenses, three axes
-eval/                  harness, baselines, ablations, regression gates
+eval/cpsat_study.py    the CP-SAT measurement that rejected set packing
 native/                Rust port of the DP hot path
 ```
 

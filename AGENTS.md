@@ -38,7 +38,7 @@ every number in `PRD.md`. If a hazard looks wrong, say so — do not change it.
 | `blocking-study` | `eval/blocking_study.py` | [contracts/blocking-study.md](contracts/blocking-study.md) |
 | `rust` | `native/**` | [contracts/rust.md](contracts/rust.md) |
 | `adversary` | appends to `FAILURES.md` only | [contracts/adversary.md](contracts/adversary.md) |
-| `report` | `eval/report.py` | [contracts/report.md](contracts/report.md) |
+| `report` | `attest/eval/report.py` | [contracts/report.md](contracts/report.md) |
 
 One worker per contract. If your contract is taken, do not start a second copy.
 

@@ -1,8 +1,7 @@
 /* The application shell. Subject × lens × context.
  *
- * Phase 1 gave the shell two axes and fixed the subject dying on navigation.
- * The Phase 1 gate found the next problem: the workspace was still a vertical
- * document. Movement through the product was scrolling, not focusing and
+ * The shell has two axes so the subject survives navigation. That alone left
+ * the workspace a vertical document. Movement through the product was scrolling, not focusing and
  * returning, because there was nowhere for a thing you are *temporarily
  * inspecting* to live. It had to become either a section further down the page
  * or a whole new subject, and neither is what inspecting something is.
@@ -233,7 +232,7 @@ function canHoldContext(lensKey, subject, context) {
  *   SUBJECT   the strip holds still; the workspace slides
  *   CONTEXT   the workspace holds still; only the detail pane moves
  *
- * The third is the whole of Phase 2. If changing context re-rendered the
+ * The third is why the detail pane exists at all. If changing context re-rendered the
  * workspace it would be navigation wearing a drawer's clothes.
  */
 /* The spine is structural, not a lens's decoration.

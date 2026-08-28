@@ -8,6 +8,21 @@ in a browser.
 That boundary is not tidiness. A front end that can compute a verdict is a front
 end that can disagree with the engine, and in finance the screen disagreeing with
 the ledger is the whole failure.
+
+
+## Why this is one file
+
+It is 2,700 lines and it stays that way on purpose. The natural seams --
+run assembly, `*_view` lens models, `*_measurement` claims, export -- are not
+seams: the call graph across them was measured at 35 cross-group calls with
+three bidirectional pairs (claims<->views, shared<->views, run<->shared).
+Splitting on those lines produces three circular imports and a `_common`
+module that would itself have to import views, which is a worse artifact than
+a long file whose functions are findable by a naming convention.
+
+Read it by suffix: `*_view` builds a lens payload, `*_measurement` reads an
+artifact and reports what it found, `_`-prefixed helpers are local. If a real
+seam appears -- a group that stops calling back into the others -- split then.
 """
 
 from __future__ import annotations
@@ -48,7 +63,9 @@ _INGEST = None
 _RISK_CACHE: dict[tuple[int, int], Any] = {}
 
 
-def ingest():
+def ingest() -> "Ingest":
+    """The webhook ingest, built once. The secret is read from the environment
+    and never stored anywhere it could be serialised."""
     global _INGEST
     if _INGEST is None:
         import os

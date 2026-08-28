@@ -2926,7 +2926,7 @@ def test_every_shape_on_the_investigation_names_a_job(inv):
         "st", "q",                                       # lifecycle state, quantity
         "nav", "strip", "index", "loop", "main", "keys", # navigation furniture
         "spec", "spec-h", "spec-pipe", "spec-disp", "sheet", "thr-s",
-        "bound", "act", "safe", "adapter", "cf", "score", "bench",
+        "safe", "adapter", "score", "bench",
         "row", "hero-row", "rise", "stage", "warm", "end", "BODY",
     }
     stray = sorted(shapes - JOBS)
