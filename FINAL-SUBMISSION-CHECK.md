@@ -109,9 +109,10 @@ ledger, and the filesystem are compared before and after, the source is read
 for the names of every mutating call, and seven deliberate mutations were
 introduced to confirm each guarantee fails when violated.
 
-Engine output after Phase 38 is unchanged: 250 settlements, 52 PROVEN /
-197 AMBIGUOUS / 1 CONTRADICTED, ₹53,02,701.96 processed, 20.8% exact,
-0 wrong, 6/6 gates, 34/34 adversarial.
+Engine output after Phase 38 is unchanged — **on the native kernel**, which
+is the path the recording uses: 250 settlements, 52 PROVEN / 197 AMBIGUOUS /
+1 CONTRADICTED, ₹53,02,701.96 processed, 20.8% exact, 0 wrong, 6/6 gates,
+34/34 adversarial. The portable path is tabled in README.md.
 
 
 ## Phase 39 — the judge-impact pass
@@ -137,4 +138,5 @@ specimen already existed at `#proofs`, and the signature frame is intact
 
 Hostile 15-second test 6/6, hostile 60-second test 6/6, stranger test 10/10 —
 all answered from the product with no documentation open. Engine output
-unchanged: 52/197/1, 20.8% exact, 0 wrong, 6/6 gates, 34/34 adversarial.
+unchanged on the native kernel: 52/197/1, 20.8% exact, 0 wrong, 6/6 gates,
+34/34 adversarial.

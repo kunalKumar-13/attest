@@ -31,7 +31,8 @@ scope. Everything on screen describes generated data, always labelled as such.
 
 Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
 batch of synthetic data, **reporting its match rate and the exceptions it could
-not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate, and the
+not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate on the
+native kernel (both execution paths are tabled below), and the
 198 exceptions it could not resolve are the product rather than a footnote —
 and they leave the system as a work queue, with the contested orders, the
 blocker and the evidence that would settle each one:
