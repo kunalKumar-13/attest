@@ -9,6 +9,7 @@ If it is not on screen, cut the line — do not speak it from memory.
 
 | Time | Screen | Cursor | What changes | Spoken | Number visible |
 |---|---|---|---|---|---|
+| 0:00 | **hold on the headline, do not scroll** | none | — | "it won't move money it can't prove" | IT WON'T MOVE MONEY IT CAN'T PROVE · ₹53,02,701.96 · 250 · 2,368 |
 | 0:00 | `/` first viewport, static | none | — | thesis line | ₹53,02,701.96 · 250 · 2,368 |
 | 0:08 | same | none | — | "synthetic by design…" | seed 20260821 · GENERATED |
 | 0:15 | scroll to §01 the money | slow scroll | collapse bars draw | the loop, settlement→orders | ₹53,02,701.96 → ₹353.73 |
@@ -37,7 +38,7 @@ If it is not on screen, cut the line — do not speak it from memory.
 | 3:42 | hold | none | — | "live validation is not claimed" | NOT VERIFIED |
 | 3:50 | scroll to §11 the boundary (umber) | scroll | environment changes | the refusal | ₹47,96,811.78 · 197 · 0 posted on a guess |
 | 4:05 | hold | none | — | "supply an order-level reference" | Supply an order-level reference. |
-| 4:12 | scroll to the handoff, hover the export | scroll ½ screen | — | "one button, and it does not move money" | EXPORT INVESTIGATION QUEUE (lime) · READ-ONLY · NOTHING POSTED, MUTATED OR TRANSMITTED |
+| 4:12 | scroll to the handoff, hover the export | scroll ½ screen | — | "198 unresolved, 48 lakh exposure" | 198 UNRESOLVED · ₹48,03,127.81 EXPOSURE · EVIDENCE REQUIRED · EXPORT INVESTIGATION QUEUE (lime) · READ-ONLY · NO FINANCIAL ACTION |
 | 4:20 | hold on umber | none | — | why it matters | — |
 | 4:45 | scroll to the end frame | scroll | — | explainable, bounded, gated | Only evidence moves money. |
 | 4:58 | hold | none | — | "until the evidence supports it" | — |

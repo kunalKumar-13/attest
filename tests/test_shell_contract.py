@@ -2523,9 +2523,17 @@ def test_the_overture_opens_on_the_money_before_any_work(page):
 def test_the_front_door_states_the_thesis(inv):
     """The guarantee the workspace's overture used to carry, now held where
     the sentence actually lives."""
-    stmt = inv.inner_text(".hero-t").lower()
-    assert "refuses" in stmt and "certainty" in stmt, \
-        f"the front door does not state the thesis: {stmt!r}"
+    # Pinned as the guarantee, not the wording: the largest statement on the
+    # front door must say that this system declines to act on money it cannot
+    # prove. The earlier version pinned the literal words "refuses" and
+    # "certainty", which made the sentence unimprovable.
+    stmt = " ".join(inv.inner_text(".hero-t").lower().split())
+    refusal = any(w in stmt for w in ("won't", "will not", "refuses", "does not"))
+    proof = any(w in stmt for w in ("prove", "proof", "evidence", "certainty"))
+    money = any(w in stmt for w in ("money", "post", "pay", "settle"))
+    assert refusal and proof and money, (
+        "the front door's largest statement does not say it declines to act "
+        f"on money it cannot prove: {stmt!r}")
     size = inv.evaluate(
         "() => parseFloat(getComputedStyle(document.querySelector('.hero-t')).fontSize)")
     assert size >= 30, f"the thesis is set at {size:.0f}px"
@@ -3344,3 +3352,116 @@ def test_no_element_is_silently_clipped(inv, width):
     assert not clipped, (
         f"at {width}px, content is cut off with no way to reach it: "
         + "; ".join(f"{c['el']} +{c['over']}px {c['txt']!r}" for c in clipped[:4]))
+
+
+# ── §39 ─────────────────────────────────────────────────────────────────────
+
+def test_the_handoff_states_its_size_and_its_exposure(inv):
+    """§39.3. An export with no scale attached is a button, not a boundary.
+
+    The room where the system stops has to say how much work is leaving and how
+    much money it represents, or "we hand the work to a person" is a slogan.
+    Both figures are read from the run — the exposure is the same total the
+    manifest already reports as held, not a second measurement of the same
+    money under a different name.
+    """
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const q = await (await fetch(
+        `/api/export/queue?run=${run.run_id}`)).json();
+      return {rows: q.count, paise: q.value_paise, counts: run.counts}; }""")
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+
+    figs = inv.query_selector(".hand-f")
+    assert figs, "the handoff states no scale"
+    t = " ".join(figs.inner_text().split())
+
+    assert str(truth["rows"]) in t, f"the handoff does not state its {truth['rows']} rows"
+    # the exposure, formatted the way this page formats money
+    rupees = truth["paise"] / 100
+    whole = f"{int(rupees):,}".replace(",", "")
+    digits = "".join(ch for ch in t if ch.isdigit())
+    assert whole in digits, \
+        f"the handoff does not state the {rupees:,.2f} it is handing over: {t!r}"
+    assert "exposure" in t.lower(), "the money is stated without being named"
+    assert "evidence" in t.lower(), "the handoff does not say what would resolve it"
+
+
+def test_no_engineering_measurement_is_stated_twice(inv):
+    """§39.4. One strong rendering, not three weak ones.
+
+    A page that reports the same measured number in three places reads as a
+    thesis restating itself rather than a product stating a fact. This caught a
+    real regression: a second engineering specimen was added in this phase
+    while `#proofs` already rendered all six of the same measurements, so every
+    one of them briefly appeared twice.
+    """
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const cl = await (await fetch(`/api/claims?run=${run.run_id}`)).json();
+      return {kernel: cl.kernel, iso: cl.isolation, adv: cl.adversarial,
+              gates: (cl.gates || []).length}; }""")
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(500)
+    body = " ".join(inv.inner_text("body").split())
+
+    import re as _re
+    checks = {
+        "kernel line count": rf"\b{truth['kernel']['lines']} ?line",
+        "module isolation": rf"\b{truth['iso']['clean']}\s*(of|/)\s*{truth['iso']['modules']}\b",
+        "gate tally": rf"\b{truth['gates']}\s*(of|/)\s*{truth['gates']}\b",
+    }
+    twice = {k: len(_re.findall(p, body, _re.I))
+             for k, p in checks.items() if len(_re.findall(p, body, _re.I)) > 1}
+    assert not twice, (
+        "these measurements are rendered more than once: "
+        + ", ".join(f"{k} x{n}" for k, n in twice.items())
+        + " — prefer one strong rendering")
+
+
+def test_the_benchmark_leads_with_the_decisive_number(inv):
+    """§39.5. Five seconds gets you the winner or it gets you nothing.
+
+    Coverage and false-proof are the trade; `decided - wrong` is the answer.
+    When it was set smaller than the row's other figures a judge read the bars,
+    saw ATTEST's short coverage bar, and left with the wrong conclusion.
+    """
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(600)
+    rows = inv.eval_on_selector_all(".bench-r", """els => els.map(e => {
+        const ok = e.querySelector('.bench-ok');
+        const others = [...e.querySelectorAll('b')].map(
+            n => parseFloat(getComputedStyle(n).fontSize));
+        return {ok: parseFloat(getComputedStyle(ok).fontSize),
+                others: Math.max(...others)}; })""")
+    assert rows, "the benchmark has no rows"
+    for r in rows:
+        assert r["ok"] > r["others"], (
+            f"correct-decisions is set at {r['ok']:.0f}px, no larger than the "
+            f"row's other figures at {r['others']:.0f}px")
+
+
+@pytest.mark.parametrize("width", [360, 390, 768])
+def test_the_navigation_is_one_row_on_a_phone(inv, width):
+    """§39.8. Mobile is not a shrunk desktop.
+
+    `#index` is the vertical instrument rail on desktop and was left at
+    `display:block` inside a row-direction nav on phones, so the seven
+    instruments stacked into a 96px column 169px tall and pushed the action off
+    the right edge. The nav scrolls horizontally, so no overflow check saw it —
+    the phone screenshot did.
+    """
+    inv.set_viewport_size({"width": width, "height": 844})
+    inv.wait_for_timeout(350)
+    m = inv.evaluate("""() => {
+      const n = document.querySelector('#nav'), i = document.querySelector('#index');
+      return {nav: n.getBoundingClientRect().height,
+              idx: i.getBoundingClientRect().height,
+              links: i.querySelectorAll('a').length}; }""")
+    inv.set_viewport_size({"width": 1400, "height": 900})
+    assert m["links"] >= 5, "the instrument rail lost its links"
+    assert m["idx"] <= 56, (
+        f"the instrument rail is {m['idx']:.0f}px tall at {width}px — it is "
+        "stacking into a column instead of running as one row")
+    assert m["nav"] <= 90, f"the phone navigation occupies {m['nav']:.0f}px"

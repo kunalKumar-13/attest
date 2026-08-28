@@ -1,6 +1,9 @@
 # ATTEST
 
-**Financial reconciliation that refuses to invent certainty.**
+**It won't move money it can't prove.**
+
+Financial reconciliation that reports what it proved, what it could not, and
+hands the unresolved work to a person.
 
 ```
 ₹53,02,701.96   processed

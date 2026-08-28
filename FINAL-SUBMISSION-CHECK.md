@@ -46,8 +46,8 @@ instead of evidence — not a failure to reconcile them.
 | **README** | **PASS** | reproduce section at line 26, both paths tabled, native build in the path, all 66 markdown files' links resolve |
 | **run-demo** | **PASS** | prints `ATTEST · GENERATED · <PATH>` and the envelope **before** any portfolio figure; portable branch explains INSUFFICIENT and gives the build command |
 | **Video script** | **PASS** | every portfolio figure now labelled native; 843 spoken words; no figure spoken that is not on the front door |
-| **Tests** | **366 passed**, 0 failed | full suite (Phase 38: 346 -> 366) |
-| **Contracts** | **174** browser contracts (168 + 6) + **8** export-safety proofs | `tests/test_shell_contract.py`, `tests/test_export_safety.py` |
+| **Tests** | **372 passed**, 0 failed | full suite (346 -> 366 -> 372) |
+| **Contracts** | **178** browser contracts + **8** export-safety proofs | `tests/test_shell_contract.py`, `tests/test_export_safety.py` |
 | **Gates** | **6/6 PASS** | `/api/claims` |
 | **Adversarial** | **34 attacks · 34 defended · 0 breached** | `benchmark/adversarial.json` |
 | **Stranger** | **10/10** above the fold | harness |
@@ -112,3 +112,29 @@ introduced to confirm each guarantee fails when violated.
 Engine output after Phase 38 is unchanged: 250 settlements, 52 PROVEN /
 197 AMBIGUOUS / 1 CONTRADICTED, ₹53,02,701.96 processed, 20.8% exact,
 0 wrong, 6/6 gates, 34/34 adversarial.
+
+
+## Phase 39 — the judge-impact pass
+
+Two files changed: `attest/ui/investigation.html` and the contract suite. **No
+Python at all** — not the engine, not `api.py`, not `web.py`. Benchmark
+artifacts byte-identical.
+
+| | before | after |
+|---|---|---|
+| headline | "refuses to invent certainty" | **"It won't move money it can't prove."** — 45px, first thing on screen |
+| handoff | 198 rows, in prose | **198 · ₹48,03,127.81 · evidence required**, stated as figures |
+| benchmark | correct-decisions at 13px | **21px, the largest figure in its row** |
+| engineering signal | already in `#proofs` | unchanged — a duplicate specimen was built here and **removed** |
+| repetition | isolation stated 3x, attacks 2x | **each measured figure rendered once** |
+| phone navigation | rail stacked into a 169px column | **one 56px scrolling row** |
+| orphan front door | `/story.html` served the old headline | **removed** |
+
+Items 2, 6 and 7 were audited and needed no change: the workflow is already
+carried by the rail lifecycle and the manifest disposition, the engineering
+specimen already existed at `#proofs`, and the signature frame is intact
+(652px, 63 ticks / 27 filled, actors in order, both verdicts AMBIGUOUS).
+
+Hostile 15-second test 6/6, hostile 60-second test 6/6, stranger test 10/10 —
+all answered from the product with no documentation open. Engine output
+unchanged: 52/197/1, 20.8% exact, 0 wrong, 6/6 gates, 34/34 adversarial.

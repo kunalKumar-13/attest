@@ -18,14 +18,17 @@ two pauses; they are marked.
 
 ## 0:00 — 0:15 · Hook
 
-> A reconciliation system's output is not an answer. It is a claim about
-> whether the evidence supports acting.
+> It won't move money it can't prove.
 >
-> This is ATTEST. Fifty-three lakh rupees, two hundred and fifty settlements,
-> one finance-ops loop — synthetic data, by design, because known ground truth
-> is the only way to measure how often a system is confidently wrong.
+> That sentence is the whole product. This is ATTEST — fifty-three lakh rupees,
+> two hundred and fifty settlements, one finance-ops loop. Synthetic data by
+> design, because known ground truth is the only way to measure how often a
+> system is confidently wrong.
 
-*On screen: the run manifest. ₹53,02,701.96 · 250 · 2,368 · seed 20260821.*
+*On screen: the front door as it loads. The headline is the first thing said
+and the first thing shown — do not scroll during this line. The run manifest is
+already beside it: ₹53,02,701.96 · 250 · 2,368 · seed 20260821, and the
+model/solver/engine sequence in the lower half of the manifest.*
 
 ## 0:15 — 0:40 · The loop
 
@@ -147,9 +150,9 @@ the one to use as the submission thumbnail.*
 > and ninety-seven settlements. No financial action. Supply an order-level
 > reference.
 >
-> There is exactly one button here, and it does not move money. It exports the
-> hundred and ninety-eight unresolved settlements with the evidence needed to
-> work them: the contested orders, the blocker, the specific evidence that
+> There is exactly one button here, and it does not move money. A hundred and
+> ninety-eight unresolved, forty-eight lakh of exposure, evidence required. It
+> exports those settlements with what is needed to work them: the contested orders, the blocker, the specific evidence that
 > would settle each one, and the versions the verdict was produced under.
 >
 > That is the boundary. We refuse to guess, and we hand the unresolved work to

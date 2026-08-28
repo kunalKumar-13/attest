@@ -301,7 +301,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   letter-spacing:.18em;text-transform:uppercase;color:var(--dim2);margin-top:8px}
 .score-c.a b{color:var(--coral)} .score-c.p b{color:var(--proven)}
 .bench{margin-top:26px}
-.bench-r{display:grid;grid-template-columns:100px minmax(0,1fr) 84px minmax(0,1fr) 62px 74px;
+.bench-r{display:grid;grid-template-columns:96px minmax(0,1fr) 80px minmax(0,1fr) 58px 92px;
   gap:0 12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule)}
 .bench-r > *{min-width:0}
 .bench-r i{font-style:normal;letter-spacing:.1em;text-transform:uppercase;
@@ -322,10 +322,11 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   text-align:right;font-family:var(--m);font-variant-numeric:tabular-nums}
 /* correct = decided − wrong. Both fields are published in the artifact; the
    subtraction is the comparison's whole point and is not a new metric. */
-.bench-r em.bench-ok{font-size:var(--t-small);color:var(--dim)}
+.bench-r em.bench-ok{font-size:clamp(15px,1.5vw,21px);color:var(--ink);
+  letter-spacing:-.02em}
 .bench-r.me em.bench-ok{color:var(--proven);font-weight:700}
 .bench-r.me em,.bench-r.me b{color:var(--ink)}
-.bench-h{display:grid;grid-template-columns:100px minmax(0,1fr) 84px minmax(0,1fr) 62px 74px;
+.bench-h{display:grid;grid-template-columns:96px minmax(0,1fr) 80px minmax(0,1fr) 58px 92px;
   gap:0 12px;padding-bottom:7px;border-bottom:1px solid var(--rule2);
   font-family:var(--m);font-size:var(--t-nano);letter-spacing:.13em;
   text-transform:uppercase;color:var(--dim3)}
@@ -499,7 +500,14 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
    ever used for. */
 .hand{margin-top:clamp(26px,4.4vh,52px);border-top:1px solid rgba(255,255,255,.28);
   padding-top:clamp(16px,2.6vh,28px)}
-.hand-p{margin-top:10px;max-width:52ch;color:rgba(255,255,255,.72);
+.hand-f{display:flex;flex-wrap:wrap;gap:14px clamp(20px,4vw,60px);
+  margin-top:clamp(14px,2.2vh,22px);align-items:baseline}
+.hand-f .u{display:flex;flex-direction:column;gap:6px}
+.hand-f b{font-family:var(--m);font-weight:400;font-variant-numeric:tabular-nums;
+  letter-spacing:-.04em;font-size:clamp(20px,2.4vw,34px);color:#fff}
+.hand-f .u:last-child b{font-size:clamp(14px,1.4vw,19px);letter-spacing:.04em;
+  text-transform:uppercase;color:var(--coral)}
+.hand-p{margin-top:clamp(16px,2.4vh,26px);max-width:52ch;color:rgba(255,255,255,.72);
   font-size:var(--t-body);line-height:1.6}
 .hand-p b{color:#fff;font-weight:500}
 .hand-a{margin-top:clamp(16px,2.4vh,26px)}
@@ -517,7 +525,14 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
     overflow-x:auto;scrollbar-width:none}
   #nav::-webkit-scrollbar{display:none}
   #nav .grp,#nav .sp,#nav .sys{display:none}
-  #nav .enter{margin:0;padding:8px 10px}
+  /* #index is the vertical rail on desktop and was left as a block here, so
+     the seven instruments stacked into a 96px column inside a row-direction
+     nav and pushed the action off the right edge. It scrolls, so no overflow
+     check saw it; only the phone screenshot did. */
+  #nav #index{display:flex;flex-direction:row;align-items:center;
+    gap:0 16px;flex:0 0 auto}
+  #nav #index a{white-space:nowrap}
+  #nav .enter{margin:0;padding:8px 10px;flex:0 0 auto;white-space:nowrap}
   #nav .wm{margin:0 8px 0 0}
   #nav a{white-space:nowrap;padding:2px 0}
   /* `flex-wrap:wrap` never got the chance to wrap: the provenance span is one
@@ -1107,9 +1122,8 @@ async function build(){
 
 <section id=open>
   <div class="row hero-row">
-    ${rise('', mk(0,'the investigation','finance system'))}
-    ${rise('', `<h1 class=hero-t>Financial reconciliation that refuses to invent
-         certainty.</h1>
+    ${rise('', mk(0,'financial reconciliation','settlement verification'))}
+    ${rise('', `<h1 class=hero-t>It won't move money<br>it can't prove.</h1>
          <p class=sub>250 settlements went in. It proved ${c.PROVEN}, and it
            did not force the other ${c.AMBIGUOUS+c.CONTRADICTED} into an
            answer.</p>
@@ -1467,15 +1481,15 @@ async function build(){
 <section id=trust>
   ${rise('row', mk(10,'trust','what is not claimed')
     + `<h2 class=chapter>Live Razorpay account validation: not verified.</h2>`
-    + (adv.present?`<div><p class=say>Each attack is an attempt to move money
-        the engine should not be able to move. A refusal counts as a defence;
-        an exception from the harness does not, and there
-        ${adv.harness_errors===1?'was':'were'} ${adv.harness_errors} of
-        those.</p></div>`:'<div></div>'))}
-  ${adv.present?rise('attk',`
-    <div class=attk-c><b>${adv.attacks}</b><span>attacks</span></div>
-    <div class="attk-c ok"><b>${adv.defended}</b><span>defended</span></div>
-    <div class="attk-c ok"><b>${adv.breached}</b><span>breached</span></div>`,1):''}
+    + `<div><p class=say>This instrument reports what ATTEST does
+        <em>not</em> establish. Where something is unverified it is listed as
+        unverified rather than omitted.</p></div>`)}
+  ${adv.present?rise('', `<p class=say style="margin-top:14px">Each attack is
+    an attempt to move money the engine should not be able to move. A refusal
+    counts as a defence; an exception from the harness does not, and there
+    ${adv.harness_errors===1?'was':'were'} ${adv.harness_errors} of those. The
+    counts are in <b>the machinery</b> above, measured by the pass that ran
+    them.</p>`,1):''}
   ${rise('adapter', `<hr class=rule>
     <span class=lbl>where the provider stops</span>
     <div class=ad-r><b>Razorpay</b><span>settlements and orders, as the
@@ -1485,14 +1499,12 @@ async function build(){
       no provider in it</span></div>
     <div class=ad-b>·</div>
     <div class="ad-r eng"><b>ATTEST engine</b><span>${iso.isolated
-      ? `all ${iso.clean} of ${iso.modules} modules that produce a verdict were
-         read; none contains the string <em>${esc(iso.provider)}</em>`
+      ? `does not know <em>${esc(iso.provider)}</em> exists — measured above`
       : `${(iso.mentions||[]).length} of ${iso.modules} modules name the
-         provider`}</span></div>
-    <p class=say style="margin-top:16px;max-width:60ch">The financial reasoning
-      is not tailored to one provider — swap the adapter and the same verdict is
-      produced. <b>Live account validation is not verified</b>, and every figure
-      on this page describes generated data.</p>`, 2)}
+         provider; the portability claim does not hold`}</span></div>
+    <p class=say style="margin-top:16px;max-width:60ch">Swap the adapter and the
+      same verdict is produced. The engine's correctness does not depend on
+      whose settlement report it was.</p>`, 2)}
   ${rise('', `<hr class=rule><span class=lbl>what ATTEST does not claim</span>`
     + (claims.unknowns||[]).slice(0,6).map(u=>`
     <div class=refuse-r><b>${esc(u.what)}</b><span>${esc(u.why)}</span>
@@ -1502,15 +1514,11 @@ async function build(){
 <div class=warm id=boundary>
   ${rise('row', mk(11,'the boundary','where it stops')
     + `<h2 class=chapter>The engine knows when to stop.</h2>`
-    + `<div><p class=say>${iso.isolated
-        ? `All <b>${iso.clean} of ${iso.modules}</b> modules that produce a
-           verdict were read, and none contains the string
-           <span class=mono>${esc(iso.provider)}</span>. The engine does not
-           know Razorpay exists — a measurement, not a claim.`
-        : `${(iso.mentions||[]).length} of ${iso.modules} engine modules name
-           the provider. The portability claim does not currently hold.`}</p>
-       <p class=say>Every figure describes generated data, and the product says
-         so on its own Trust instrument.</p></div>`)}
+    + `<div><p class=say>Nothing here failed. These settlements reconciled —
+        several disjoint sets of orders satisfy each credit exactly, and
+        arithmetic cannot choose between them. <b>The engine could pick one and
+        be right most of the time.</b> It does not, because most of the time is
+        not a standard you can run a ledger on.</p></div>`)}
   ${rise('warm-figs', `
     <span class=u><b>${esc(rupee(blocker.leverage_paise||blocker.value_paise||0))}</b>
       <span class=lbl>blocked</span></span>
@@ -1519,17 +1527,22 @@ async function build(){
   ${rise('ask', `Supply an order-level reference.`, 2)}
   ${rise('hand', `
     <span class=lbl>and until someone does</span>
-    <p class=hand-p>The queue does not sit here. <b>${exportable}
-      unresolved settlements</b> — the ${c.AMBIGUOUS} above, plus
-      ${[[c.CONTRADICTED,'contradicted'],[c.INSUFFICIENT,'insufficient']]
-        .filter(([n])=>n>0).map(([n,l])=>`${n} ${l}`).join(' and ')} — leave
-      with the evidence needed to work them: the contested orders, the blocker,
-      the specific evidence that would settle each one, and the rule, policy and
-      solver versions the verdict was produced under.</p>
+    <div class=hand-f>
+      <span class=u><b>${exportable}</b><span class=lbl>unresolved</span></span>
+      <span class=u><b>${esc(stop.held_value||'')}</b><span class=lbl>exposure</span></span>
+      <span class=u><b>evidence required</b><span class=lbl>to resolve any of them</span></span>
+    </div>
+    <p class=hand-p>Each row carries the contested orders, the blocker, the
+      specific evidence that would settle it, and the rule, policy and solver
+      versions the verdict was produced under. <b>${c.AMBIGUOUS} of the
+      ${exportable} share one cause</b> — the ${esc(rupee(
+        blocker.leverage_paise||blocker.value_paise||0))} above — so one answer
+      settles most of the file.</p>
     <a class="act-line hand-a" id=export
        href="/api/export/queue?run=${encodeURIComponent(run.run_id)}&format=csv"
        download>export investigation queue <i>↓</i></a>
-    <span class=hand-n>read-only · nothing is posted, mutated or transmitted</span>`, 3)}
+    <span class=hand-n>read-only · no financial action · nothing is posted,
+      mutated or transmitted</span>`, 3)}
 </div>
 
 <section id=end>
