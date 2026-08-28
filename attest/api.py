@@ -2626,3 +2626,99 @@ def trust_claims(r: Run | None = None) -> dict[str, Any]:
         "anchoring": anchoring_measurement(),
         "isolation": engine_isolation(),
     }
+
+
+def export_queue(r: Run) -> dict[str, Any]:
+    """The unresolved queue, with the evidence a person needs to resolve it. §38.
+
+    The product refuses to post what it cannot prove. Until now that refusal
+    ended the story on screen: an operator could read 197 unresolved
+    settlements and had no way to take them anywhere. "We stop here" and "we
+    hand the work to the person who can finish it" are different products, and
+    only the second one is finished.
+
+    This is a **read**. It derives rows from a run that has already happened and
+    returns them. It writes nothing, posts nothing, calls nothing, and cannot
+    change a verdict — the ledger, the policy and the solver are not reachable
+    from this function, which is the property `tests/test_export_safety.py`
+    pins by inspection rather than by assertion.
+
+    Every row carries what the person opening it needs: which settlement, how
+    much, what the engine concluded, why it stopped, which orders are actually
+    in dispute, what evidence would settle it, and the versions the verdict was
+    produced under — so a resolution can be traced back to the run that asked
+    for it.
+    """
+    from attest.verdict import Verdict
+
+    st = {x.settlement_id: x for x in r.settlements}
+    prov = r.provenance.to_json() if r.provenance else {}
+    unresolved = (Verdict.AMBIGUOUS, Verdict.CONTRADICTED, Verdict.INSUFFICIENT)
+
+    rows: list[dict[str, Any]] = []
+    for f in r.findings:
+        if f.verdict not in unresolved:
+            continue
+        s = st.get(f.settlement_id)
+        if s is None:
+            continue
+        ex = r.exceptions.get(f.settlement_id)
+
+        # Which orders are genuinely in dispute: present in some surviving
+        # explanation and absent from another. Orders common to every
+        # explanation are not what the ambiguity is about, and shipping the
+        # union would hand a person a pool to re-sift by hand.
+        sets = [set(p.order_ids) for p in f.proofs]
+        union: set[str] = set().union(*sets) if sets else set()
+        common: set[str] = set.intersection(*sets) if sets else set()
+        contested = sorted(union - common)
+
+        sp = getattr(f, "space", None)
+        rows.append({
+            "run_id": r.run_id,
+            "settlement_id": f.settlement_id,
+            "amount_paise": s.net_paise,
+            "amount_inr": f"{s.net_paise / 100:.2f}",
+            "verdict": f.verdict.value,
+            "blocker": ex.reason.value if ex else "",
+            "why": (ex.why if ex and getattr(ex, "why", None)
+                    else _question_for(ex.reason.value) if ex else ""),
+            "explanations": len(f.proofs),
+            "candidate_orders": sp.candidates if sp is not None else "",
+            "contested_order_ids": " ".join(contested),
+            "common_order_ids": " ".join(sorted(common)),
+            "required_next_evidence": (ex.next_step if ex else ""),
+            "settled_on": str(getattr(s, "settled_on", "")),
+            "utr": getattr(s, "utr", ""),
+            "rules_version": prov.get("rules_version", ""),
+            "policy_version": prov.get("policy_version", ""),
+            "solver_version": prov.get("solver_version", ""),
+            "dataset_version": prov.get("dataset_version", ""),
+            "model_version": prov.get("model_version", ""),
+        })
+
+    rows.sort(key=lambda x: (-x["amount_paise"], x["settlement_id"]))
+    return {
+        "run_id": r.run_id,
+        "rows": rows,
+        "count": len(rows),
+        "value_paise": sum(x["amount_paise"] for x in rows),
+        "fields": list(rows[0].keys()) if rows else [],
+        "note": ("Read-only. Derived from a completed run; nothing was posted, "
+                 "mutated or transmitted to produce it."),
+    }
+
+
+def export_queue_csv(r: Run) -> str:
+    """`export_queue` as CSV. Same read, one serialisation."""
+    import csv
+    import io
+
+    q = export_queue(r)
+    if not q["rows"]:
+        return ""
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=q["fields"], lineterminator="\n")
+    w.writeheader()
+    w.writerows(q["rows"])
+    return buf.getvalue()

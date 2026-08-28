@@ -126,6 +126,26 @@ class Handler(BaseHTTPRequestHandler):
                 int(q.get("exposure", ["10000000"])[0]),
             ) if r else {"error": "unknown run"}, 200 if r else 404)
 
+        # §38.P0-3. A read, on GET, with no side effect. The queue leaves as
+        # a file so the refusal has somewhere to go; nothing about the run
+        # changes because it was asked for.
+        elif u.path == "/api/export/queue":
+            r = api.get(q.get("run", [""])[0])
+            if r is None:
+                self._json({"error": "unknown run"}, 404)
+            elif q.get("format", ["json"])[0] == "csv":
+                body = api.export_queue_csv(r).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition",
+                                 f'attachment; filename="attest-queue-{r.run_id}.csv"')
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self._json(api.export_queue(r))
+
         elif u.path == "/api/observatory":
             self._json(api.observatory())
 

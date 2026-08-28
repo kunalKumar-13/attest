@@ -46,8 +46,8 @@ instead of evidence — not a failure to reconcile them.
 | **README** | **PASS** | reproduce section at line 26, both paths tabled, native build in the path, all 66 markdown files' links resolve |
 | **run-demo** | **PASS** | prints `ATTEST · GENERATED · <PATH>` and the envelope **before** any portfolio figure; portable branch explains INSUFFICIENT and gives the build command |
 | **Video script** | **PASS** | every portfolio figure now labelled native; 843 spoken words; no figure spoken that is not on the front door |
-| **Tests** | **346 passed**, 0 failed | full suite |
-| **Contracts** | **168** browser contracts | `tests/test_shell_contract.py` |
+| **Tests** | **366 passed**, 0 failed | full suite (Phase 38: 346 -> 366) |
+| **Contracts** | **174** browser contracts (168 + 6) + **8** export-safety proofs | `tests/test_shell_contract.py`, `tests/test_export_safety.py` |
 | **Gates** | **6/6 PASS** | `/api/claims` |
 | **Adversarial** | **34 attacks · 34 defended · 0 breached** | `benchmark/adversarial.json` |
 | **Stranger** | **10/10** above the fold | harness |
@@ -90,3 +90,25 @@ decider.
 ready (`docs/DEMO-SCRIPT-35.md`, `docs/DEMO-SHOTLIST-35.md`,
 `docs/VIDEO-README-35.md`). Build the native kernel first and confirm
 `run-demo` prints `NATIVE KERNEL` before recording.
+
+
+## Phase 38 — the productization pass
+
+Three changes, no engine, no benchmark, no policy, no adapter. Every frozen
+file is byte-identical; `attest/api.py` and `attest/web.py` are purely
+additive (96 and 20 lines, zero deletions).
+
+| | before | after |
+|---|---|---|
+| model boundary | 4 blocks over 1,545px | **one 652px frame**, screenshottable |
+| benchmark | false-proof rate alone | **coverage + false proof on one scale**, plus correct decisions (ATTEST 80 · greedy 23) |
+| the refusal | ended the page | **exports 198 unresolved settlements** with contested orders and required evidence |
+
+The export is a read, pinned by `tests/test_export_safety.py`: the run, the
+ledger, and the filesystem are compared before and after, the source is read
+for the names of every mutating call, and seven deliberate mutations were
+introduced to confirm each guarantee fails when violated.
+
+Engine output after Phase 38 is unchanged: 250 settlements, 52 PROVEN /
+197 AMBIGUOUS / 1 CONTRADICTED, ₹53,02,701.96 processed, 20.8% exact,
+0 wrong, 6/6 gates, 34/34 adversarial.

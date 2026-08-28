@@ -59,8 +59,13 @@ two pauses; they are marked.
 > Exact-only is safer than us. It also decides a quarter as much. We are not
 > optimising for the most decisions — we are optimising for knowing when a
 > decision is justified.
+>
+> Look at the last column. Correct decisions: greedy makes twenty-three. We
+> make eighty. It decides five and a half times as often as we do and ends up
+> with fewer answers it can stand behind.
 
-*On screen: the benchmark, both populations labelled above it.*
+*On screen: the benchmark. Coverage and false-proof drawn on one scale, the
+correct-decision count in the right-hand column.*
 
 ## 1:05 — 1:35 · The real cost
 
@@ -109,7 +114,10 @@ two pauses; they are marked.
 > without reading the model's, so agreement and disagreement are equally
 > inconsequential.
 
-*Pause. On screen: NO FINANCIAL ACTION.*
+*Pause. On screen: the whole model frame in one shot — model proposes, solver
+tests, engine decides, twenty-seven of sixty-three below the coin-flip marker,
+NO FINANCIAL ACTION across the bottom. This is the frame to hold longest and
+the one to use as the submission thumbnail.*
 
 ## 2:45 — 3:20 · Engineering, not a prompt
 
@@ -139,8 +147,15 @@ two pauses; they are marked.
 > and ninety-seven settlements. No financial action. Supply an order-level
 > reference.
 >
-> There is no button here, and that is deliberate. There is nothing honest for
-> the software to do next.
+> There is exactly one button here, and it does not move money. It exports the
+> hundred and ninety-eight unresolved settlements with the evidence needed to
+> work them: the contested orders, the blocker, the specific evidence that
+> would settle each one, and the versions the verdict was produced under.
+>
+> That is the boundary. We refuse to guess, and we hand the unresolved work to
+> the person who can resolve it.
+
+*On screen: the export in the boundary room, and the read-only line under it.*
 
 ## 4:20 — 4:45 · Why this matters
 

@@ -14,6 +14,7 @@ SOLVER    tests.
 ENGINE    decides.
 POLICY    permits.
 LEDGER    records.
+OPERATOR  resolves what evidence could not.
 ```
 
 ## For a reviewer — the five-minute path
@@ -21,7 +22,17 @@ LEDGER    records.
 Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
 batch of synthetic data, **reporting its match rate and the exceptions it could
 not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate, and the
-198 exceptions it could not resolve are the product rather than a footnote.
+198 exceptions it could not resolve are the product rather than a footnote —
+and they leave the system as a work queue, with the contested orders, the
+blocker and the evidence that would settle each one:
+
+```bash
+curl "http://127.0.0.1:8420/api/export/queue?run=<id>&format=csv"
+```
+
+That export is a read. `tests/test_export_safety.py` pins it: the run, the
+ledger and the filesystem are compared before and after, and the source is read
+for the names of every mutating call.
 
 ### Reproduce the demo
 

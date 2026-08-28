@@ -301,31 +301,36 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   letter-spacing:.18em;text-transform:uppercase;color:var(--dim2);margin-top:8px}
 .score-c.a b{color:var(--coral)} .score-c.p b{color:var(--proven)}
 .bench{margin-top:26px}
-.bench-r{display:grid;grid-template-columns:120px minmax(0,1fr) 74px 96px;
-  gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--rule);
-  font-family:var(--m);font-size:var(--t-small)}
+.bench-r{display:grid;grid-template-columns:100px minmax(0,1fr) 84px minmax(0,1fr) 62px 74px;
+  gap:0 12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule)}
+.bench-r > *{min-width:0}
 .bench-r i{font-style:normal;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--dim)}
+  font-family:var(--m);font-size:var(--t-nano);color:var(--dim2)}
 .bench-r.me i{color:var(--ink)}
 .bench-t{height:5px;background:rgba(255,255,255,.07);position:relative}
-/* `inset:0 auto 0 0` pins three edges and leaves the width to shrink-to-fit —
-   which, on an empty element, is zero. scaleX() of zero is zero at every
-   value of --w, so all four bars measured 0px while the track behind them
-   looked like a full grey bar. */
 .bench-t u.q{position:absolute;top:0;bottom:0;left:0;width:100%;
-  text-decoration:none;
-  background:var(--coral);transform-origin:left;transform:scaleX(var(--w,0));
-  transition:transform 1s cubic-bezier(.16,1,.3,1)}
+  transform-origin:left;transform:scaleX(var(--w,0));background:var(--coral);
+  transition:transform .7s cubic-bezier(.2,.7,.3,1)}
+.bench-t u.q.cov{background:var(--dim2)}
+.bench-r.me .bench-t u.q.cov{background:var(--ink)}
 .rise:not(.in) .bench-t u.q{transform:scaleX(0)}
-.bench-r.me .bench-t u.q{background:var(--proven)}
+@media (prefers-reduced-motion:reduce){.bench-t u.q{transition:none}}
 .bench-r b{font-weight:400;font-variant-numeric:tabular-nums;text-align:right;
-  letter-spacing:-.02em}
+  font-family:var(--m);font-size:var(--t-micro);color:var(--dim)}
+.bench-r b.win{color:var(--ink)}
 .bench-r em{font-style:normal;color:var(--dim2);font-size:var(--t-nano);
-  letter-spacing:.14em;text-transform:uppercase;text-align:right}
-.bench-h{display:grid;grid-template-columns:120px minmax(0,1fr) 74px 96px;
-  gap:14px;font-family:var(--m);font-size:var(--t-nano);letter-spacing:.18em;
-  text-transform:uppercase;color:var(--dim3);padding-bottom:6px}
-.bench-h span:nth-child(3),.bench-h span:nth-child(4){text-align:right}
+  text-align:right;font-family:var(--m);font-variant-numeric:tabular-nums}
+/* correct = decided − wrong. Both fields are published in the artifact; the
+   subtraction is the comparison's whole point and is not a new metric. */
+.bench-r em.bench-ok{font-size:var(--t-small);color:var(--dim)}
+.bench-r.me em.bench-ok{color:var(--proven);font-weight:700}
+.bench-r.me em,.bench-r.me b{color:var(--ink)}
+.bench-h{display:grid;grid-template-columns:100px minmax(0,1fr) 84px minmax(0,1fr) 62px 74px;
+  gap:0 12px;padding-bottom:7px;border-bottom:1px solid var(--rule2);
+  font-family:var(--m);font-size:var(--t-nano);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3)}
+.bench-h span:nth-child(3),.bench-h span:nth-child(5),
+.bench-h span:nth-child(6){text-align:right}
 
 /* ── the population field ────────────────────────────────────────────── */
 .stage{position:relative;width:100%;min-height:clamp(200px,32vh,340px);
@@ -487,6 +492,21 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   border-top:1px solid rgba(18,19,15,.15);padding-top:clamp(16px,2.6vh,28px)}
 #end .foot p{color:#55564e;font-size:var(--t-small);max-width:54ch}
 #end .act-line{color:#12130f;border-color:#12130f}
+/* ── the handoff ─────────────────────────────────────────────────────────
+   §38.P0-3. The refusal used to end the page. "We stop here" and "we hand the
+   work to whoever can finish it" are different products; only the second is
+   finished. Lime because it is an action, which is the only thing lime is
+   ever used for. */
+.hand{margin-top:clamp(26px,4.4vh,52px);border-top:1px solid rgba(255,255,255,.28);
+  padding-top:clamp(16px,2.6vh,28px)}
+.hand-p{margin-top:10px;max-width:52ch;color:rgba(255,255,255,.72);
+  font-size:var(--t-body);line-height:1.6}
+.hand-p b{color:#fff;font-weight:500}
+.hand-a{margin-top:clamp(16px,2.4vh,26px)}
+.hand-n{display:block;margin-top:12px;font-family:var(--m);
+  font-size:var(--t-nano);letter-spacing:.13em;text-transform:uppercase;
+  color:rgba(255,255,255,.44)}
+
 .err{font-family:var(--m);color:var(--coral);border:1px solid var(--coral);
   padding:20px;max-width:56ch;font-size:var(--t-small)}
 
@@ -500,8 +520,13 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   #nav .enter{margin:0;padding:8px 10px}
   #nav .wm{margin:0 8px 0 0}
   #nav a{white-space:nowrap;padding:2px 0}
+  /* `flex-wrap:wrap` never got the chance to wrap: the provenance span is one
+     unbreakable mono line, so at 390px the strip held 434px of content behind
+     `overflow:hidden` and the run id was silently cut off. Nothing on this page
+     may hide a figure it claims to publish. */
   #strip{position:static;left:0;height:auto;padding:8px var(--gut);
-    flex-wrap:wrap;gap:6px 0}
+    flex-wrap:wrap;gap:6px 0;overflow-x:auto;scrollbar-width:none}
+  #strip::-webkit-scrollbar{display:none}
   #strip span{padding:0 10px}
   main{margin-left:0;padding-top:0}
   .row{grid-template-columns:minmax(0,1fr);gap:12px}
@@ -511,8 +536,9 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .score-c{padding:14px 14px 16px;border-left:1px solid var(--rule);
     border-top:1px solid var(--rule)}
   .score-c:nth-child(odd){padding-left:0;border-left:0}
-  .bench-r,.bench-h{grid-template-columns:88px minmax(0,1fr) 62px}
-  .bench-r em,.bench-h span:nth-child(4){display:none}
+  .bench-r,.bench-h{grid-template-columns:74px minmax(0,1fr) minmax(0,1fr) 58px;
+    gap:0 9px}
+  .bench-r b,.bench-h span:nth-child(3),.bench-h span:nth-child(5){display:none}
   .refuse-r{grid-template-columns:minmax(0,1fr);gap:4px}
   .refuse-r i{justify-self:start}
   .chain-e{grid-template-columns:minmax(0,1fr)}
@@ -640,6 +666,111 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
 /* ── the benchmark's claim ──────────────────────────────────────────────
    The measurement is a table; this is the argument it supports, and without
    it the table reads as a leaderboard ATTEST does not win. */
+/* ── the signature frame ─────────────────────────────────────────────────
+   §38.P0-1. The three actors, the counterfactual, the measurement and the
+   consequence used to be four blocks spread over 1,545px starting at y=5374.
+   Every fact was present and none of it was a frame: it could be read, and it
+   could not be screenshotted. This composes the same values — no new data —
+   into one specimen sheet that fits a viewport.
+
+   Glyphs are the page's existing grammar: ◇ proposes, ○ tests, ● decides.
+   The tick row is a population, drawn the way every other population on this
+   page is drawn, so 42.9% is seen rather than asserted. */
+.sig{border:1px solid var(--rule2);background:var(--sur);position:relative;
+  padding:clamp(18px,2.1vw,30px);margin-top:26px}
+.sig::before,.sig::after{content:"";position:absolute;width:9px;height:9px;
+  border:1px solid var(--coral);pointer-events:none}
+.sig::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.sig::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.sig-h{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:11px}
+.sig-h i{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.17em;text-transform:uppercase;color:var(--coral)}
+.sig-h span{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.11em;
+  text-transform:uppercase;color:var(--dim3)}
+
+/* three actor rows */
+.sig-r{display:grid;grid-template-columns:26px 104px minmax(0,1fr);
+  gap:0 14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--rule)}
+.sig-r > *{min-width:0}
+.sig-gl{width:11px;height:11px;margin-top:5px;display:block}
+.sig-r.model .sig-gl{background:var(--dim2);
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}          /* ◇ proposes */
+.sig-r.solver .sig-gl{border:1.5px solid var(--dim2);border-radius:50%}  /* ○ tests */
+.sig-r.engine .sig-gl{background:var(--ink);border-radius:50%}           /* ● decides */
+.sig-a{font-size:15px;font-weight:600;letter-spacing:-.02em;line-height:1.3}
+.sig-a em{display:block;font-style:normal;font-family:var(--m);
+  font-size:var(--t-nano);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim3);font-weight:400;margin-top:3px}
+.sig-r.engine .sig-a{color:var(--ink)}
+.sig-v{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}
+.sig-o{font-family:var(--m);font-size:13px;font-weight:400;color:var(--ink);
+  background:var(--sur2);border:1px solid var(--rule);padding:2px 7px;
+  letter-spacing:.02em}
+.sig-r.solver .sig-o{color:var(--coral);border-color:rgba(255,101,90,.34)}
+.sig-w{flex:1 1 200px;color:var(--dim2);font-size:var(--t-small);line-height:1.5}
+.sig-w b{color:var(--dim);font-weight:500}
+
+/* the counterfactual pair */
+.sig-cf{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);
+  gap:0 10px;align-items:center;padding:15px 0;border-bottom:1px solid var(--rule)}
+.sig-cf > *{min-width:0}
+.cf-c{display:flex;flex-direction:column;gap:4px}
+.cf-c .lbl{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim3)}
+.cf-c b{font-size:clamp(19px,1.9vw,26px);font-weight:500;letter-spacing:-.035em;
+  color:var(--ink);line-height:1.1}
+.cf-c em{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.1em;text-transform:uppercase;color:var(--dim3)}
+.sig-op{font-family:var(--m);font-size:19px;color:var(--dim3);text-align:center}
+
+/* the measurement — 63 ticks, 27 filled, a coin flip marked */
+.sig-m{padding:15px 0 0}
+.sig-mh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sig-mh b{font-family:var(--m);font-size:clamp(20px,2.1vw,29px);font-weight:400;
+  color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.sig-mh span{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim2)}
+.sig-mh u{text-decoration:none;font-family:var(--m);font-size:var(--t-micro);
+  color:var(--coral);letter-spacing:.06em;margin-left:auto}
+.sig-ticks{display:flex;gap:2px;margin-top:10px;position:relative;height:19px;
+  align-items:stretch}
+.sig-tk{flex:1 1 0;min-width:0;background:rgba(255,255,255,.09);display:block}
+.sig-tk.hit{background:var(--dim)}
+.sig-half{position:absolute;top:-4px;bottom:-4px;left:50%;width:1px;
+  background:var(--coral);pointer-events:none}
+.sig-half b{position:absolute;top:-13px;left:5px;font-family:var(--m);
+  font-size:var(--t-nano);letter-spacing:.11em;text-transform:uppercase;
+  color:var(--coral);font-weight:400;white-space:nowrap}
+.sig-mn{margin-top:15px;color:var(--dim2);font-size:var(--t-small);
+  line-height:1.5;max-width:66ch}
+.sig-mn b{color:var(--dim);font-weight:500}
+
+/* the consequence — the largest thing in the section, by contract */
+.sig-x{margin-top:clamp(16px,1.9vw,24px);border-top:1px solid rgba(255,101,90,.34);
+  padding-top:clamp(13px,1.5vw,18px);display:flex;justify-content:space-between;
+  align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-x b{font-size:clamp(32px,4.1vw,58px);font-weight:600;letter-spacing:-.045em;
+  color:var(--coral);line-height:1;text-transform:uppercase}
+.sig-x span{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3);text-align:right}
+@media (max-width:720px){
+  .sig-r{grid-template-columns:20px minmax(0,1fr);gap:0 10px}
+  .sig-r .sig-v{grid-column:1 / -1;margin-top:9px}
+  /* all three actors stack the same way: the engine's note is short enough to
+     sit beside its value while the other two wrap, which read as a different
+     kind of row rather than the same row with less text. */
+  .sig-w{flex:1 1 100%}
+  .sig-cf{grid-template-columns:minmax(0,1fr);gap:12px}
+  .sig-op{text-align:left}
+  /* `margin-left:auto` put the ratio hard right, where it landed on top of the
+     coin-flip marker's label at 50%. */
+  .sig-mh u{margin-left:0;flex:1 1 100%}
+  /* the marker's label hangs 13px above the tick row; once the ratio wraps to
+     its own full-width line that space is occupied, so the ticks take the gap
+     the label needs rather than the label moving somewhere it means less. */
+  .sig-ticks{margin-top:26px}
+}
 .bench-note{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
   gap:clamp(16px,2.6vw,44px);margin-top:clamp(18px,2.6vh,30px);
   padding-top:clamp(16px,2.4vh,26px);border-top:1px solid var(--rule)}
@@ -949,6 +1080,7 @@ async function build(){
     const base=claims.baselines||{present:false}, anch=claims.anchoring||{};
     const krn=claims.kernel||{present:false};
     const top=Math.max(...spine.stages.map(s=>s.continues_paise),1);
+    const exportable=(c.AMBIGUOUS||0)+(c.CONTRADICTED||0)+(c.INSUFFICIENT||0);
     const rupee=p=>`₹${(p/100).toLocaleString('en-IN',
       {minimumFractionDigits:2,maximumFractionDigits:2})}`;
     const stop=spine.stages.find(s=>s.state==='stopped')||{};
@@ -1052,24 +1184,30 @@ async function build(){
         <em>${esc(String(base.panel.seeds))} seeds × ${esc(String(base.panel.per_seed))},
           held out from the run above</em></span>
     </div>
-    <div class=bench-h><span>method</span><span>false proof rate</span>
-      <span>rate</span><span>decided</span></div>
+    <div class=bench-h><span>method</span><span>coverage — decided</span>
+      <span>of panel</span><span>false proof — of those decided</span>
+      <span>rate</span><span>correct</span></div>
     ${base.methods.map(m=>`<div class="bench-r${m.key==='attest'?' me':''}">
       <i>${esc(m.label)}</i>
+      <span class=bench-t><u class="q cov" style="--w:${
+        (m.decided/m.settlements||0).toFixed(3)}"></u></span>
+      <b>${m.decided} / ${m.settlements}</b>
       <span class=bench-t><u class=q style="--w:${
-        (Math.min(m.false_proof/worst,1)||0).toFixed(3)}"></u></span>
+        (m.false_proof||0).toFixed(3)}"></u></span>
       <b>${(m.false_proof*100).toFixed(1)}%</b>
-      <em>${m.decided} / ${m.settlements}</em>
+      <em class=bench-ok>${m.decided - m.wrong}</em>
     </div>`).join('')}
     <div class=bench-note>
       <p class=bench-claim>More coverage is not more truth.</p>
-      <p class=say style="max-width:60ch">ATTEST does not claim the lowest error
-        rate — <b>exact-only does, at 0.0%</b>, by deciding 22 settlements out
-        of 500. Greedy decides nearly everything and is wrong
-        ${(base.methods.find(m=>m.key==='greedy')||{}).wrong} times out of
-        ${(base.methods.find(m=>m.key==='greedy')||{}).decided}. What ATTEST
-        claims is a usable balance with its uncertainty exposed rather than
-        absorbed. Read from
+      <p class=say style="max-width:60ch">Both bars are drawn on the same scale.
+        <b>Greedy decides ${(base.methods.find(m=>m.key==='greedy')||{}).decided}
+        of ${base.panel.settlements} and is wrong
+        ${(base.methods.find(m=>m.key==='greedy')||{}).wrong} times</b>, so it
+        ends with fewer correct decisions than ATTEST while moving far more
+        money it could not prove. Exact-only is never wrong and decides
+        ${(base.methods.find(m=>m.key==='exact_only')||{}).decided}. ATTEST does
+        not claim the lowest error rate or the widest coverage — it claims the
+        most decisions that were <b>warranted</b>. Read from
         <span class=mono>benchmark/baselines.json</span>.</p>
     </div>`, 3) : ''}
 </section>
@@ -1146,69 +1284,74 @@ async function build(){
 
 <section id=ai>
   ${rise('row', mk(5,'the model','model · solver · engine',5)
-    /* one cell, not two: the row has three tracks, and a fourth child wraps
-       to a new row in the marker column — which is what turned the prose
-       beside it into a 200px ribbon. */
-    + `<div><h2 class=refuse-h>No financial action.</h2>
-       <p class=refuse-sub>${survivors} explanations satisfy the credit exactly.
-         The evidence does not establish one, so nothing was posted.</p></div>`
-    + `<div><p class=say>The model is asked for a hypothesis, never for a
-        verdict. Its conclusion is recorded as evidence and discarded — <b>not
-        eligible to become the verdict</b>, and nothing downstream reads
-        it.</p>
+    + `<div><h2 class=chapter>The model proposes. It never decides.</h2></div>`
+    + `<div><p class=say>A model was asked to tell ${survivors} indistinguishable
+        explanations apart. It can be wrong, so it was measured. Its output is
+        evidence and nothing more: <b>the deterministic engine produces its
+        verdict without reading the model's conclusion.</b></p>
        <p class=say style="margin-top:14px">${esc(inv.question||'')}</p></div>`)}
-  ${rise('bound', `
-    <div class=bound-r>
-      <span class=bound-k>evidence</span>
-      <i class=bound-m e></i>
-      <div class=bound-b><b>${Number(space.candidates).toLocaleString()} candidate orders</b>
-        <span>the space the engine is allowed to search</span></div>
-    </div>
-    <div class="bound-r model">
-      <span class=bound-k>proposes</span>
-      <i class=bound-m></i>
-      <div class=bound-b><b>Model</b>
-        <span>proposed the anchor <em>${esc(
-          ((inv.steps||[]).find(x=>x.actor==='model')||{}).input || '—')}</em>
-          — a guess at what might tell the survivors apart</span></div>
-    </div>
-    <div class="bound-r solver">
-      <span class=bound-k>tests</span>
-      <i class=bound-m></i>
-      <div class=bound-b><b>Solver</b>
-        <span><em>${esc(String(inv.tested??0))} tested,
-          ${esc(String(inv.discriminative??0))} discriminative</em> — the anchor
-          does not isolate one explanation, so it separates nothing</span></div>
-    </div>
-    <div class="bound-r engine">
-      <span class=bound-k>decides</span>
-      <i class=bound-m></i>
-      <div class=bound-b><b>Engine</b>
-        <span>kept the verdict it already had. It never read the model's
-          conclusion.</span></div>
-    </div>`, 1)}
 
-  ${inv.would_have_concluded ? rise('cf', `
-    <div class=cf-c><span class=lbl>model concluded</span>
-      <b>${esc(inv.would_have_concluded)}</b>
-      <em>diagnostic only · discarded</em></div>
-    <div class=cf-op>${inv.would_have_concluded === inv.verdict ? '=' : '≠'}</div>
-    <div class=cf-c><span class=lbl>engine verdict</span>
-      <b>${esc(inv.verdict)}</b>
-      <em>retained · deterministic</em></div>
-    <div class=cf-c><span class=lbl>verdict changed</span>
-      <b>${inv.changed_nothing ? 'No' : 'Yes'}</b>
-      <em>financial action: none</em></div>`, 2) : ''}
+  ${rise('', `<figure class=sig>
+    <div class=sig-h><i>measured model authority</i>
+      <span>${esc(CASE)} · ${survivors} explanations · seed ${esc(String(run.seed))}</span></div>
 
-  ${inv.would_have_concluded ? rise('', `<p class=say style="margin-top:20px;max-width:62ch">${
-    inv.would_have_concluded === inv.verdict
-      ? `On this settlement the two agree. That is a coincidence of this case,
-         not a mechanism — <b>the engine's verdict is produced without reading
-         the model's</b>, so agreement and disagreement are equally
-         inconsequential. The model's output is recorded as evidence and
-         discarded.`
-      : `The model reached a different conclusion and it changed nothing. The
-         engine's verdict is produced without reading it.`}</p>`, 3) : ''}
+    <div class="sig-r model"><i class=sig-gl></i>
+      <span class=sig-a>Model<em>proposes</em></span>
+      <span class=sig-v><b class=sig-o>${esc(
+        ((inv.steps||[]).find(x=>x.actor==='model')||{}).input || '—')}</b>
+        <span class=sig-w>An anchor — a guess at which of the ${survivors}
+          explanations is the real one. <b>Not a verdict, and not eligible to
+          become one.</b></span></span></div>
+
+    <div class="sig-r solver"><i class=sig-gl></i>
+      <span class=sig-a>Solver<em>tests</em></span>
+      <span class=sig-v><b class=sig-o>${esc(String(inv.tested??0))} tested ·
+        ${esc(String(inv.discriminative??0))} discriminative</b>
+        <span class=sig-w>${(inv.discriminative||0) === 0
+          ? `The anchor was checked against the arithmetic and <b>isolated no
+             explanation</b>. It separates nothing.`
+          : `The anchor isolated a single explanation on
+             ${inv.discriminative} of ${inv.tested} tests.`}</span></span></div>
+
+    <div class="sig-r engine"><i class=sig-gl></i>
+      <span class=sig-a>Engine<em>decides</em></span>
+      <span class=sig-v><b class=sig-o>${esc(inv.verdict)}</b>
+        <span class=sig-w>The verdict it already held, <b>computed without
+          reading the model's</b>. Nothing downstream consumes the
+          proposal.</span></span></div>
+
+    ${inv.would_have_concluded ? `<div class=sig-cf>
+      <div class=cf-c><span class=lbl>model concluded</span>
+        <b>${esc(inv.would_have_concluded)}</b><em>diagnostic · discarded</em></div>
+      <div class=sig-op>${inv.would_have_concluded === inv.verdict ? '=' : '≠'}</div>
+      <div class=cf-c><span class=lbl>engine verdict</span>
+        <b>${esc(inv.verdict)}</b><em>deterministic · retained</em></div>
+    </div>` : ''}
+
+    ${anch.resolved ? `<div class=sig-m>
+      <div class=sig-mh><b>${anch.correct} / ${anch.resolved}</b>
+        <span>model proposals correctly discriminated</span>
+        <u>${(anch.precision*100).toFixed(1)}% · below a coin flip</u></div>
+      <div class=sig-ticks>${Array.from({length: anch.resolved}, (_, i) =>
+        `<i class="sig-tk${i < anch.correct ? ' hit' : ''}"></i>`).join('')}
+        <span class=sig-half><b>coin flip</b></span></div>
+      <p class=sig-mn>Held-out evaluation panel, read from
+        <span class=mono>${esc(anch.source||'')}</span>. A component measured
+        below chance <b>does not get a vote on money</b> — which is why this one
+        proposes and the engine decides.</p>
+    </div>` : ''}
+
+    <div class=sig-x><b>No financial action</b>
+      <span>${inv.changed_nothing ? 'verdict unchanged' : 'verdict changed'} ·
+        nothing posted · requires external evidence</span></div>
+  </figure>`, 1)}
+
+  ${inv.would_have_concluded && inv.would_have_concluded === inv.verdict ? rise('',
+    `<p class=say style="margin-top:22px;max-width:64ch">On this settlement the
+      two agree, and the agreement is a coincidence of the case rather than a
+      mechanism. <b>The engine's verdict is produced without reading the
+      model's</b>, so agreement and disagreement are equally
+      inconsequential.</p>`, 2) : ''}
 
   ${rise('safe', `
     <div class=safe-s>Proof not unique</div>
@@ -1217,14 +1360,7 @@ async function build(){
     <div class="safe-s hot">Requires external evidence</div>
     <p class=safe-n><b>Ambiguity is not a failure.</b> It is the engine
       declining to post what it could not prove, and saying which evidence
-      would settle it.</p>`, 4)}
-  ${anch.resolved ? rise('', `<p class=say style="margin-top:26px">
-    <span class=lbl>anchoring benchmark</span><br>
-    Re-measured across the evaluation panel, the loop resolved
-    <b>${anch.correct} of ${anch.resolved}</b> correctly
-    (${(anch.precision*100).toFixed(1)}%) — below a coin flip, which is why it
-    does not decide. Read from <span class=mono>${esc(anch.source||'')}</span>.
-    </p>`, 3) : ''}
+      would settle it.</p>`, 3)}
 </section>
 
 <section id=proofs>
@@ -1381,6 +1517,19 @@ async function build(){
     <span class=u><b>${blocker.settlements}</b><span class=lbl>settlements</span></span>
     <span class=u><b>requires external evidence</b><span class=lbl>capability</span></span>`, 1)}
   ${rise('ask', `Supply an order-level reference.`, 2)}
+  ${rise('hand', `
+    <span class=lbl>and until someone does</span>
+    <p class=hand-p>The queue does not sit here. <b>${exportable}
+      unresolved settlements</b> — the ${c.AMBIGUOUS} above, plus
+      ${[[c.CONTRADICTED,'contradicted'],[c.INSUFFICIENT,'insufficient']]
+        .filter(([n])=>n>0).map(([n,l])=>`${n} ${l}`).join(' and ')} — leave
+      with the evidence needed to work them: the contested orders, the blocker,
+      the specific evidence that would settle each one, and the rule, policy and
+      solver versions the verdict was produced under.</p>
+    <a class="act-line hand-a" id=export
+       href="/api/export/queue?run=${encodeURIComponent(run.run_id)}&format=csv"
+       download>export investigation queue <i>↓</i></a>
+    <span class=hand-n>read-only · nothing is posted, mutated or transmitted</span>`, 3)}
 </div>
 
 <section id=end>

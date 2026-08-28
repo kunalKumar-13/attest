@@ -2908,7 +2908,9 @@ def test_every_shape_on_the_investigation_names_a_job(inv):
     JOBS = {
         "fall-m", "bench-t", "spec-disp-r",             # quantity
         "canvas", "CANVAS",                              # population / evidence
-        "bound-m", "e", "m", "s", "g",                   # actors
+        "bound-m", "e", "m", "s", "g", "sig-gl",         # actors
+        "sig-tk",                                        # quantity (proposals)
+        "hand", "hand-a",                                # the human handoff
         "thr-line", "thr-mark", "ad-b",                  # boundaries
         "spec-c", "spec-punch",                          # specimen structure
         "rule", "hr",                                    # transitions
@@ -3131,3 +3133,214 @@ def test_the_two_populations_are_named_where_they_are_compared(inv):
     assert truth["liveSeed"] not in (panel.get("seed_ids") or []), (
         "the benchmark panel shares a seed with the live run, so 'held out' "
         "is not true")
+
+
+# ── §38 ─────────────────────────────────────────────────────────────────────
+# Three changes, three guarantees. The audit that produced them found the
+# opposite of what it expected: the model/solver/engine facts were all on the
+# page already, spread over 1,545px of a 12,879px scroll. Every fact was
+# present and none of it was a frame. What follows pins the composition, not
+# the content — the content was never the defect.
+
+def test_the_model_boundary_is_one_screenshottable_frame(inv):
+    """§38.P0-1. All five beats inside one element, inside one viewport.
+
+    A judge screenshots a frame, not a section. Spread across four blocks the
+    argument could be read and could not be captured, which is why the
+    strongest idea in the product was the one nobody could quote.
+    """
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+    frame = inv.query_selector(".sig")
+    assert frame, "there is no signature frame"
+
+    box = frame.bounding_box()
+    assert box["height"] <= 900, (
+        f"the frame is {box['height']:.0f}px tall and cannot be captured in a "
+        "900px viewport")
+
+    t = " ".join(frame.inner_text().lower().split())
+    for beat in ("model", "solver", "engine", "proposes", "tests", "decides",
+                 "no financial action"):
+        assert beat in t, f"the frame does not contain {beat!r}"
+
+    # the three actors are one object each, in reading order
+    actors = inv.eval_on_selector_all(
+        ".sig .sig-r", "els => els.map(e => e.className.split(' ')[1])")
+    assert actors == ["model", "solver", "engine"], \
+        f"the actors are not model -> solver -> engine: {actors}"
+
+
+def test_the_frames_numbers_come_from_the_measurement(inv):
+    """§38.P0-1. 27/63 is read from the artifact, and the ticks agree with it.
+
+    A hand-written ratio beside a hand-drawn bar is a picture of a claim. The
+    tick row is generated from the same two integers the API reports, so the
+    drawing cannot drift from the finding it draws.
+    """
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const cl = await (await fetch(`/api/claims?run=${run.run_id}`)).json();
+      return cl.anchoring; }""")
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+
+    ticks = inv.eval_on_selector_all(".sig-tk", "e => e.length")
+    hits = inv.eval_on_selector_all(".sig-tk.hit", "e => e.length")
+    assert ticks == truth["resolved"], \
+        f"{ticks} ticks drawn for {truth['resolved']} resolved proposals"
+    assert hits == truth["correct"], \
+        f"{hits} filled for {truth['correct']} correct"
+    assert hits < ticks / 2, \
+        "the drawing does not show the measurement falling below a coin flip"
+
+    t = inv.inner_text(".sig")
+    assert f"{truth['correct']} / {truth['resolved']}" in t, \
+        "the frame does not state the ratio it draws"
+
+
+def test_the_benchmark_shows_coverage_and_error_together(inv):
+    """§38.P0-2. Two bars, one scale, and the correct-decision count.
+
+    A false-proof rate alone made 20.8% look like a low match rate next to a
+    competitor's 94%. Coverage and error drawn on the same scale make the
+    trade visible, and `decided - wrong` — both published fields — is the
+    number that ends the argument.
+    """
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const cl = await (await fetch(`/api/claims?run=${run.run_id}`)).json();
+      return cl.baselines; }""")
+    if not truth.get("present"):
+        pytest.skip("no baselines artifact")
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(700)
+
+    rows = inv.eval_on_selector_all(".bench-r", """els => els.map(e => ({
+        bars: [...e.querySelectorAll('.bench-t u.q')].map(
+                u => parseFloat(getComputedStyle(u).getPropertyValue('--w'))),
+        ok: (e.querySelector('.bench-ok') || {}).textContent }))""")
+    assert len(rows) == len(truth["methods"]), "not every method has a row"
+
+    for row, m in zip(rows, truth["methods"]):
+        assert len(row["bars"]) == 2, \
+            f"{m['label']} draws {len(row['bars'])} bars, not coverage + error"
+        cov, fp = row["bars"]
+        assert abs(cov - m["decided"] / m["settlements"]) < 0.002, \
+            f"{m['label']}'s coverage bar does not match {m['decided']}"
+        assert abs(fp - m["false_proof"]) < 0.002, \
+            f"{m['label']}'s error bar does not match {m['false_proof']}"
+        assert int(row["ok"]) == m["decided"] - m["wrong"], \
+            f"{m['label']} states {row['ok']} correct, not {m['decided'] - m['wrong']}"
+
+    # the argument only works if both bars are on one scale
+    greedy = next(m for m in truth["methods"] if m["key"] == "greedy")
+    attest = next(m for m in truth["methods"] if m["key"] == "attest")
+    assert attest["decided"] - attest["wrong"] > greedy["decided"] - greedy["wrong"], \
+        "the artifact no longer supports the claim the section makes"
+
+
+def test_the_refusal_hands_the_work_to_a_person(inv):
+    """§38.P0-3. The boundary offers an exit, and says it is a read.
+
+    "We stop here" and "we hand the unresolved work to whoever can finish it"
+    are different products. Without the second, the strongest safety property
+    in the product reads as an unfinished feature.
+    """
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+    link = inv.query_selector("#export")
+    assert link, "the boundary offers no way to take the queue anywhere"
+    # `query_selector` finds hidden elements and `getComputedStyle` reads them
+    # happily, so an export with `hidden` on it satisfied every other check
+    # here. An exit nobody can see is not an exit.
+    assert link.is_visible(), "the export link is present but not visible"
+    box = link.bounding_box()
+    assert box and box["width"] > 40 and box["height"] > 8, \
+        f"the export link occupies no usable area: {box}"
+
+    href = link.get_attribute("href")
+    assert "/api/export/queue" in href and "run=" in href, \
+        f"the export does not name a run: {href}"
+    assert link.get_attribute("download") is not None, \
+        "the export does not download; it navigates away from the argument"
+
+    # lime is only ever an action in this product, and this is the only action
+    # in the room where the system stops
+    colour = link.evaluate("e => getComputedStyle(e).color")
+    lime = inv.evaluate("""() => getComputedStyle(document.documentElement)
+                             .getPropertyValue('--lime').trim()""")
+    assert colour == inv.evaluate(
+        "(c) => { const d = document.createElement('i'); d.style.color = c;"
+        " document.body.appendChild(d);"
+        " const r = getComputedStyle(d).color; d.remove(); return r; }", lime), \
+        f"the handoff is painted {colour}, not the action colour"
+
+    block = inv.inner_text(".hand").lower()
+    assert "read-only" in block, "the export does not say it is a read"
+    for word in ("posted", "mutated", "transmitted"):
+        assert word in block, f"the export does not disclaim {word}"
+
+
+def test_the_handoff_counts_the_same_settlements_it_exports(inv):
+    """§38.P0-3. 197 and 198 are both correct and sit 200px apart.
+
+    The blocker holds 197 ambiguous settlements; the queue carries every
+    unresolved one. Stating the second beside the first without naming the
+    difference reads as an arithmetic error in a product whose entire claim is
+    arithmetic.
+    """
+    truth = inv.evaluate("""async () => {
+      const run = await (await fetch('/api/run?n=250')).json();
+      const q = await (await fetch(
+        `/api/export/queue?run=${run.run_id}`)).json();
+      return {counts: run.counts, rows: q.count}; }""")
+    c = truth["counts"]
+    expect = c.get("AMBIGUOUS", 0) + c.get("CONTRADICTED", 0) + c.get("INSUFFICIENT", 0)
+    assert truth["rows"] == expect, \
+        f"the export carries {truth['rows']} rows for {expect} unresolved"
+
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+    t = inv.inner_text(".hand")
+    assert str(expect) in t, f"the handoff does not state its own {expect}"
+    assert str(c.get("AMBIGUOUS", 0)) in t, \
+        "the handoff does not reconcile itself with the blocker's count"
+
+
+@pytest.mark.parametrize("width", [360, 390, 768, 1024, 1280, 1440, 1920])
+def test_no_element_is_silently_clipped(inv, width):
+    """§38. `body` carries `overflow-x:hidden`, so `scrollWidth` is pinned to
+    the viewport and every earlier overflow check in this file was blind to
+    content clipped inside a non-scrolling ancestor.
+
+    The provenance strip was the finding: 434px of unbreakable mono in a 390px
+    box with `overflow:hidden`, so the run id was cut off at every phone width
+    while the page reported zero overflow. An element may sit outside the
+    viewport only if something can actually be scrolled to reach it.
+    """
+    inv.set_viewport_size({"width": width, "height": 900})
+    inv.wait_for_timeout(250)
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(250)
+    clipped = inv.evaluate("""() => {
+      const W = document.documentElement.clientWidth, out = [];
+      const scrollable = e => {
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const o = getComputedStyle(p).overflowX;
+          if ((o === 'auto' || o === 'scroll') && p.scrollWidth > p.clientWidth)
+            return true;
+        }
+        return false; };
+      document.querySelectorAll('body *').forEach(e => {
+        const b = e.getBoundingClientRect();
+        if (!b.width || b.right <= W + 1) return;
+        if (scrollable(e)) return;                 // reachable by scrolling
+        out.push({ el: (e.className || e.tagName).toString().split(' ')[0],
+                   over: Math.round(b.right - W),
+                   txt: (e.textContent || '').trim().slice(0, 40) }); });
+      return out; }""")
+    inv.set_viewport_size({"width": 1400, "height": 900})
+    assert not clipped, (
+        f"at {width}px, content is cut off with no way to reach it: "
+        + "; ".join(f"{c['el']} +{c['over']}px {c['txt']!r}" for c in clipped[:4]))
