@@ -2,8 +2,15 @@
 
 **It won't move money it can't prove.**
 
-Financial reconciliation that reports what it proved, what it could not, and
-hands the unresolved work to a person.
+A payment gateway does not pay a merchant order by order. It sends one lump sum
+covering hundreds of orders at once, minus its fees — and the report that arrives
+with the money does not say which orders it was for. Someone has to work that
+out, and getting it wrong marks the wrong customer as paid while the books
+balance either way.
+
+ATTEST does that matching, reports what it could prove, and when the evidence
+genuinely cannot tell two answers apart it says so instead of picking one —
+handing that case to a person with the exact thing that would settle it.
 
 ```
 ₹53,02,701.96   processed

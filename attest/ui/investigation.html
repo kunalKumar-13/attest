@@ -513,6 +513,19 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .whole-r{grid-template-columns:minmax(0,1fr);gap:6px}
 }
 
+/* ── in plain terms ──────────────────────────────────────────────────────
+   Measured: the page never said what a settlement is, what reconciliation is,
+   who does it, or why getting it wrong is expensive. Every figure assumed a
+   reader who already worked in finance ops. Typographic rather than another
+   bordered specimen — there are two of those within a screen of here, and a
+   third box would read as more instrument panel instead of an explanation. */
+.plain{margin-top:clamp(26px,4vh,48px);max-width:60ch}
+.plain .lbl{display:block;margin-bottom:14px;color:var(--coral)}
+.plain-p{font-size:clamp(16px,1.3vw,20px);line-height:1.6;color:var(--dim);
+  letter-spacing:-.01em}
+.plain-p + .plain-p{margin-top:1em}
+.plain-p b{color:var(--ink);font-weight:500}
+
 .err{font-family:var(--m);color:var(--coral);border:1px solid var(--coral);
   padding:20px;max-width:56ch;font-size:var(--t-small)}
 
@@ -1134,6 +1147,21 @@ async function build(){
         <span>${esc((src.engine||{}).label||'')}</span></div>
     </div>`, 1)}
   </div>
+
+  ${rise('plain', `
+    <span class=lbl>in plain terms</span>
+    <p class=plain-p>A payment gateway does not pay a merchant order by order. It
+      sends <b>one lump sum covering hundreds of orders at once</b>, minus its
+      fees — and the report that arrives with the money does not say which orders
+      it was for.</p>
+    <p class=plain-p>Someone has to work that out. Get it wrong and you mark the
+      wrong customer as paid: they still owe you, someone else is credited twice,
+      and <b>the books balance either way</b>, so nobody finds out until it is
+      expensive.</p>
+    <p class=plain-p>ATTEST does that matching. When the evidence genuinely
+      cannot tell two answers apart, <b>it says so instead of picking one</b> —
+      and hands that case to a person with the exact thing that would settle
+      it.</p>`, 1)}
 
   ${rise('', (()=>{
     /* The whole argument as one object, above the scroll that proves it.
