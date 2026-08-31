@@ -306,7 +306,18 @@
       </div>`,
     });
 
-    return spineBlock + answer + actionBlock + lever + queue;
+    /* Order is the operator's, not the analyst's. The queue used to sit fifth,
+       at y=1955 of a 2,625px scroll — so opening the workspace showed aggregate
+       narration and the actual work was three quarters down, below the fold.
+       Someone who opens this to work a case now sees: where the money stopped,
+       the one change that would unlock most of it, and then the cases. The
+       blocker detail and the policy lever are analysis; they follow.
+
+       The overture is 755px against an 876px viewport, so the queue clears the
+       fold only if nothing sits between them. "One change unlocks 197" follows
+       the queue rather than preceding it, which also lands it better: it reads
+       as a release after you have seen 198 rows, not as a claim before. */
+    return spineBlock + queue + answer + actionBlock + lever;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the

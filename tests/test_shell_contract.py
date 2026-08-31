@@ -296,8 +296,20 @@ def test_the_drawer_opens_from_the_object_that_was_clicked(page):
     rows = page.query_selector_all(".c-row.link")
     assert len(rows) >= 3, "not enough rows to tell origins apart"
 
+    # Scroll the queue into view first. `setOrigin` clamps the click rect to the
+    # workspace box, so a row below the fold resolves to the edge — and
+    # Playwright's click auto-scrolls, which centres every one of them and makes
+    # three different rows report the same origin. That is an artifact of
+    # driving the page, not of the product: a person clicks rows they can see.
+    # The test used to rely on the queue happening to sit in view, and stopped
+    # holding when the queue moved up the lens.
+    page.eval_on_selector("#w-main", "e => e.scrollTop = e.scrollHeight * 0.34")
+    page.wait_for_timeout(500)
+    rows = [r for r in page.query_selector_all(".c-row.link") if r.is_visible()]
+    assert len(rows) >= 3, "fewer than three queue rows are on screen"
+
     origins = []
-    for r in (rows[0], rows[2], rows[-1]):
+    for r in (rows[0], rows[len(rows) // 2], rows[-1]):
         r.click()
         page.wait_for_timeout(650)
         origins.append(page.evaluate(
