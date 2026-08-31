@@ -1177,7 +1177,8 @@ async function build(){
       <div class=whole-h><i>the whole game</i><span>read from this run</span></div>
       ${row('in', `<b>${run.settlements}</b> settlements ·
         <b>${Number(run.orders).toLocaleString()}</b> orders ·
-        <b>${esc(rupee(run.processed_paise))}</b>`)}
+        <b>${esc(rupee(run.processed_paise))}</b>${run.seconds ? ` ·
+        reconciled in <b>${Number(run.seconds).toFixed(1)}s</b>` : ''}`)}
       ${row('proved', `<b class=w-p>${c.PROVEN}</b> — a ${(c.PROVEN/run.settlements*100).toFixed(1)}%
         match rate, and <b>${run.wrong}</b> wrongly auto-posted`)}
       ${row('refused', `<b class=w-a>${ex}</b> — each one carrying the evidence
