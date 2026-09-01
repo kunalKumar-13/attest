@@ -191,6 +191,45 @@
        from the same payload, so they cannot disagree. */
     const spineBlock = Overture(S.record || {}, spine, (acts.actions || [])[0]);
 
+    /* THE RESULT.
+     *
+     * The landing hands a reader an instrument and a verdict split; clicking
+     * through used to drop them into a financial waterfall, which is an
+     * analyst's view and reads as a different product. This is the same object
+     * the landing closes on, in the room where the work happens: what the run
+     * decided, what each verdict permits, and what that leaves a person.
+     *
+     * Counts come from the run summary the shell now keeps — the backend's
+     * numbers. Nothing here recomputes a verdict. */
+    const cts = (window.SHELL.summary || {}).counts || {};
+    const need = (cts.AMBIGUOUS || 0) + (cts.CONTRADICTED || 0) + (cts.INSUFFICIENT || 0);
+    const heldStage = spine.stages.find(x => x.held) || {};
+    const STATES = [
+      ['proven', cts.PROVEN, 'automate', 'a unique explanation the kernel re-derived'],
+      ['ambiguous', cts.AMBIGUOUS, 'hold', 'several explanations satisfy the credit exactly'],
+      ['contradicted', cts.CONTRADICTED, 'investigate', 'no combination reproduces the credit'],
+      ['insufficient', cts.INSUFFICIENT, 'not searched', 'outside the current solver envelope'],
+    ].filter(r => r[1]);
+    const result = `<section class=r-res>
+      <div class=r-head>
+        <b class=r-n>${esc(String((window.SHELL.summary || {}).settlements
+          || spine.stages.length ? (window.SHELL.summary || {}).settlements || '' : ''))}</b>
+        <span class=r-h>settlements reconciled${(window.SHELL.summary || {}).seconds
+          ? ` in ${Number(window.SHELL.summary.seconds).toFixed(1)}s` : ''}</span>
+      </div>
+      <div class=r-states>
+        ${STATES.map(([k, n, act, why]) => `<button class="r-st ${k}" data-verdict="${k}">
+            <b>${n}</b><i>${k} <u>${act}</u></i><em>${why}</em></button>`).join('')}
+      </div>
+      <div class=r-foot>
+        <span class=r-u><b>${need}</b><span>need a person</span></span>
+        <span class=r-u><b class=hot>${esc(heldStage.held_value || '')}</b>
+          <span>exposure</span></span>
+        <span class=r-u><b class=ok>${dec.wrong_posts || 0}</b>
+          <span>wrongly auto-posted</span></span>
+      </div>
+    </section>`;
+
     // The palette navigates to settlements, and these are the ones this run
     // actually flagged. Published from data already fetched rather than by
     // adding a request — a palette that needs its own endpoint is a feature.
@@ -317,7 +356,7 @@
        fold only if nothing sits between them. "One change unlocks 197" follows
        the queue rather than preceding it, which also lands it better: it reads
        as a release after you have seen 198 rows, not as a claim before. */
-    return spineBlock + queue + answer + actionBlock + lever;
+    return result + spineBlock + queue + answer + actionBlock + lever;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the
@@ -607,6 +646,24 @@
             + (a.settlements > a.examples.length
               ? `<div class=c-more>+ ${a.settlements - a.examples.length} more</div>` : ''),
         }) };
+  }
+
+  /* Clicking a verdict goes to the work it represents. "197 AMBIGUOUS" is not
+     a statistic on this screen — it is 197 cases sitting in the queue below,
+     and the click says so. Delegated, so it survives every re-render. */
+  if (!window.__verdictWired) {
+    window.__verdictWired = true;
+    document.addEventListener('click', (e) => {
+      const st = e.target.closest && e.target.closest('[data-verdict]');
+      if (!st) return;
+      const q = [...document.querySelectorAll('#w-main *')].find(
+        n => !n.childElementCount && /needs a person/i.test(n.textContent || ''));
+      const target = q ? (q.closest('section, .c-section') || q) : null;
+      if (!target) return;
+      target.scrollIntoView({ block: 'start',
+        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto' : 'smooth' });
+    });
   }
 
   /* Delegated from the document so it survives every re-render of the pane. */

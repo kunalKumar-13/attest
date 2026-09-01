@@ -647,6 +647,11 @@ async function boot() {
     clearInterval(tick);
   }
   SHELL.run = summary.run_id;
+  /* The run's own verdict split. boot() was fetching this and keeping only the
+     id, so every surface that wanted to say what the run DECIDED had to either
+     re-derive it or go without. It is the backend's number; nothing recomputes
+     a verdict in the UI. */
+  SHELL.summary = summary;
   GUARD.invalidateAll();
   SPINE.clear();
   CASE.clear();
