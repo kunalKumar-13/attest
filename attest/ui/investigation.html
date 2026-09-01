@@ -542,6 +542,19 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .plain-g{grid-template-columns:minmax(0,1fr);gap:22px}
 }
 
+/* The close stated one half of the rule. The product automates 52 settlements
+   and refuses 198; "only evidence moves money" is the refusal, and a reader who
+   left here had never been told the system says yes to anything. Both halves,
+   in the order they happen. */
+#end .rule2{margin-bottom:clamp(26px,4.5vh,56px)}
+#end .rule2-r{display:flex;flex-wrap:wrap;align-items:baseline;
+  gap:.5em clamp(12px,1.6vw,26px);padding:clamp(10px,1.4vh,16px) 0;
+  border-top:1px solid rgba(18,19,15,.16)}
+#end .rule2-r b{font-size:clamp(19px,2.5vw,38px);font-weight:500;
+  letter-spacing:-.035em;color:#12130f}
+#end .rule2-r span{font-family:var(--m);font-size:clamp(17px,2.1vw,32px);
+  letter-spacing:-.02em;color:#8a3d33}
+
 .err{font-family:var(--m);color:var(--coral);border:1px solid var(--coral);
   padding:20px;max-width:56ch;font-size:var(--t-small)}
 
@@ -1573,7 +1586,10 @@ async function build(){
 </div>
 
 <section id=end>
-  ${rise('', `<p class=ghost>Only evidence moves money.</p>`)}
+  ${rise('rule2', `
+    <div class=rule2-r><b>When the evidence is enough.</b><span>Automate.</span></div>
+    <div class=rule2-r><b>When it isn't.</b><span>Stop.</span></div>`)}
+  ${rise('', `<p class=ghost>Only evidence moves money.</p>`, 1)}
   ${rise('foot', `
     <p><b class=mono>${esc(String(run.settlements))}</b> settlements ·
       <b class=mono>${Number(run.orders).toLocaleString()}</b> orders ·
