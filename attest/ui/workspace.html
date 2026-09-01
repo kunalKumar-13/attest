@@ -2577,6 +2577,16 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
   #spine{grid-area:auto;overflow:visible;border-right:0;background:none;
     display:contents}
 }
+
+/* the run, made visible */
+.c-run{display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  padding:clamp(28px,5vh,64px) clamp(20px,3vw,44px);max-width:52ch}
+.c-run-h{font-size:clamp(18px,1.7vw,24px);font-weight:500;letter-spacing:-.02em;
+  color:var(--ink)}
+.c-run-t{font-family:var(--mono,ui-monospace,monospace);
+  font-size:clamp(28px,3.6vw,52px);letter-spacing:-.04em;color:var(--st-AMBIGUOUS,#ff655a);
+  font-variant-numeric:tabular-nums;line-height:1}
+.c-run-n{color:var(--dim,rgba(255,255,255,.6));font-size:13px;line-height:1.55}
 </style>
 <div id=app>
   <div id=spine>

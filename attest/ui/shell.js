@@ -631,8 +631,21 @@ window.addEventListener('resize', () => {
 async function boot() {
   HEADER = new window.C.SubjectHeader(el('subject'));
   STRIP = new window.C.LensStrip(el('lenses'), lens => navigate({ lens }));
-  el('workspace').innerHTML = window.C.LoadingState('reconciling…');
-  const summary = await api(`/api/run?n=${el('size') ? el('size').value : 250}`);
+  const n = el('size') ? el('size').value : 250;
+  el('workspace').innerHTML = window.C.RunningState(n);
+  /* A real stopwatch on a real operation — started before the request and
+     stopped by the render that replaces it. */
+  const t0 = performance.now();
+  const tick = setInterval(() => {
+    const d = document.querySelector('[data-run-timer]');
+    if (d) d.textContent = ((performance.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+  let summary;
+  try {
+    summary = await api(`/api/run?n=${n}`);
+  } finally {
+    clearInterval(tick);
+  }
   SHELL.run = summary.run_id;
   GUARD.invalidateAll();
   SPINE.clear();

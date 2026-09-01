@@ -105,6 +105,20 @@ const EmptyState = (msg, sub) => `<div class=c-empty>
 const LoadingState = (msg) =>
   `<div class=c-empty><span class=c-spin></span>${esc(msg || '')}</div>`;
 
+/* The run is the most interesting thing this product does and it used to be a
+   spinner and one word for up to eight seconds, which reads as a hung page.
+   Nothing here is invented: the batch size is what was asked for, and the timer
+   is a real stopwatch on a real operation. There is no fake progress bar,
+   because the engine returns once and there is no intermediate state to honestly
+   report. */
+const RunningState = (n) => `<div class="c-empty c-run">
+  <span class=c-spin></span>
+  <b class=c-run-h>Reconciling ${esc(String(n))} settlements</b>
+  <span class=c-run-t data-run-timer>0.0s</span>
+  <span class=c-run-n>Every candidate explanation is enumerated and checked
+    before anything is written. Nothing is posted on a guess.</span>
+</div>`;
+
 const ErrorState = (msg) => `<div class="c-empty err">${esc(msg)}</div>`;
 
 /* ------------------------------------------------------------- state spine
@@ -471,6 +485,6 @@ function Conclusion({ fact, figure, figureLabel, because, tone, second }) {
 window.C = {
   esc, rupees, plural, Conclusion, FromBlocker,
   Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
-  DataTable, EmptyState, LoadingState, ErrorState, StateSpine, ownerOf,
+  DataTable, EmptyState, LoadingState, RunningState, ErrorState, StateSpine, ownerOf,
   SubjectHeader, LensStrip,
 };
