@@ -210,6 +210,48 @@
       ['contradicted', cts.CONTRADICTED, 'investigate', 'no combination reproduces the credit'],
       ['insufficient', cts.INSUFFICIENT, 'not searched', 'outside the current solver envelope'],
     ].filter(r => r[1]);
+    /* THE OPERATION, before its result.
+     *
+     * Run was a bare button in the rail, so reconciliation read as "press this
+     * and numbers appear" — a script with a UI on it. These four steps are what
+     * the pipeline actually does: the adapter normalises to integer paise,
+     * blocking and subset-sum enumerate every subset of candidate orders that
+     * could explain the credit, a 28-line kernel re-derives each surviving
+     * proof from the source records, and the count of survivors is the verdict.
+     * Nothing here is a metaphor for the engine; it is the engine's stages. */
+    const sum = window.SHELL.summary || {};
+    const STEPS = [
+      ['normalize', 'settlement and order records, into integer paise'],
+      ['search', 'every subset of candidate orders that could explain the credit'],
+      ['verify', 'a 28-line kernel re-derives each proof from the source records'],
+      ['classify', 'one survivor proves it · several hold it · none contradict it'],
+    ];
+    const op = `<section class=r-op>
+      <div class=r-op-h>
+        <span class=r-op-t>reconciliation</span>
+        <span class=r-op-m>${esc((S.record && S.record.source || {}).label || '')}${
+          (S.record && S.record.source || {}).engine
+            ? ' · ' + esc(S.record.source.engine.label) : ''}</span>
+      </div>
+      <div class=r-op-in>
+        <span class=r-op-x><b>${esc(String(sum.settlements || ''))}</b>
+          <span>settlements</span></span>
+        <span class=r-op-op>&times;</span>
+        <span class=r-op-x><b>${Number(sum.orders || 0).toLocaleString()}</b>
+          <span>candidate orders</span></span>
+        <span class=r-op-run>
+          <select class=btn data-size aria-label="Batch size">
+            ${[120, 250, 500].map(n => `<option value="${n}"${
+              String(n) === String(sum.settlements) ? ' selected' : ''}>${n}</option>`).join('')}
+          </select>
+          <button class="btn go" data-run>Run reconciliation</button>
+          <span class=r-op-ro>read-only · no financial action</span>
+        </span>
+      </div>
+      <ol class=r-op-s>${STEPS.map(([k, why], i) => `<li>
+        <i>${String(i + 1).padStart(2, '0')}</i><b>${k}</b><span>${why}</span></li>`).join('')}</ol>
+    </section>`;
+
     const result = `<section class=r-res>
       <div class=r-head>
         <b class=r-n>${esc(String((window.SHELL.summary || {}).settlements
@@ -356,7 +398,7 @@
        fold only if nothing sits between them. "One change unlocks 197" follows
        the queue rather than preceding it, which also lands it better: it reads
        as a release after you have seen 198 rows, not as a claim before. */
-    return result + spineBlock + queue + answer + actionBlock + lever;
+    return op + result + spineBlock + queue + answer + actionBlock + lever;
   }
 
   /* Which orders make up one surviving explanation, and which of them are the
@@ -651,6 +693,27 @@
   /* Clicking a verdict goes to the work it represents. "197 AMBIGUOUS" is not
      a statistic on this screen — it is 197 cases sitting in the queue below,
      and the click says so. Delegated, so it survives every re-render. */
+  /* The instrument's own controls drive the rail's, which stay in the DOM
+     because boot() reads `el('size').value` and owns the run. Delegated, so a
+     re-render cannot orphan them. */
+  if (!window.__runWired) {
+    window.__runWired = true;
+    document.addEventListener('change', (e) => {
+      const sel = e.target.closest && e.target.closest('[data-size]');
+      if (!sel) return;
+      const real = document.getElementById('size');
+      if (real) real.value = sel.value;
+    });
+    document.addEventListener('click', (e) => {
+      const go = e.target.closest && e.target.closest('[data-run]');
+      if (!go) return;
+      const sel = document.querySelector('[data-size]');
+      const real = document.getElementById('size');
+      if (sel && real) real.value = sel.value;
+      window.bootShell();
+    });
+  }
+
   if (!window.__verdictWired) {
     window.__verdictWired = true;
     document.addEventListener('click', (e) => {

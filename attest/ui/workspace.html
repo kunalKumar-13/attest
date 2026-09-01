@@ -2640,6 +2640,45 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
 .r-u span{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.15em;
   text-transform:uppercase;color:var(--dim-3)}
 @media (max-width:720px){.r-states{grid-template-columns:minmax(0,1fr)}}
+
+/* ── the operation ───────────────────────────────────────────────────────
+   Run was a bare button in the rail, so reconciliation read as "press this and
+   numbers appear". These four steps are the pipeline's actual stages, and the
+   controls sit inside the thing they operate. Tokens only. */
+.r-op{padding:clamp(18px,2.6vh,28px) clamp(18px,2.4vw,34px) 0}
+.r-op-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding-bottom:clamp(12px,1.6vh,16px);border-bottom:1px solid var(--line)}
+.r-op-t{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--st-AMBIGUOUS)}
+.r-op-m{margin-left:auto;font-family:var(--m);font-size:var(--type-micro);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--dim-3)}
+.r-op-in{display:flex;align-items:baseline;gap:12px clamp(14px,2vw,28px);
+  flex-wrap:wrap;padding:clamp(14px,2vh,20px) 0}
+.r-op-x{display:flex;flex-direction:column;gap:4px}
+.r-op-x b{font-family:var(--m);font-weight:400;font-variant-numeric:tabular-nums;
+  font-size:var(--type-hero);letter-spacing:-.04em;line-height:1;color:var(--ink)}
+.r-op-x span{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.15em;
+  text-transform:uppercase;color:var(--dim-3)}
+.r-op-op{font-family:var(--m);font-size:var(--type-title);color:var(--dim-3);
+  align-self:center}
+.r-op-run{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.r-op-ro{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim-3);flex-basis:100%}
+.r-op-s{list-style:none;margin:0;padding:0 0 clamp(14px,2vh,20px);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:clamp(10px,1.4vw,20px)}
+.r-op-s li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:2px 8px;
+  align-items:baseline;padding-top:9px;border-top:1px solid var(--line)}
+.r-op-s i{font-style:normal;font-family:var(--m);font-size:var(--type-micro);
+  color:var(--dim-3)}
+.r-op-s b{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink);font-weight:400}
+.r-op-s span{grid-column:2;font-size:var(--type-body);line-height:1.45;
+  color:var(--dim-3)}
+@media (max-width:720px){
+  .r-op-run{margin-left:0;width:100%}
+  .r-op-s{grid-template-columns:minmax(0,1fr)}
+}
 </style>
 <div id=app>
   <div id=spine>
@@ -2653,9 +2692,9 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
     <span id=hint></span>
     <span class=sp></span>
     <a class=back href="/">← the investigation</a>
-    <select class=btn id=size aria-label="Portfolio size">
+    <select class=btn id=size aria-label="Portfolio size" hidden>
       <option>120</option><option selected>250</option><option>500</option></select>
-    <button class="btn go" id=run>Run</button>
+    <button class="btn go" id=run hidden>Run</button>
   </div>
   <main id=workspace tabindex=-1></main>
   <div id=foot><span id=footmeta></span></div>
