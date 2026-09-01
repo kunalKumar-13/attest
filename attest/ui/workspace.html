@@ -2679,11 +2679,57 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
   .r-op-run{margin-left:0;width:100%}
   .r-op-s{grid-template-columns:minmax(0,1fr)}
 }
+
+/* ── the operator's map ──────────────────────────────────────────────────
+   Six jobs over the seven instruments. The rack is not deleted — it moves
+   under a disclosure, because it is the right tool for inspecting a decision
+   and the wrong first thing to hand someone holding a settlement batch. */
+#jobs{display:flex;flex-direction:column;gap:1px;padding:clamp(10px,1.6vh,16px) 0;
+  overflow-y:auto;min-height:0}
+.j-grp{font-family:var(--m);font-size:var(--type-micro);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim-3);padding:14px 16px 6px}
+.j-grp:first-child{padding-top:0}
+.j-b{appearance:none;border:0;background:none;font:inherit;cursor:pointer;
+  text-align:left;padding:9px 16px;display:flex;flex-direction:column;gap:2px;
+  color:var(--dim-2);transition:background var(--micro),color var(--micro);
+  border-left:2px solid transparent}
+.j-b:hover,.j-b:focus-visible{background:var(--surface-2);color:var(--ink)}
+.j-b[aria-current=true]{color:var(--ink);border-left-color:var(--st-AMBIGUOUS);
+  background:var(--surface-2)}
+.j-b i{font-style:normal;font-size:var(--type-micro);color:var(--dim-3);
+  letter-spacing:.02em;text-transform:none}
+/* The rack stays visible. Collapsing it behind a disclosure demoted it and
+   also hid it: four contracts click a lens directly, and every instrument is
+   required to state its question on screen. Both are the right guarantees —
+   an instrument nobody can see is not accessible, it is gone. Secondary by
+   weight and position instead. */
+#j-inst{margin-top:12px;border-top:1px solid var(--line)}
+#j-inst .j-grp{padding-top:12px}
+#j-inst .c-lenses{opacity:.72;transition:opacity var(--micro)}
+#j-inst .c-lenses:hover,#j-inst .c-lenses:focus-within{opacity:1}
 </style>
 <div id=app>
   <div id=spine>
     <div id=subject></div>
-    <div id=lenses></div>
+    <!-- The operator's map. The seven instruments below are the technical rack
+         and stay exactly as they were; nobody arriving with a settlement batch
+         should have to learn seven nouns before finding the queue. Every entry
+         here routes to a lens that already exists — no new route, no new
+         contract, no new state. -->
+    <nav id=jobs aria-label="Operator workflow">
+      <span class=j-grp>work</span>
+      <button class=j-b data-job=overview>Overview<i>what needs attention</i></button>
+      <button class=j-b data-job=exceptions>Exceptions<i>the cases that stopped</i></button>
+      <button class=j-b data-job=evidence>Evidence<i>what to request</i></button>
+      <button class=j-b data-job=audit>Audit<i>what happened</i></button>
+      <span class=j-grp>system</span>
+      <button class=j-b data-job=policy>Policy<i>what is allowed</i></button>
+      <button class=j-b data-job=trust>Trust<i>what is proved</i></button>
+      <div id=j-inst>
+        <span class=j-grp>instruments</span>
+        <div id=lenses></div>
+      </div>
+    </nav>
   </div>
   <div id=bar>
     <span class=wm>ATTEST</span>

@@ -661,6 +661,51 @@ async function boot() {
   await navigate(start, { replace: true });
 }
 
+/* The operator's map drives the instruments underneath it. Each job is a lens
+   that already exists plus, where the job is narrower than the lens, a place to
+   land inside it. No new route: `navigate` is the same call the rack makes. */
+const JOBS = {
+  overview:   { lens: 'control' },
+  exceptions: { lens: 'control', find: /needs a person/i },
+  evidence:   { lens: 'control', find: /needs a person/i, evidence: true },
+  audit:      { lens: 'activity' },
+  policy:     { lens: 'policy' },
+  trust:      { lens: 'trust' },
+};
+
+function markJob(name) {
+  document.querySelectorAll('#jobs [data-job]').forEach(b =>
+    b.setAttribute('aria-current', String(b.dataset.job === name)));
+}
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-job]');
+  if (!b) return;
+  const job = JOBS[b.dataset.job];
+  if (!job) return;
+  markJob(b.dataset.job);
+  await navigate({ subject: { type: 'portfolio', id: 'portfolio' }, lens: job.lens });
+  if (!job.find) { const m = el('w-main'); if (m) m.scrollTop = 0; return; }
+  /* Give the lens a moment to paint, then land on the part of it this job is
+     about. Scrolling to a heading is not navigation — the route is unchanged. */
+  setTimeout(() => {
+    const main = el('w-main'); if (!main) return;
+    const hit = [...main.querySelectorAll('*')].find(
+      n => !n.childElementCount && job.find.test(n.textContent || ''));
+    const target = hit && (hit.closest('section, .c-section') || hit);
+    if (target) target.scrollIntoView({ block: 'start',
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    if (job.evidence) {
+      const row = main.querySelector('.c-group [data-context]');
+      if (row) row.click();
+      setTimeout(() => {
+        const go = document.querySelector('[data-evidence]');
+        if (go && go.textContent.trim().toLowerCase().startsWith('prepare')) go.click();
+      }, 900);
+    }
+  }, 450);
+});
+
 window.SHELL = SHELL;
 window.defineLens = defineLens;
 window.navigate = navigate;
