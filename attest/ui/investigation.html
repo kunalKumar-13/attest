@@ -555,6 +555,96 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
 #end .rule2-r span{font-family:var(--m);font-size:clamp(17px,2.1vw,32px);
   letter-spacing:-.02em;color:#8a3d33}
 
+/* ── the instrument ──────────────────────────────────────────────────────
+   The old opening was a headline on the left and a tall manifest card on the
+   right with a void between them: a landing page with a widget. This is one
+   object — the money, the population it resolves into, what each state means,
+   and what that leaves a person to do. Nothing here is decoration; every mark
+   in the field is one settlement. */
+.mast{display:flex;align-items:baseline;gap:14px clamp(14px,2vw,28px);
+  flex-wrap:wrap;padding-bottom:clamp(14px,2vh,20px);
+  border-bottom:1px solid var(--rule2)}
+.mast-n{font-family:var(--m);font-size:var(--t-small);letter-spacing:.34em;
+  color:var(--ink)}
+.mast-t{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--coral)}
+.mast-r{margin-left:auto;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.1em;text-transform:uppercase;color:var(--dim3)}
+
+.claim-p{margin-top:clamp(16px,2.4vh,26px);max-width:56ch;
+  font-size:clamp(16px,1.25vw,20px);line-height:1.55;color:var(--dim)}
+.claim-p b{color:var(--ink);font-weight:500}
+
+.inst{margin-top:clamp(30px,5vh,64px);border-top:1px solid var(--rule2);
+  padding-top:clamp(20px,3vh,32px)}
+.inst-h{display:flex;align-items:baseline;gap:10px clamp(16px,2.4vw,34px);
+  flex-wrap:wrap}
+.inst-m{font-family:var(--m);font-weight:400;font-variant-numeric:tabular-nums;
+  font-size:clamp(34px,6.6vw,104px);letter-spacing:-.05em;line-height:.92;
+  color:var(--ink)}
+.inst-s{font-family:var(--m);font-size:var(--t-nano);letter-spacing:.13em;
+  text-transform:uppercase;color:var(--dim3)}
+.inst-s b{color:var(--dim);font-weight:400}
+
+/* the population: 250 marks, one per settlement, laid out by verdict */
+.inst-field{margin-top:clamp(18px,2.6vh,30px)}
+.inst-field{min-height:clamp(150px,22vh,230px)}
+
+.inst-states{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:1px;margin-top:clamp(16px,2.4vh,26px);background:var(--rule);
+  border:1px solid var(--rule)}
+.st-c{appearance:none;background:var(--canvas);border:0;text-align:left;
+  padding:clamp(13px,1.8vh,19px) clamp(12px,1.4vw,18px);cursor:pointer;
+  display:flex;flex-direction:column;gap:5px;font:inherit;
+  transition:background .16s}
+.st-c:hover,.st-c:focus-visible{background:var(--sur)}
+.st-c b{font-family:var(--m);font-weight:400;font-variant-numeric:tabular-nums;
+  font-size:clamp(26px,3vw,44px);letter-spacing:-.04em;line-height:1;
+  color:var(--ink)}
+.st-c i{font-style:normal;font-family:var(--m);font-size:var(--t-nano);
+  letter-spacing:.19em;text-transform:uppercase;color:var(--dim2)}
+.st-c em{font-style:normal;font-size:var(--t-small);line-height:1.45;
+  color:var(--dim3);max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .22s cubic-bezier(.2,.7,.3,1),opacity .18s}
+.st-c:hover em,.st-c:focus-visible em,.st-c[aria-pressed=true] em{
+  max-height:6em;opacity:1}
+.st-c.p b{color:var(--proven)} .st-c.p i{color:var(--proven)}
+.st-c.a b{color:var(--coral)}  .st-c.a i{color:var(--coral)}
+.st-c.c b,.st-c.i b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){
+  .st-c em{transition:none;max-height:6em;opacity:1}}
+
+.inst-foot{display:flex;flex-wrap:wrap;gap:16px clamp(24px,4vw,64px);
+  margin-top:clamp(18px,2.6vh,28px);align-items:baseline}
+.inst-foot .u{display:flex;flex-direction:column;gap:5px}
+.inst-foot b{font-family:var(--m);font-weight:400;letter-spacing:-.035em;
+  font-variant-numeric:tabular-nums;font-size:clamp(21px,2.5vw,36px);color:var(--ink)}
+.inst-foot b.hot{color:var(--coral)}
+@media (max-width:720px){
+  .mast-r{margin-left:0;width:100%}
+  .inst-states{grid-template-columns:minmax(0,1fr)}
+  .st-c em{max-height:6em;opacity:1}
+}
+
+/* focusing one state dims the rest of the population */
+.inst-field #heroField{position:relative;height:clamp(150px,22vh,230px)}
+/* `.stage canvas` carries the sizing rule for every other field. The hero's
+   field is deliberately not a `.stage` — it takes a different config — which
+   also meant it inherited no size and rendered at its device-pixel buffer
+   width, spilling over the states beneath it. */
+.inst-field #heroField canvas{position:absolute;inset:0;display:block;
+  width:100%;height:100%;transition:opacity .18s}
+@media (prefers-reduced-motion:reduce){
+  .inst-field #heroField canvas{transition:none}}
+
+/* The verdict names a state; the action says what the state COSTS you. Hover
+   opened a fuller sentence, which meant a reader who did not hover — or could
+   not — got a taxonomy instead of a product. The action word is always on. */
+.st-c i u{text-decoration:none;color:var(--ink);margin-left:.55em;
+  padding-left:.55em;border-left:1px solid var(--rule2)}
+.st-c.p i u{color:var(--proven)}
+.st-c.a i u{color:var(--coral)}
+
 .err{font-family:var(--m);color:var(--coral);border:1px solid var(--coral);
   padding:20px;max-width:56ch;font-size:var(--t-small)}
 
@@ -980,7 +1070,10 @@ function Field(host, spec) {
     let x0=0;
     lanes=[];
     gs.forEach(g=>{
-      const cols=Math.max(1,Math.round(Math.sqrt(g.n*1.7)));
+      /* Squarish blocks by default. The opening instrument passes a wider
+         aspect so the population spans the measure instead of huddling in the
+         middle of it — same primitive, different job. */
+      const cols=Math.max(1,Math.round(Math.sqrt(g.n*(spec.aspect||1.7))));
       const rows=Math.ceil(g.n/cols);
       const cell=Math.min((g.n*per)/cols, H/rows, spec.cell||13);
       const top=(H-rows*cell)/2;
@@ -1123,59 +1216,49 @@ async function build(){
     main.innerHTML=`
 
 <section id=open>
-  <div class="row hero-row">
-    ${rise('', mk(0,'financial reconciliation','settlement verification'))}
-    ${rise('', `<h1 class=hero-t>It won't move money<br>it can't prove.</h1>
-         <p class=sub>250 settlements went in. It proved ${c.PROVEN}, and it
-           did not force the other ${c.AMBIGUOUS+c.CONTRADICTED} into an
-           answer.</p>
-         <p class=say style="margin-top:22px">${cap(st('source').detail)}. Every
-           figure on this page was read from the running engine when the page
-           loaded.</p>
-         <a class=act-line style="margin-top:26px" href="#exception"
-           >inspect the ${blocker.settlements} exceptions <i>↗</i></a>`)}
+  ${rise('', `<div class=mast>
+    <span class=mast-n>ATTEST</span>
+    <span class=mast-t>financial control</span>
+    <span class=mast-r>${esc(src.label||'')} · ${esc((src.engine||{}).label||'')}
+      · seed ${esc(String(run.seed))} · ${esc(id)}</span>
+  </div>`)}
 
-    ${rise('', `<div class=spec>
-      <i class="spec-c tr"></i><i class="spec-c bl"></i>
-      <i class=spec-punch></i>
-      <div class=spec-h><b>ATTEST</b><span>run manifest</span></div>
-      <div class=spec-f><i>run</i><b>${esc(id)}</b></div>
-      <div class="spec-f big"><i>processed</i><b>${esc(rupee(run.processed_paise))}</b></div>
-      <div class=spec-f><i>settlements</i><b>${esc(String(run.settlements))}</b></div>
-      <div class=spec-f><i>orders</i><b>${Number(run.orders).toLocaleString()}</b></div>
-      <div class=spec-f><i>stopped at</i><b>${esc((stop.label||'').toUpperCase())}</b></div>
-      <div class="spec-f big hot"><i>held</i><b>${esc(stop.held_value||'')}</b></div>
-      <div class=spec-f><i>action</i><b>${esc(st('action').value||'')}</b></div>
-      <div class=spec-pipe>
-        <span class=lbl>how the verdict was reached</span>
-        <div class=spec-pipe-r><i class=e></i><b>Evidence</b>
-          <em>${Number(space.candidates).toLocaleString()} candidate orders</em></div>
-        <div class=spec-pipe-r><i class=m></i><b>Model</b>
-          <em>proposes an anchor</em></div>
-        <div class=spec-pipe-r><i class=s></i><b>Solver</b>
-          <em>tests whether it discriminates</em></div>
-        <div class=spec-pipe-r><i class=g></i><b>Engine</b>
-          <em>decides — the model's output is diagnostic only</em></div>
-      </div>
-      <div class=spec-disp>
-        <span class=lbl>disposition</span>
-        <div class=spec-disp-r><b class=p>${c.PROVEN}</b><i>proven</i>
-          <u class=q style="--w:${(c.PROVEN/run.settlements).toFixed(4)}"></u></div>
-        <div class=spec-disp-r><b class=a>${c.AMBIGUOUS}</b><i>ambiguous</i>
-          <u class=q style="--w:${(c.AMBIGUOUS/run.settlements).toFixed(4)}"></u></div>
-        <div class=spec-disp-r><b class=c>${c.CONTRADICTED}</b><i>contradicted</i>
-          <u class=q style="--w:${(c.CONTRADICTED/run.settlements).toFixed(4)}"></u></div>
-      </div>
-      <div class=spec-f><i>following</i><b>${esc(CASE)} · ${
-        esc(det.verdict||'')}</b></div>
-      <div class=spec-stamp>no financial action on ${esc(String(
-        c.AMBIGUOUS + c.CONTRADICTED))} settlements</div>
-      <div class=spec-note>${esc(String(run.wrong))} wrongly auto-posted</div>
-      <div class=spec-foot><span>seed ${esc(String(run.seed))}</span>
-        <span>${esc(src.label||'')}</span>
-        <span>${esc((src.engine||{}).label||'')}</span></div>
-    </div>`, 1)}
-  </div>
+  ${rise('', `<h1 class=hero-t>It won't move money<br>it can't prove.</h1>
+    <p class=claim-p>Settlement money arrives in batches. ATTEST works out what
+      can be proven, <b>stops what cannot</b>, and turns the rest into
+      operational work.</p>`, 1)}
+
+  ${rise('', `<figure class=inst>
+    <div class=inst-h>
+      <b class=inst-m>${esc(rupee(run.processed_paise))}</b>
+      <span class=inst-s>processed · <b>${run.settlements}</b> settlements ·
+        <b>${Number(run.orders).toLocaleString()}</b> orders${run.seconds
+          ? ` · reconciled in <b>${Number(run.seconds).toFixed(1)}s</b>` : ''}</span>
+    </div>
+    <div class=inst-field><div id=heroField></div></div>
+    <div class=inst-states>
+      <button class="st-c p" data-st=proven aria-pressed=false>
+        <b>${c.PROVEN}</b><i>proven <u>automate</u></i>
+        <em>a unique explanation the kernel re-derived — eligible for automated posting</em></button>
+      <button class="st-c a" data-st=ambiguous aria-pressed=false>
+        <b>${c.AMBIGUOUS}</b><i>ambiguous <u>hold</u></i>
+        <em>several explanations satisfy the credit exactly — hold, and ask for evidence</em></button>
+      <button class="st-c c" data-st=contradicted aria-pressed=false>
+        <b>${c.CONTRADICTED}</b><i>contradicted <u>investigate</u></i>
+        <em>no combination reproduces the credit — investigate</em></button>
+      ${c.INSUFFICIENT ? `<button class="st-c i" data-st=insufficient aria-pressed=false>
+        <b>${c.INSUFFICIENT}</b><i>insufficient <u>not searched</u></i>
+        <em>outside the current solver envelope — not searched</em></button>` : ''}
+    </div>
+    <div class=inst-foot>
+      <span class=u><b>${c.AMBIGUOUS + c.CONTRADICTED + c.INSUFFICIENT}</b>
+        <span class=lbl>need a person</span></span>
+      <span class=u><b class=hot>${esc(stop.held_value||'')}</b>
+        <span class=lbl>held for evidence</span></span>
+      <span class=u><b>${esc(st('action').value||'')}</b>
+        <span class=lbl>reached the ledger</span></span>
+    </div>
+  </figure>`, 2)}
 
   ${rise('plain', `
     <span class=lbl>in plain terms</span>
@@ -1613,6 +1696,26 @@ async function build(){
 function wire(data){
   const stages=[...document.querySelectorAll('.stage')];
   const fields=[];
+
+  /* The opening instrument's population. Deliberately outside the `.stage`
+     list — it is the same primitive but a different job, and giving it that
+     class silently handed it the config meant for the section below. It draws
+     no legend: the three state buttons under it are the legend, and they say
+     what each verdict MEANS rather than repeating its name. */
+  const hero=document.getElementById('heroField');
+  if(hero){
+    const hf=Field(hero, {cell:18, lane:54, aspect:6,
+      groups:[{n:data.counts.PROVEN,       tone:'proven', key:'proven'},
+              {n:data.counts.AMBIGUOUS,    tone:'coral',  key:'ambiguous'},
+              {n:data.counts.CONTRADICTED, tone:'ink', r:5, key:'contradicted'},
+              {n:data.counts.INSUFFICIENT, tone:'dim',    key:'insufficient'}]
+        .filter(g=>g.n>0)});
+    fields.push([hero, hf]);
+    /* Each state cell opens on hover or focus to say what the verdict MEANS
+       rather than repeat its name. CSS does the disclosure; there is no
+       handler here to leave dangling, and the copy is present without motion
+       under reduced-motion and below 720px. */
+  }
   /* Counts and labels come from the same group object that draws the points,
      so the legend cannot drift from the field. Nothing here is written down. */
   if(stages[0]) fields.push([stages[0], Field(stages[0], {cell:15, lane:56,

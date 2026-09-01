@@ -2934,6 +2934,7 @@ def test_every_shape_on_the_investigation_names_a_job(inv):
         "whole",                                         # the argument, condensed
         "plain", "plain-g",                              # the explanation, in English
         "rule2",                                         # the rule, both halves
+        "mast", "inst", "st-c",                          # the opening instrument
         "thr-line", "thr-mark", "ad-b",                  # boundaries
         "spec-c", "spec-punch",                          # specimen structure
         "rule", "hr",                                    # transitions
