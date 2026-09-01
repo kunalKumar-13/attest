@@ -2739,3 +2739,130 @@ def export_queue_csv(r: Run) -> str:
     w.writeheader()
     w.writerows(q["rows"])
     return buf.getvalue()
+
+
+def evidence_request(r: Run, sid: str) -> dict[str, Any] | None:
+    """The operator's next move, prepared. §43.
+
+    ATTEST refusing is only half a product. A finance controller handed
+    "AMBIGUOUS" still has to work out who to ask, for what, and why that
+    particular thing would settle it — which is exactly the reasoning the engine
+    already did to reach the refusal, thrown away at the last step.
+
+    This assembles it into something a person can act on: which settlement,
+    which orders are genuinely contested, what evidence is missing, **why that
+    evidence discriminates**, and what the engine would do once it arrives.
+
+    It prepares. It does not send. There is no recipient, no transport and no
+    external call anywhere in this function — `tests/test_export_safety.py`
+    pins the same read-only property for the queue and the checks there cover
+    this path too. The operator copies it into whatever system they already use.
+    """
+    from attest.verdict import Verdict
+
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    s = next((x for x in r.settlements if x.settlement_id == sid), None)
+    if f is None or s is None:
+        return None
+    if f.verdict is Verdict.PROVEN:
+        return None                      # nothing to ask about
+
+    sets = [set(p.order_ids) for p in f.proofs]
+    union: set[str] = set().union(*sets) if sets else set()
+    common: set[str] = set.intersection(*sets) if sets else set()
+    contested = sorted(union - common)
+    ex = r.exceptions.get(sid)
+    sp = getattr(f, "space", None)
+    prov = r.provenance.to_json() if r.provenance else {}
+
+    # Why this evidence discriminates, derived from the shape of the ambiguity
+    # rather than written down. A reference on a contested order eliminates
+    # every explanation that does not contain it.
+    if f.verdict is Verdict.AMBIGUOUS and contested:
+        why_it_works = (
+            f"Each of the {len(f.proofs)} surviving explanations contains a "
+            f"different subset of these {len(contested)} orders. A reference "
+            f"naming any one of them eliminates every explanation that does "
+            f"not contain it, which is enough to leave at most one.")
+        ask = "An order-level reference on the settlement report"
+        outcome = "PROVEN if one explanation survives; AMBIGUOUS if more than one still does"
+    elif f.verdict is Verdict.CONTRADICTED:
+        why_it_works = (
+            "No combination of the candidate orders reproduces this credit "
+            "within tolerance, so a record is missing or wrong rather than "
+            "merely unidentified.")
+        ask = ex.next_step if ex else "The missing or corrected record"
+        outcome = "PROVEN if the missing record closes the residual; CONTRADICTED if it does not"
+    else:
+        why_it_works = ("The candidate space could not be searched within the "
+                        "current solver envelope, so no explanation was ruled in or out.")
+        ask = "A re-run on the native kernel, or a narrower settlement window"
+        outcome = "a verdict where there is currently none"
+
+    return {
+        "settlement_id": sid,
+        "run_id": r.run_id,
+        "verdict": f.verdict.value,
+        "amount_paise": s.net_paise,
+        "settled_on": str(getattr(s, "settled_on", "")),
+        "utr": getattr(s, "utr", ""),
+        "why_we_stopped": (
+            f"{len(f.proofs)} explanations satisfy the credit exactly. "
+            f"No available evidence distinguishes one."
+            if f.verdict is Verdict.AMBIGUOUS else
+            (ex.why if ex and getattr(ex, "why", None) else _question_for(
+                ex.reason.value if ex else ""))),
+        "explanations": len(f.proofs),
+        "universe": sp.universe if sp is not None else None,
+        "candidates": sp.candidates if sp is not None else None,
+        "agreed_order_ids": sorted(common),
+        "contested_order_ids": contested,
+        "request": ask,
+        "why_it_discriminates": why_it_works,
+        "expected_outcome": outcome,
+        "on_receipt": ("ATTEST re-runs the deterministic proof. The verdict is "
+                       "recomputed from the records, not amended by hand."),
+        "provenance": prov,
+        "prepared_only": True,
+        "note": ("Prepared, not sent. ATTEST has no recipient, no transport and "
+                 "no write scope; this is the operator's next move, assembled."),
+    }
+
+
+def evidence_request_text(r: Run, sid: str) -> str:
+    """The same packet as something you can paste into an email or a ticket."""
+    d = evidence_request(r, sid)
+    if d is None:
+        return ""
+    money = f"{d['amount_paise'] / 100:,.2f}"
+    lines = [
+        f"EVIDENCE REQUEST — {d['settlement_id']}",
+        "",
+        f"SETTLEMENT   {d['settlement_id']} · Rs {money} · settled {d['settled_on']} · UTR {d['utr']}",
+        f"VERDICT      {d['verdict']}",
+        "",
+        "WHY WE STOPPED",
+        f"  {d['why_we_stopped']}",
+        "",
+        "WHAT IS AGREED",
+        f"  {len(d['agreed_order_ids'])} orders appear in every surviving explanation.",
+        "",
+        f"WHAT IS DISPUTED ({len(d['contested_order_ids'])} orders)",
+        "  " + (", ".join(d["contested_order_ids"]) or "—"),
+        "",
+        "REQUEST",
+        f"  {d['request']}",
+        "",
+        "WHY THAT SETTLES IT",
+        f"  {d['why_it_discriminates']}",
+        "",
+        "ON RECEIPT",
+        f"  {d['on_receipt']}",
+        f"  Expected outcome: {d['expected_outcome']}",
+        "",
+        "PROVENANCE",
+    ] + [f"  {k} = {v}" for k, v in sorted(d["provenance"].items())] + [
+        "",
+        "Prepared by ATTEST. Not sent — ATTEST has no write scope.",
+    ]
+    return "\n".join(lines)

@@ -129,6 +129,23 @@ class Handler(BaseHTTPRequestHandler):
         # §38.P0-3. A read, on GET, with no side effect. The queue leaves as
         # a file so the refusal has somewhere to go; nothing about the run
         # changes because it was asked for.
+        # §43. Prepared, never sent. A GET with no side effect: the packet is
+        # assembled from a run that already happened.
+        elif u.path == "/api/evidence-request":
+            r = api.get(q.get("run", [""])[0])
+            sid = q.get("id", [""])[0]
+            if r is None:
+                self._json({"error": "unknown run"}, 404)
+            elif q.get("format", ["json"])[0] == "text":
+                body = api.evidence_request_text(r, sid).encode()
+                if not body:
+                    self._json({"error": "nothing to request"}, 404)
+                else:
+                    self._reply(body, "text/plain; charset=utf-8")
+            else:
+                d = api.evidence_request(r, sid)
+                self._json(d or {"error": "nothing to request"}, 200 if d else 404)
+
         elif u.path == "/api/export/queue":
             r = api.get(q.get("run", [""])[0])
             if r is None:

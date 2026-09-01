@@ -561,7 +561,18 @@
                 <dd>${esc((j.reasons || ['—']).slice(-1)[0])}</dd></div>
               ${ex ? `<div><dt>next</dt><dd>${esc(ex.next_step)}</dd></div>` : ''}
             </dl></div>`,
-        }) };
+        })
+      /* Refusing is half a product. The reasoning that produced the refusal —
+         which orders are contested, what evidence is missing, why that evidence
+         discriminates — is exactly what the operator needs next, and it was
+         being discarded at the last step. Prepared, never sent: there is no
+         recipient and no write scope anywhere behind this. */
+      + (d.verdict !== 'PROVEN' ? Section({
+          title: 'Next move',
+          body: `<button class="btn c-ev-go" data-evidence="${esc(sid)}">
+                   Prepare evidence request</button>
+                 <div class=c-ev data-evidence-for="${esc(sid)}"></div>`,
+        }) : '') };
   }
 
   /* An action's detail is the settlements it unlocks — the thing the ranking
@@ -596,6 +607,45 @@
             + (a.settlements > a.examples.length
               ? `<div class=c-more>+ ${a.settlements - a.examples.length} more</div>` : ''),
         }) };
+  }
+
+  /* Delegated from the document so it survives every re-render of the pane. */
+  if (!window.__evWired) {
+    window.__evWired = true;
+    document.addEventListener('click', async (e) => {
+      const go = e.target.closest && e.target.closest('[data-evidence]');
+      if (!go) return;
+      const sid = go.getAttribute('data-evidence');
+      const box = document.querySelector(`[data-evidence-for="${sid}"]`);
+      if (!box) return;
+      if (box.dataset.open === '1') {           // toggle shut
+        box.innerHTML = ''; box.dataset.open = '0';
+        go.textContent = 'Prepare evidence request'; return;
+      }
+      go.disabled = true; go.textContent = 'Preparing…';
+      try {
+        const url = `/api/evidence-request?run=${window.SHELL.run}`
+                  + `&id=${encodeURIComponent(sid)}&format=text`;
+        const text = await (await fetch(url)).text();
+        box.innerHTML = `<pre class=c-ev-pre>${text.replace(/[&<>]/g,
+            c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</pre>
+          <div class=c-ev-act>
+            <button class="btn c-ev-copy">Copy</button>
+            <a class=btn href="${url}" download="evidence-request-${sid}.txt">Download</a>
+            <span class=c-ev-n>prepared · not sent · ATTEST has no write scope</span>
+          </div>`;
+        box.dataset.open = '1';
+        go.textContent = 'Hide evidence request';
+        const copy = box.querySelector('.c-ev-copy');
+        if (copy) copy.onclick = async () => {
+          try { await navigator.clipboard.writeText(text); copy.textContent = 'Copied'; }
+          catch (err) { copy.textContent = 'Select and copy'; }
+        };
+      } catch (err) {
+        box.innerHTML = `<p class=c-ev-n>Could not prepare the request.</p>`;
+        go.textContent = 'Prepare evidence request';
+      } finally { go.disabled = false; }
+    });
   }
 
   window.defineLens('control', {

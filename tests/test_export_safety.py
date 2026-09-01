@@ -158,3 +158,79 @@ def test_the_contested_orders_are_the_disputed_ones(run):
             f"{row['settlement_id']} lists undisputed orders as contested")
         assert contested == set().union(*sets) - common, (
             f"{row['settlement_id']} does not list every disputed order")
+
+
+# ── the evidence request. §43 ────────────────────────────────────────────────
+# Same property as the queue, and it matters more: this one produces something a
+# person will paste into an email, so it must be a read and it must be true.
+
+def test_the_evidence_request_does_not_change_the_run(run):
+    """Preparing the operator's next move may not disturb the run it reads."""
+    from attest.verdict import Verdict
+    sid = next(f.settlement_id for f in run.findings
+               if f.verdict is Verdict.AMBIGUOUS)
+    before = _snapshot(run)
+    api.evidence_request(run, sid)
+    api.evidence_request_text(run, sid)
+    assert _snapshot(run) == before, "preparing a request changed the run"
+
+
+def test_the_evidence_request_cannot_send_anything(run):
+    """There is no recipient and no transport, and the source says so."""
+    src = (inspect.getsource(api.evidence_request)
+           + inspect.getsource(api.evidence_request_text))
+    for name in ("urlopen", "requests.", "socket.", "smtplib", "subprocess",
+                 "post(", "send(", "open(", ".write("):
+        assert name not in src, f"the evidence request reaches for {name}"
+
+
+def test_a_proven_settlement_has_nothing_to_ask_for(run):
+    """A request for evidence on a settled case is noise in an operator's inbox."""
+    from attest.verdict import Verdict
+    proven = next((f.settlement_id for f in run.findings
+                   if f.verdict is Verdict.PROVEN), None)
+    if proven is None:
+        pytest.skip("this run proved nothing")
+    assert api.evidence_request(run, proven) is None
+    assert api.evidence_request_text(run, proven) == ""
+
+
+def test_the_request_names_the_orders_that_are_actually_disputed(run):
+    """The whole value is that it asks about 12 orders and not 2,368.
+
+    An agreed order appearing in the disputed list sends a person to check
+    something every surviving explanation already agrees on.
+    """
+    from attest.verdict import Verdict
+    by_sid = {f.settlement_id: f for f in run.findings}
+    checked = 0
+    for f in run.findings:
+        if f.verdict is not Verdict.AMBIGUOUS or len(f.proofs) < 2:
+            continue
+        d = api.evidence_request(run, f.settlement_id)
+        sets = [set(p.order_ids) for p in f.proofs]
+        common, union = set.intersection(*sets), set().union(*sets)
+        assert set(d["contested_order_ids"]) == union - common, \
+            f"{f.settlement_id} asks about the wrong orders"
+        assert set(d["agreed_order_ids"]) == common
+        assert not (set(d["contested_order_ids"]) & set(d["agreed_order_ids"]))
+        checked += 1
+        if checked >= 25:
+            break
+    assert checked, "no ambiguous settlement was available to check"
+
+
+def test_the_request_explains_why_the_evidence_discriminates(run):
+    """"Send me a reference" is a chore. Saying what it rules out is a reason."""
+    from attest.verdict import Verdict
+    sid = next(f.settlement_id for f in run.findings
+               if f.verdict is Verdict.AMBIGUOUS)
+    d = api.evidence_request(run, sid)
+    for key in ("why_we_stopped", "request", "why_it_discriminates",
+                "expected_outcome", "on_receipt"):
+        assert d[key] and len(d[key]) > 12, f"{key} is empty or a stub"
+    assert d["prepared_only"] is True
+    text = api.evidence_request_text(run, sid)
+    assert "Not sent" in text, "the artifact does not say it was not sent"
+    for v in ("rules_version", "policy_version", "solver_version"):
+        assert v in text, f"the artifact cannot be traced back to {v}"
