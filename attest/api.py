@@ -247,6 +247,7 @@ def summary(r: Run) -> dict[str, Any]:
     return {
         "run_id": r.run_id,
         "seed": r.seed,
+        "seed_basis": seed_basis(r.seed),
         "settlements": len(r.settlements),
         "orders": len(r.orders),
         "money": money,
@@ -486,6 +487,26 @@ def baselines_measurement() -> dict[str, Any]:
     return {"present": True, "methods": out, "panel": panel}
 
 
+def seed_basis(seed: int) -> dict[str, Any]:
+    """Whether this run's seed was held out from calibration, read from the panel.
+
+    The distinction is the difference between a measurement and a memory, and it
+    is invisible on screen unless something says it. `benchmark/results.json`
+    already records which seeds are which; nothing was asking it.
+    """
+    a = _artifact("results.json")
+    ev = [int(x) for x in (a.get("evaluation_seeds") or [])]
+    cal = [int(x) for x in (a.get("calibration_seeds") or [])]
+    if seed in ev:
+        return {"held_out": True, "label": "held-out evaluation seed",
+                "short": "held out", "source": "benchmark/results.json"}
+    if seed in cal:
+        return {"held_out": False, "label": "calibration seed — tuned on",
+                "short": "calibration", "source": "benchmark/results.json"}
+    return {"held_out": None, "label": "seed not in the evaluation panel",
+            "short": "off-panel", "source": "benchmark/results.json"}
+
+
 def anchoring_measurement() -> dict[str, Any]:
     """What the re-measurement of the hypothesis loop actually reports.
 
@@ -500,11 +521,24 @@ def anchoring_measurement() -> dict[str, Any]:
     a = _artifact("anchoring.json")
     resolved = int(a.get("resolved") or 0)
     correct = int(a.get("correct") or 0)
+    # The loop's precision is 27/63, and at that n the interval around it still
+    # contains one half — so "below a coin flip" was never a claim this artifact
+    # could carry. What it does carry, at n=1020, is how rarely the loop speaks
+    # at all, and how often its lens is vacuous. Both are counts, not inferences.
+    ambiguous = int(a.get("ambiguous") or 0)
+    pools = int(a.get("pools") or 0)
+    single = int(a.get("single_date_pools") or 0)
     return {
         "correct": correct,
         "resolved": resolved,
         "wrong": int(a.get("wrong") or 0),
         "precision": float(a.get("precision") or 0.0),
+        "ambiguous": ambiguous,
+        "silent": ambiguous - resolved,
+        "silent_share": (ambiguous - resolved) / ambiguous if ambiguous else 0.0,
+        "pools": pools,
+        "single_date_pools": single,
+        "single_date_share": float(a.get("single_date_share") or 0.0),
         "source": "benchmark/anchoring.json",
         "superseded": 0.521,
     }
@@ -513,7 +547,7 @@ def anchoring_measurement() -> dict[str, Any]:
 def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
     """Run the hypothesis loop in INVESTIGATE-ONLY mode and return the trail.
 
-    §15 and §54: the loop is measured below a coin flip — see
+    §15 and §54: the loop is silent on 94% of the cases it exists for — see
     `anchoring_measurement()`, read from the artifact — and is not permitted to
     resolve anything. It is permitted to *investigate* — propose explanations,
     have them tested, and show what happened. So this endpoint runs it and
@@ -554,10 +588,13 @@ def investigate_view(r: Run, sid: str) -> dict[str, Any] | None:
         "events": trail.events,
         "measurement": m,
         "note": (
-            f"AI resolution is disabled. Re-measured over five seeds at "
-            f"{m['correct']} correct of {m['resolved']} resolved "
-            f"({m['precision'] * 100:.1f}%) — below a coin flip — because the "
-            "settlement report carries no order-level reference, so every anchor "
+            f"AI resolution is disabled. Re-measured over five seeds, the loop "
+            f"offered an answer on {m['resolved']} of {m['ambiguous']} ambiguous "
+            f"cases — silent on {m['silent_share'] * 100:.0f}% of the work it "
+            f"exists for — and was right on {m['correct']} of those "
+            f"{m['resolved']}. On {m['single_date_share'] * 100:.0f}% of "
+            "candidate pools its lens is true of every order in the pool. Where "
+            "the records carry no order-level reference every anchor "
             "is a guess and selecting among candidate explanations with a guess "
             "lands where guesses land. A language model would change which guess "
             "gets made, not that it is one. It does not meet the auto-post "

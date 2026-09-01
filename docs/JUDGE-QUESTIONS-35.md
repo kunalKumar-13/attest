@@ -13,9 +13,13 @@ decided*, and neither of us is useful without the other number beside it.
 → benchmark strip · `benchmark/baselines.json`
 
 **2. Why not let the LLM decide?**
-Because we measured it. Across the evaluation panel the anchoring loop resolved
-27 of 63 correctly — 42.9%, below a coin flip. A component that wrong cannot be
-allowed to move money.
+Because we measured it. Across the evaluation panel there were 1,020 ambiguous
+cases; the anchoring loop offered an answer on 63 of them and was right on 27.
+It is silent on 94% of the work it exists for, and on 53% of candidate pools its
+lens is true of every order in the pool — so the anchor is an arbitrary pick
+wearing a rationale. A component that absent cannot be allowed to move money.
+(At n=63 its 42.9% is not distinguishable from chance either way, which is why
+we quote the silence, not the precision.)
 → §05 the model · `benchmark/anchoring.json`
 
 **3. Then why have AI at all?**

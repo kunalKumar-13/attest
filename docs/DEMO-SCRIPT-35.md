@@ -104,9 +104,10 @@ correct-decision count in the right-hand column.*
 > whether that anchor actually isolates one explanation. On this settlement,
 > two tested, zero discriminative.
 >
-> Then we measured the whole loop. Across the evaluation panel it resolved
-> twenty-seven of sixty-three correctly. Forty-two point nine percent. Below a
-> coin flip.
+> Then we measured the whole loop. Across the evaluation panel there were one
+> thousand and twenty ambiguous cases — the cases it exists for. It had
+> something to say about sixty-three of them. It was silent on ninety-four
+> percent of the work.
 >
 > We did not hide that number. We did not enlarge the prompt. We did not give
 > the model more authority. We built the architecture so its conclusion cannot
@@ -118,8 +119,8 @@ correct-decision count in the right-hand column.*
 > inconsequential.
 
 *Pause. On screen: the whole model frame in one shot — model proposes, solver
-tests, engine decides, twenty-seven of sixty-three below the coin-flip marker,
-NO FINANCIAL ACTION across the bottom. This is the frame to hold longest and
+tests, engine decides, sixty-three of one thousand and twenty — silent on
+ninety-four percent — NO FINANCIAL ACTION across the bottom. This is the frame to hold longest and
 the one to use as the submission thumbnail.*
 
 ## 2:45 — 3:20 · Engineering, not a prompt

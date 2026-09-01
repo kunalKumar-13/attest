@@ -835,7 +835,7 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   letter-spacing:.1em;text-transform:uppercase;color:var(--dim3)}
 .sig-op{font-family:var(--m);font-size:19px;color:var(--dim3);text-align:center}
 
-/* the measurement — 63 ticks, 27 filled, a coin flip marked */
+/* the measurement — one tick per case the model spoke on, filled if right */
 .sig-m{padding:15px 0 0}
 .sig-mh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .sig-mh b{font-family:var(--m);font-size:clamp(20px,2.1vw,29px);font-weight:400;
@@ -874,8 +874,8 @@ hr.rule{border:0;border-top:1px solid var(--rule);margin:clamp(20px,3vh,34px) 0}
   .sig-w{flex:1 1 100%}
   .sig-cf{grid-template-columns:minmax(0,1fr);gap:12px}
   .sig-op{text-align:left}
-  /* `margin-left:auto` put the ratio hard right, where it landed on top of the
-     coin-flip marker's label at 50%. */
+  /* the tick row: one tick per case the model answered, filled if it was
+     right. */
   .sig-mh u{margin-left:0;flex:1 1 100%}
   /* the marker's label hangs 13px above the tick row; once the ratio wraps to
      its own full-width line that space is occupied, so the ticks take the gap
@@ -1171,6 +1171,11 @@ async function build(){
   const main=document.getElementById('main');
   try{
     const run=await api('/api/run?n=250'); const id=run.run_id;
+    /* whether this seed was held out from calibration, read from the panel
+       artifact rather than asserted here. A number measured on the data it
+       was tuned on is a memory, not a measurement, and nothing on screen
+       said which this was. */
+    const basis=(run.seed_basis||{}).short||'';
     const [rec,spine,acts,det,inv,dec,claims,act]=await Promise.all([
       api(`/api/subject?run=${id}&type=portfolio&id=portfolio`),
       api(`/api/spine?run=${id}&type=portfolio&review=15000&exposure=10000000`),
@@ -1207,7 +1212,7 @@ async function build(){
 
     document.getElementById('prov').innerHTML =
       `${esc(src.label||'')} · ${esc((src.engine||{}).label||'')} · seed ${
-        esc(String(run.seed))} · <b>${esc(id)}</b>`;
+        esc(String(run.seed))} · ${esc(basis)} · <b>${esc(id)}</b>`;
 
     /* the worst false-proof rate sets the scale, so the bars compare */
     const worst=base.present
@@ -1220,7 +1225,7 @@ async function build(){
     <span class=mast-n>ATTEST</span>
     <span class=mast-t>financial control</span>
     <span class=mast-r>${esc(src.label||'')} · ${esc((src.engine||{}).label||'')}
-      · seed ${esc(String(run.seed))} · ${esc(id)}</span>
+      · seed ${esc(String(run.seed))} · ${esc(basis)} · ${esc(id)}</span>
   </div>`)}
 
   ${rise('', `<h1 class=hero-t>It won't move money<br>it can't prove.</h1>
@@ -1294,7 +1299,8 @@ async function build(){
         <b>${esc(rupee(run.processed_paise))}</b>${run.seconds ? ` ·
         reconciled in <b>${Number(run.seconds).toFixed(1)}s</b>` : ''}`)}
       ${row('proved', `<b class=w-p>${c.PROVEN}</b> — a ${(c.PROVEN/run.settlements*100).toFixed(1)}%
-        match rate, and <b>${run.wrong}</b> wrongly auto-posted`)}
+        match rate — and <b>${run.wrong}</b> of those proofs were wrong,
+        which is what the policy gate exists to catch`)}
       ${row('refused', `<b class=w-a>${ex}</b> — each one carrying the evidence
         that would settle it`)}
       ${g && a ? row('instead of', `greedy decides <b>${g.decided}</b> and is wrong
@@ -1302,7 +1308,8 @@ async function build(){
         ATTEST decides <b>${a.decided}</b> and ends with
         <b class=w-p>${a.decided-a.wrong}</b>.`) : ''}
       ${anch.resolved ? row('the ai', `measured at <b>${anch.correct} of ${anch.resolved}</b>
-        — below a coin flip. It proposes. It never decides.`) : ''}
+        — and silent on ${(anch.silent_share*100).toFixed(0)}% of the
+        cases it exists for. It proposes. It never decides.`) : ''}
       ${row('result', `<b class=w-a>${esc(stop.held_value||'')}</b> held.
         Nothing moved that could not be proved.`)}
     </figure>`;})(), 2)}
@@ -1316,10 +1323,10 @@ async function build(){
   ${base.present ? rise('bench', `
     <div class=bench-pop>
       <span><i>live run</i><b>${esc(String(run.settlements))} settlements</b>
-        <em>seed ${esc(String(run.seed))}</em></span>
+        <em>seed ${esc(String(run.seed))} · ${esc(basis)}</em></span>
       <span><i>benchmark panel</i><b>${esc(String(base.panel.settlements))} settlements</b>
         <em>${esc(String(base.panel.seeds))} seeds × ${esc(String(base.panel.per_seed))},
-          held out from the run above</em></span>
+          neither of them calibrated on — the run above is one of them</em></span>
     </div>
     <div class=bench-h><span>method</span><span>coverage — decided</span>
       <span>of panel</span><span>false proof — of those decided</span>
@@ -1430,7 +1437,8 @@ async function build(){
 
   ${rise('', `<figure class=sig>
     <div class=sig-h><i>measured model authority</i>
-      <span>${esc(CASE)} · ${survivors} explanations · seed ${esc(String(run.seed))}</span></div>
+      <span>${esc(CASE)} · ${survivors} explanations · seed ${
+        esc(String(run.seed))} · ${esc(basis)}</span></div>
 
     <div class="sig-r model"><i class=sig-gl></i>
       <span class=sig-a>Model<em>proposes</em></span>
@@ -1466,16 +1474,21 @@ async function build(){
     </div>` : ''}
 
     ${anch.resolved ? `<div class=sig-m>
-      <div class=sig-mh><b>${anch.correct} / ${anch.resolved}</b>
-        <span>model proposals correctly discriminated</span>
-        <u>${(anch.precision*100).toFixed(1)}% · below a coin flip</u></div>
+      <div class=sig-mh><b>${anch.resolved} / ${anch.ambiguous}</b>
+        <span>ambiguous cases the model could answer</span>
+        <u>silent on ${(anch.silent_share*100).toFixed(0)}%</u></div>
       <div class=sig-ticks>${Array.from({length: anch.resolved}, (_, i) =>
-        `<i class="sig-tk${i < anch.correct ? ' hit' : ''}"></i>`).join('')}
-        <span class=sig-half><b>coin flip</b></span></div>
+        `<i class="sig-tk${i < anch.correct ? ' hit' : ''}"></i>`).join('')}</div>
       <p class=sig-mn>Held-out evaluation panel, read from
-        <span class=mono>${esc(anch.source||'')}</span>. A component measured
-        below chance <b>does not get a vote on money</b> — which is why this one
-        proposes and the engine decides.</p>
+        <span class=mono>${esc(anch.source||'')}</span>. Each tick is one of the
+        <b>${anch.resolved}</b> cases it spoke on; filled means it was right —
+        <b>${anch.correct} of ${anch.resolved}</b>. On
+        <b>${(anch.single_date_share*100).toFixed(0)}%</b> of candidate pools its
+        lens — the densest same-day batch — is true of every order in the pool,
+        so the anchor is an arbitrary pick wearing a rationale. A component that
+        is silent on ${(anch.silent_share*100).toFixed(0)}% of the work and
+        vacuous on half of the rest <b>does not get a vote on money</b> — which
+        is why this one proposes and the engine decides.</p>
     </div>` : ''}
 
     <div class=sig-x><b>No financial action</b>
@@ -1530,7 +1543,8 @@ async function build(){
       <span class=lbl>ai boundary</span>
       <b>${anch.resolved ? `${(anch.precision*100).toFixed(1)}%` : '—'}<i>${
         anch.resolved ? `${anch.correct} of ${anch.resolved}` : 'not measured'}</i></b>
-      <p>Below a coin flip, which is why the model proposes and never decides.
+      <p>Silent on most of the work it exists for, which is why the model
+      proposes and never decides.
         Its conclusion is diagnostic only and nothing downstream reads it.</p>
     </div>
     <div class=pf>
@@ -1676,7 +1690,8 @@ async function build(){
   ${rise('foot', `
     <p><b class=mono>${esc(String(run.settlements))}</b> settlements ·
       <b class=mono>${Number(run.orders).toLocaleString()}</b> orders ·
-      <b class=mono>${esc(String(run.seed))}</b> seed · ${esc(src.detail||'')}</p>
+      <b class=mono>${esc(String(run.seed))}</b> seed · ${esc(basis)} ·
+      ${esc(src.detail||'')}</p>
     <a class="act-line door" id=open-app
       href="/app#/settlement/${encodeURIComponent(CASE)}/evidence"
       >open the investigation <i>↗</i></a>`, 1)}

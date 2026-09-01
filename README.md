@@ -2,20 +2,47 @@
 
 **It won't move money it can't prove.**
 
-A payment gateway does not pay a merchant order by order. It sends one lump sum
-covering hundreds of orders at once, minus its fees — and the report that arrives
-with the money does not say which orders it was for. Someone has to work that
-out, and getting it wrong marks the wrong customer as paid while the books
-balance either way.
+![ATTEST financial control — the native kernel reconciling 250 settlements on
+held-out seed 555001: 39 proven and eligible to automate, 210 ambiguous and
+held, 1 contradicted.](docs/img/product-control.png)
 
-ATTEST does that matching, reports what it could prove, and when the evidence
-genuinely cannot tell two answers apart it says so instead of picking one —
-handing that case to a person with the exact thing that would settle it.
+<sub>The live demo, on **held-out evaluation seed 555001** — one of the two seeds
+in the benchmark panel, neither of which the policy was calibrated on. The
+headline is lower on held-out data than on a calibration seed. That is the
+point of holding it out.</sub>
+
+A payment gateway does not pay a merchant order by order. It sends one lump sum
+covering hundreds of orders at once, minus its fees. Somebody has to establish
+what that credit was composed of, and getting it wrong marks the wrong customer
+as paid while the books balance either way.
+
+Where a gateway's own recon report carries order-level references — Razorpay's
+does — that reconstruction is largely a join, and ATTEST does the join. The
+engine exists for the cases where the join does not close: a bank credit that
+matches no single settlement, a period with no recon available, adjustments with
+no linked entity, or a merchant reconciling against a bank statement rather than
+against the gateway. Those are the cases where composition has to be *derived*
+from the records rather than read off them, and where the alternative today is a
+person in a spreadsheet.
+
+ATTEST does that reconstruction, reports what it could prove, and when the
+evidence genuinely cannot tell two answers apart it says so instead of picking
+one — handing that case to a person with the exact thing that would settle it.
+
+> **AI is advisory. The deterministic engine decides. If the evidence cannot
+> prove the explanation, ATTEST refuses financial action.**
+
+The thesis is **safe financial automation under uncertainty** — not *AI guesses
+the reconciliation*. A model may propose which orders belong together; it may
+never conclude that they do. Every verdict is re-derived by a 28-line kernel
+from the source records, and a proposal that no proof survives changes nothing.
+We built that advisory loop, measured it, and disabled it — the measurement is
+below.
 
 ```
-₹53,02,701.96   processed
-₹48,03,127.81   stopped at verification
-197             settlements blocked by one missing piece of evidence
+₹51,35,744.40   processed
+₹47,97,685.11   stopped at verification
+210             settlements blocked by one missing piece of evidence
 ```
 
 ```
@@ -38,9 +65,11 @@ scope. Everything on screen describes generated data, always labelled as such.
 
 Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
 batch of synthetic data, **reporting its match rate and the exceptions it could
-not resolve.** ATTEST runs 250 settlements, reports a 20.8% match rate on the
-native kernel (both execution paths are tabled below), and the
-198 exceptions it could not resolve are the product rather than a footnote —
+not resolve.** ATTEST runs 250 settlements on the native kernel (both execution paths are
+tabled below), and reports exact set recovery of 16.0% over the 500-settlement
+held-out panel — the figure the evaluation is scored on, not the one a
+calibration seed flatters. The exceptions it could not resolve are the product
+rather than a footnote —
 and they leave the system as a work queue, with the contested orders, the
 blocker and the evidence that would settle each one:
 
@@ -65,10 +94,10 @@ cd native && maturin develop --release && cd ..   # optional kernel — see belo
 
 | | solver envelope | this run of 250 |
 |---|---|---|
-| **Native kernel** — the recorded demo | ₹2,00,000 | 52 proven · 197 ambiguous · 1 contradicted |
-| **Portable** — no Rust toolchain needed | ₹30,000 | 51 proven · 161 ambiguous · 1 contradicted · **37 insufficient** |
+| **Native kernel** — the recorded demo | ₹2,00,000 | 39 proven · 210 ambiguous · 1 contradicted |
+| **Portable** — no Rust toolchain needed | ₹30,000 | 38 proven · 170 ambiguous · 1 contradicted · **41 insufficient** |
 
-The 37 are not failures. They are settlements whose candidate space exceeds
+The 41 are not failures. They are settlements whose candidate space exceeds
 what the portable solver will attempt, so it reports INSUFFICIENT rather than
 searching a space it cannot finish — the same refusal the rest of this
 document is about, applied to compute instead of evidence.
@@ -380,8 +409,8 @@ stopped, what is agreed against what is disputed, and what to do next. Changing
 lens does not change the case, and opening a context moves neither.
 
 CONTROL opens on the work, ranked by what each item **unlocks** rather than by
-what is stuck — in the native-kernel run, 197 ambiguous settlements are one
-action, not 197, because they are ambiguous for the same missing field. Each row states where it is blocked,
+what is stuck — in the native-kernel run, 210 ambiguous settlements are one
+action, not 210, because they are ambiguous for the same missing field. Each row states where it is blocked,
 why, what would unblock it, and whether ATTEST can do that itself. Three of them
 say it cannot.
 

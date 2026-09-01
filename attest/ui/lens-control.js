@@ -231,7 +231,10 @@
         <span class=r-op-t>reconciliation</span>
         <span class=r-op-m>${esc((S.record && S.record.source || {}).label || '')}${
           (S.record && S.record.source || {}).engine
-            ? ' · ' + esc(S.record.source.engine.label) : ''}</span>
+            ? ' · ' + esc(S.record.source.engine.label) : ''}${
+          sum.seed ? ` · seed ${esc(String(sum.seed))}` : ''}${
+          (sum.seed_basis || {}).short
+            ? ` · <b class=r-op-held>${esc(sum.seed_basis.short)}</b>` : ''}</span>
       </div>
       <div class=r-op-in>
         <span class=r-op-x><b>${esc(String(sum.settlements || ''))}</b>

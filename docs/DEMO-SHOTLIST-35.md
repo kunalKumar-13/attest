@@ -26,7 +26,7 @@ If it is not on screen, cut the line — do not speak it from memory.
 | 2:00 | hold on `4 explanations` | none | — | **pause**, then "no unique explanation" | 4 |
 | 2:05 | scroll to §05 the model | scroll | — | "we asked whether a model could break the tie" | No financial action. (52px) |
 | 2:15 | hold on the actor chain | none | — | proposes / tests / decides | capture-batch · 2 tested, 0 discriminative |
-| 2:28 | **the signature frame — capture whole** | none | — | "27 of 63 · 42.9%" | one frame: MODEL ◇ / SOLVER ○ / ENGINE ● · 27/63 short of the coin-flip mark · NO FINANCIAL ACTION |
+| 2:28 | **the signature frame — capture whole** | none | — | "63 of 1020 · silent on 94%" | one frame: MODEL ◇ / SOLVER ○ / ENGINE ● · 63/1020 answered, 27 of those right · NO FINANCIAL ACTION |
 | 2:38 | hold 4s — this is the thumbnail | none | — | silence | (screenshot this frame for the submission cover) |
 | 2:38 | hold | none | — | model=AMBIGUOUS, engine=AMBIGUOUS, changed No | AMBIGUOUS = AMBIGUOUS · No |
 | 2:43 | hold | none | — | **pause** | NO FINANCIAL ACTION |

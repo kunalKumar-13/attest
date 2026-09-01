@@ -23,6 +23,53 @@ import pytest
 
 URL = "http://localhost:8420/workspace.html"
 
+#: The settlements these contracts navigate to, and the verdict each one is
+#: chosen to exhibit. They are fixtures: the guarantees below are about how the
+#: shell renders a PROVEN or a CONTRADICTED case, not about these four ids.
+#:
+#: §47.F1 moved the demo from a calibration seed to a held-out one and 25 of
+#: these contracts went red at once - not because anything regressed, but
+#: because setl_000020 is PROVEN on 20260821 and AMBIGUOUS on 555001. The
+#: coupling was real and nothing named it, so the failure arrived as two dozen
+#: unrelated-looking assertion errors instead of one sentence. It is named now,
+#: and `test_the_pinned_cases_still_exhibit_their_verdicts` fails first and
+#: alone if the data moves under them again.
+CASES = {
+    "setl_000089": "AMBIGUOUS",
+    "setl_000225": "AMBIGUOUS",
+    "setl_000022": "PROVEN",
+    "setl_000166": "CONTRADICTED",
+    "setl_000163": "AMBIGUOUS",
+    # the one whose candidate pool spans more than one capture date, so the
+    # hypothesis loop actually proposes and is actually refuted. On a
+    # single-date pool the lens is vacuous and the trail reads differently.
+    "setl_000128": "AMBIGUOUS",
+}
+
+
+def test_the_pinned_cases_still_exhibit_their_verdicts():
+    """§47.F1. Every fixture id still has the verdict its contracts assume.
+
+    This is the canary for the failure above: if a data change moves one of
+    these, this test says which id and which verdict in one line, before the
+    contracts that depend on it start failing for reasons that look unrelated.
+    """
+    import json
+    import urllib.request
+    with urllib.request.urlopen("http://localhost:8420/api/run?n=250") as r:
+        run = json.load(r)
+    got = {}
+    for sid in CASES:
+        with urllib.request.urlopen(
+                f"http://localhost:8420/api/settlement?run={run['run_id']}"
+                f"&id={sid}") as r:
+            got[sid] = json.load(r).get("verdict")
+    drifted = {k: (v, got.get(k)) for k, v in CASES.items() if got.get(k) != v}
+    assert not drifted, (
+        f"on seed {run['seed']} these fixtures no longer exhibit the verdict "
+        f"their contracts assume (expected, actual): {drifted}")
+
+
 playwright = pytest.importorskip("playwright.sync_api",
                                  reason="playwright not installed")
 
@@ -90,7 +137,7 @@ def test_changing_subject_leaves_the_lens_and_the_strip_untouched(page):
                 on: b.getAttribute('aria-selected') === 'true',
                 state: (b.querySelector('.c-lens-s') || {}).textContent || null }))"""
 
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
     before = page.evaluate(rack)
 
@@ -101,7 +148,7 @@ def test_changing_subject_leaves_the_lens_and_the_strip_untouched(page):
     subject, lens, context = _state(page)
 
     assert subject.startswith("settlement:")
-    assert lens == "journal", "the user already said what they wanted to know"
+    assert lens == "control", "the user already said what they wanted to know"
     assert context is None, "context does not survive a subject change"
 
     after = page.evaluate(rack)
@@ -189,7 +236,7 @@ def test_the_shell_raised_no_script_errors(page):
 def test_inspecting_a_row_does_not_move_the_subject_or_rebuild_the_master(page):
     """§5's interaction model. Opening something is not going somewhere: the
     master list must not re-render, or the thing you clicked moves under you."""
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
     before = page.inner_text("#w-main")
 
@@ -198,14 +245,14 @@ def test_inspecting_a_row_does_not_move_the_subject_or_rebuild_the_master(page):
     subject, lens, context = _state(page)
 
     assert subject == "portfolio:portfolio"
-    assert lens == "journal"
+    assert lens == "control"
     assert context and context.startswith("settlement:")
     assert page.inner_text("#w-main") == before, "the master re-rendered"
     assert len(page.inner_text("#w-ctx")) > 80, "the detail is empty"
 
 
 def test_the_selected_row_stays_selected_while_its_detail_is_open(page):
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
     page.click(".c-row.link")
     page.wait_for_timeout(1200)
@@ -215,7 +262,7 @@ def test_the_selected_row_stays_selected_while_its_detail_is_open(page):
 
 
 def test_closing_returns_to_exactly_where_you_were(page):
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
     before = page.inner_text("#w-main")
     page.click(".c-row.link")
@@ -224,13 +271,13 @@ def test_closing_returns_to_exactly_where_you_were(page):
     page.wait_for_timeout(900)
 
     subject, lens, context = _state(page)
-    assert (subject, lens, context) == ("portfolio:portfolio", "journal", None)
+    assert (subject, lens, context) == ("portfolio:portfolio", "control", None)
     assert page.inner_text("#w-main") == before
     assert page.eval_on_selector_all(".c-row.sel", "x => x.length") == 0
 
 
 def test_escape_and_back_close_the_drawer_without_leaving_the_page(page):
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
 
     page.click(".c-row.link")
@@ -245,12 +292,12 @@ def test_escape_and_back_close_the_drawer_without_leaving_the_page(page):
     page.wait_for_timeout(1100)
     subject, lens, context = _state(page)
     assert context is None, "Back did not close the drawer"
-    assert (subject, lens) == ("portfolio:portfolio", "journal"), \
+    assert (subject, lens) == ("portfolio:portfolio", "control"), \
         "Back left the page instead of closing what was opened"
 
 
 def test_the_url_addresses_context_too(page):
-    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'journal'})")
+    page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'},lens:'control'})")
     page.wait_for_timeout(1600)
     page.click(".c-row.link")
     page.wait_for_timeout(1200)
@@ -263,15 +310,21 @@ def test_the_url_addresses_context_too(page):
 
 
 def test_a_context_the_next_lens_cannot_hold_is_dropped_visibly(page):
-    """§7 again, for the third axis. An order inspected inside Journal is not a
-    thing Control can open, and dropping it silently would be the same lie."""
-    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'},lens:'journal'})")
-    page.wait_for_timeout(1700)
-    page.click(".c-inline")
+    """§7 again, for the third axis. An explanation inspected inside Control is
+    not a thing Policy can open, and dropping it silently would be the same lie.
+
+    This used to inspect the order list inside Journal. On the held-out seed
+    the ledger is empty by design - nothing cleared the policy, so there is no
+    entry and no `.c-inline` to click. The axis under test is that a lens drops
+    a context it cannot hold and SAYS SO; Policy holds no context of any kind,
+    which makes it the honest end of that move on any data.
+    """
+    _ev(page, "#/settlement/setl_000089/control")
+    page.click(".c-cand")
     page.wait_for_timeout(1300)
     assert _state(page)[2] is not None
 
-    page.click("[data-lens=control]")
+    page.click("[data-lens=policy]")
     page.wait_for_timeout(1700)
     assert _state(page)[2] is None
     assert page.query_selector(".c-notice"), "the drop was not announced"
@@ -356,7 +409,12 @@ def test_the_context_chrome_is_generic_not_per_kind(page):
     """§18: no DrawerSettlement, no DrawerExplanation. Every drawer in the
     product is the same drawer, or the close button will drift."""
     for hash_, click, kind in [
-        ("#/portfolio/journal", ".c-row.link", "Entry"),
+        # An Entry drawer used to be the first pair. On the held-out seed the
+        # ledger is empty by design - nothing cleared the policy - so there is
+        # no entry to open, and a drawer that cannot be reached cannot be
+        # compared. Two kinds that DO exist make the same point: the guarantee
+        # is that every drawer is the same drawer, not that it is these two.
+        ("#/portfolio/control", ".c-row.link", "Settlement"),
         ("#/settlement/setl_000089/control", ".c-cand", "Explanation"),
     ]:
         page.evaluate(f"location.hash = {hash_!r}")
@@ -417,10 +475,19 @@ def test_settlement_evidence_shows_the_search_space_boundary(page):
     """§16. A proof can be perfect inside a space that excluded the truth, and a
     reader cannot judge that without seeing what was CONSIDERED."""
     _ev(page, "#/settlement/setl_000089/evidence")
+    space = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/evidence?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000089`)).json();
+      return d.space || {}; }""")
     txt = page.inner_text("#workspace")
     assert "WHAT WAS CONSIDERED" in txt.upper()
-    # the funnel states both ends and names each reduction's status
-    assert "2,368" in txt and "73" in txt
+    # the funnel states both ends and names each reduction's status. Both ends
+    # are read from the run rather than pinned: they are properties of the
+    # portfolio, and pinning them made a seed change look like a regression.
+    assert f"{space['universe']:,}" in txt, \
+        f"the universe ({space['universe']:,}) is not stated"
+    assert str(space["candidates"]) in txt, \
+        f"the candidate count ({space['candidates']}) is not stated"
     assert "CONVENTION" in txt.upper()
     assert "DETERMINISTIC" in txt.upper()
 
@@ -487,17 +554,17 @@ def test_closing_evidence_context_restores_the_workspace(page):
 
 
 def test_switching_to_evidence_preserves_the_subject(page):
-    _ev(page, "#/settlement/setl_000020/control")
+    _ev(page, "#/settlement/setl_000022/control")
     page.click("[data-lens=evidence]")
     page.wait_for_timeout(2000)
     subject, lens, _ = _state(page)
-    assert subject == "settlement:setl_000020"
+    assert subject == "settlement:setl_000022"
     assert lens == "evidence"
 
 
 def test_a_proven_settlement_shows_no_competing_explanations(page):
     """The lens must understand the verdict states. §7."""
-    _ev(page, "#/settlement/setl_000020/evidence")
+    _ev(page, "#/settlement/setl_000022/evidence")
     txt = page.inner_text("#workspace").upper()
     assert "WHAT WAS CONSIDERED" in txt
     assert "VERIFIED RELATIONSHIPS" in txt
@@ -529,7 +596,7 @@ def test_a_stale_evidence_fetch_cannot_land_on_another_subject(page):
     _ev(page, "#/settlement/setl_000089/evidence")
     page.route("**/api/evidence*", lambda route: (page.wait_for_timeout(2500),
                                                   route.continue_()))
-    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000022'}})")
     page.wait_for_timeout(400)
     page.evaluate("navigate({subject:{type:'portfolio',id:'portfolio'}})")
     page.wait_for_timeout(3600)
@@ -590,7 +657,7 @@ def test_the_three_actors_are_visually_distinct(page):
 
 def test_the_solver_result_is_a_named_state_not_a_confidence(page):
     """§18. "AI confidence" collapses six different findings into one."""
-    _ev(page, "#/settlement/setl_000089/investigate")
+    _ev(page, "#/settlement/setl_000128/investigate")
     results = page.eval_on_selector_all(".i-tl-r", "x => x.map(n => n.textContent.trim())")
     assert results, "the solver reported nothing"
     assert any("NON DISCRIMINATIVE" in r for r in results)
@@ -622,7 +689,7 @@ def test_abstention_is_shown_as_restraint_and_changes_no_verdict(page):
 def test_a_failed_hypothesis_is_not_hidden(page):
     """§6. A trail cleaned up to make the model look competent is worth
     nothing."""
-    _ev(page, "#/settlement/setl_000089/investigate")
+    _ev(page, "#/settlement/setl_000128/investigate")
     txt = page.inner_text("#workspace")
     assert "capture-batch" in txt, "the refuted hypothesis was removed"
     assert "does not distinguish" in txt.lower()
@@ -632,9 +699,15 @@ def test_the_lens_failure_is_derived_from_this_pool_not_hardcoded(page):
     """§7. D22 should emerge because it is true here, not because it was typed
     into the interface."""
     _ev(page, "#/settlement/setl_000089/investigate")
+    pool = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/evidence?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000089`)).json();
+      return (d.space || {}).candidates; }""")
     sig = page.inner_text(".i-sig-r") + page.inner_text(".i-sig-d")
     assert "capture date" in sig.lower()
-    assert "73" in sig, "the pool size is not stated"
+    # the pool size is a property of this run, not a constant: pinning it made
+    # a seed change look like the lens had stopped stating it.
+    assert str(pool) in sig, f"the pool size ({pool}) is not stated"
     body = page.inner_text("#workspace")
     assert "D22" not in body, "a failure reference leaked into the product copy"
 
@@ -729,7 +802,7 @@ def test_settlement_policy_states_the_decision_and_the_verdict_apart(page):
 
 def test_the_decision_is_expressed_as_a_cost_comparison(page):
     """§1, §15, §27. Not a score, not a confidence — an inequality."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     body = page.inner_text("#workspace")
     assert "expected loss" in body.lower()
     assert "to check" in body.lower()
@@ -738,7 +811,7 @@ def test_the_decision_is_expressed_as_a_cost_comparison(page):
 
 def test_the_word_confidence_never_appears_in_policy(page):
     """§15."""
-    for h in ("#/portfolio/policy", "#/settlement/setl_000020/policy",
+    for h in ("#/portfolio/policy", "#/settlement/setl_000022/policy",
               "#/settlement/setl_000089/policy"):
         _ev(page, h)
         assert "confidence" not in page.inner_text("#workspace").lower()
@@ -770,14 +843,30 @@ def test_an_unproven_settlement_is_never_priced(page):
         assert "unpriced" in text.lower(), \
             f"the expected-loss slot does not say it is empty: {text!r}"
         assert "\u20b9" not in text, f"a price was drawn without a proof: {text!r}"
-    # every proof gate failed, so no policy gate could pass
-    ok = page.eval_on_selector_all(".p-gate.ok", "x => x.length")
-    assert ok == 0, "a policy gate passed without proof"
+    # Every PROOF gate must fail. This used to count `.p-gate.ok` across the
+    # whole room and require zero, which conflated two different things: on
+    # this run "below the exposure ceiling" passes, because it is a statement
+    # about SIZE and is true of a settlement nobody proved. The decision is
+    # still REVIEW. Counting all gates made an honest policy gate look like a
+    # proof leaking through, so the assertion now names the stage it means.
+    proof_ok = page.evaluate("""() => {
+      const st = [...document.querySelectorAll('.p-stage')].find(
+        s => /proof/i.test((s.querySelector('.p-stage-h') || {}).textContent || ''));
+      return st ? st.querySelectorAll('.p-gate.ok').length : null; }""")
+    assert proof_ok == 0, \
+        f"{proof_ok} proof gates passed on a settlement with no proof"
+    decision = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/decision?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000089&review=${SHELL.review}`
+        + `&exposure=${SHELL.exposure}`)).json();
+      return d.decision; }""")
+    assert decision != "AUTO_POST", \
+        f"an unproven settlement reached {decision}"
 
 
 def test_the_proof_gates_precede_the_policy_gates(page):
     """§17, §33. AI never skips proof, and the layout is the argument."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     stages = page.eval_on_selector_all(".p-stage-h",
                                        "x => x.map(n => n.textContent.trim().toLowerCase())")
     assert stages == ["proof", "policy"], stages
@@ -785,14 +874,14 @@ def test_the_proof_gates_precede_the_policy_gates(page):
 
 def test_the_policy_version_is_visible_and_derived_from_the_costing(page):
     """§12, §25. A what-if is a different policy version, not a recomputation."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     body = page.inner_text("#workspace")
     assert "policy_" in body
     recorded = page.evaluate("""(async () => {
       const a = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
-        + `&id=setl_000020&review=15000`)).json();
+        + `&id=setl_000022&review=15000`)).json();
       const b = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
-        + `&id=setl_000020&review=50000`)).json();
+        + `&id=setl_000022&review=50000`)).json();
       return [a.policy_version, b.policy_version, a.simulated, b.simulated];
     })()""")
     assert recorded[0] != recorded[1], "the costing did not change the version"
@@ -807,10 +896,10 @@ def test_the_ui_decision_matches_the_engine(page):
     the old form checked one element while the room could still have contained a
     contradicting decision elsewhere. Now the engine's decision must be stated
     AND no other decision word may appear anywhere in the room."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     from_api = page.evaluate("""(async () => {
       const d = await (await fetch(`/api/decision?run=${SHELL.run}`
-        + `&type=settlement&id=setl_000020&review=${SHELL.review}`)).json();
+        + `&type=settlement&id=setl_000022&review=${SHELL.review}`)).json();
       return d.decision; })()""")
     shown = from_api.replace("_", "-")
     assert shown in page.inner_text(".c-concl"), \
@@ -843,7 +932,7 @@ def test_simulating_a_costing_does_not_change_the_recorded_decision(page):
 
 def test_policy_offers_no_way_to_execute_an_action(page):
     """§22. Policy says ALLOWED. Action executes. Keep the boundary."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     buttons = page.eval_on_selector_all(
         "#w-main button", "x => x.map(n => n.textContent.trim().toLowerCase())")
     for b in buttons:
@@ -865,11 +954,11 @@ def test_a_policy_decision_opens_as_context(page):
 
 def test_policy_to_journal_preserves_the_subject(page):
     """§23. The chain is followable without losing the case."""
-    _ev(page, "#/settlement/setl_000020/policy")
+    _ev(page, "#/settlement/setl_000022/policy")
     page.click("[data-lens=journal]")
     page.wait_for_timeout(1900)
     subject, lens, _ = _state(page)
-    assert subject == "settlement:setl_000020"
+    assert subject == "settlement:setl_000022"
     assert lens == "journal"
 
 
@@ -886,10 +975,10 @@ def test_a_stale_policy_fetch_cannot_land_on_another_subject(page):
     _ev(page, "#/settlement/setl_000089/policy")
     page.route("**/api/decision*", lambda route: (page.wait_for_timeout(2500),
                                                   route.continue_()))
-    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000022'}})")
     page.wait_for_timeout(3600)
     page.unroute("**/api/decision*")
-    assert _state(page)[0] == "settlement:setl_000020"
+    assert _state(page)[0] == "settlement:setl_000022"
     assert "1,00,036.83" not in page.inner_text("#workspace")
 
 
@@ -923,18 +1012,48 @@ def test_every_event_states_what_caused_it(page):
 
 
 def test_permission_and_execution_are_separate_events(page):
-    """§18, §31, §40 — the foundational distinction. ALLOWED is not DONE."""
-    _ev(page, "#/settlement/setl_000020/activity")
+    """§18, §31, §40 — the foundational distinction. ALLOWED is not DONE.
+
+    §47.F1. This used to assert LEDGER UPDATED on a settlement that posted. On
+    the held-out seed nothing posts: every proven case fails "expected loss is
+    below the cost of checking", so the ledger is empty and that is the honest
+    result, not a gap to engineer around.
+
+    It is also the harder case for this guarantee, which is why the test stays
+    here rather than moving to data that posts. A room that collapsed
+    permission into execution would have one way to say "no" — it must have
+    two, and both must be on screen: the policy did not permit, and separately,
+    nothing was executed. The stage order is the same order the pipeline runs
+    in, and it must survive the outcome being negative.
+    """
+    _ev(page, "#/settlement/setl_000022/activity")
     stages = page.eval_on_selector_all(".a-stage",
                                        "x => x.map(n => n.textContent.trim())")
     assert stages.count("policy") == 1 and stages.count("action") == 1
-    assert stages.index("policy") < stages.index("action")
+    assert stages.index("policy") < stages.index("action"), \
+        "execution is not reported after the permission that would allow it"
+
+    decision = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/decision?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000022&review=${SHELL.review}`
+        + `&exposure=${SHELL.exposure}`)).json();
+      return d.decision; }""")
     body = page.inner_text("#workspace")
-    assert "permitted" in body.lower()
-    assert "LEDGER UPDATED" in body
-    # the two carry different badges, so they cannot be read as one fact
-    assert page.eval_on_selector_all(".a-badge.yes", "x => x.length") >= 1
-    assert page.eval_on_selector_all(".a-badge.done", "x => x.length") >= 1
+
+    if decision == "AUTO_POST":
+        assert "An entry was written" in body
+        assert page.eval_on_selector_all(".a-badge.yes", "x => x.length") >= 1
+        assert page.eval_on_selector_all(".a-badge.done", "x => x.length") >= 1
+    else:
+        assert "Ledger unchanged" in body, \
+            "nothing posted and the room does not say the ledger is unchanged"
+        # the two refusals are stated separately, in that order
+        assert page.eval_on_selector_all(".a-badge.no", "x => x.length") >= 1, \
+            "no step reports that permission was withheld"
+        assert page.eval_on_selector_all(".a-badge.undone", "x => x.length") >= 1, \
+            "no step reports that execution did not happen"
+        assert page.eval_on_selector_all(".a-badge.done", "x => x.length") == 0, \
+            "something is marked executed on a run that posted nothing"
 
 
 def test_a_settlement_that_was_not_posted_says_the_ledger_is_unchanged(page):
@@ -1077,10 +1196,10 @@ def test_a_stale_activity_fetch_cannot_land_on_another_subject(page):
     _ev(page, "#/settlement/setl_000089/activity")
     page.route("**/api/activity*", lambda route: (page.wait_for_timeout(2500),
                                                   route.continue_()))
-    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'}})")
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000022'}})")
     page.wait_for_timeout(3600)
     page.unroute("**/api/activity*")
-    assert _state(page)[0] == "settlement:setl_000020"
+    assert _state(page)[0] == "settlement:setl_000022"
     assert "1,00,036.83" not in page.inner_text("#workspace")
 
 
@@ -1268,10 +1387,10 @@ def test_a_stale_trust_fetch_cannot_land_on_another_subject(page):
     _ev(page, "#/portfolio/trust")
     page.route("**/api/claims*", lambda route: (page.wait_for_timeout(2500),
                                                 route.continue_()))
-    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000020'},lens:'control'})")
+    page.evaluate("navigate({subject:{type:'settlement',id:'setl_000022'},lens:'control'})")
     page.wait_for_timeout(3600)
     page.unroute("**/api/claims*")
-    assert _state(page)[0] == "settlement:setl_000020"
+    assert _state(page)[0] == "settlement:setl_000022"
     assert "uncomfortable numbers" not in page.inner_text("#workspace").lower()
 
 
@@ -1468,7 +1587,7 @@ def test_a_case_remembers_the_blocker_it_came_from(page):
 
 
 def test_the_contradicted_case_is_reachable_without_knowing_its_id(page):
-    """§6. It was only findable by typing setl_000109 into the URL."""
+    """§6. It was only findable by typing setl_000166 into the URL."""
     _ev(page, "#/portfolio/control")
     blockers = page.query_selector_all(".c-blk")
     assert len(blockers) >= 3
@@ -1485,11 +1604,18 @@ def test_a_contradicted_case_is_not_reported_as_passing(page):
     """A settlement can pass every check it was given and still have no
     explanation at all — the contradiction lives in the unsat core. Control
     reported 'every check passed' over exactly that."""
-    _ev(page, "#/settlement/setl_000109/control")
+    _ev(page, "#/settlement/setl_000166/control")
     concl = page.inner_text(".c-concl").lower()
     assert "every check passed" not in concl
     assert "no combination explains" in concl
-    assert "447.05" in concl, "the unresolved residual is not stated"
+    residual = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/settlement?run=${SHELL.run}`
+        + `&id=setl_000166`)).json();
+      const e = d.exception || {};
+      return (e.unexplained_paise != null ? e.unexplained_paise : null); }""")
+    assert residual, "the run reports no residual for this case"
+    assert f"{residual / 100:,.2f}" in concl, \
+        f"the unresolved residual (Rs {residual / 100:,.2f}) is not stated"
 
 
 def test_the_review_cost_lever_never_edits_the_recorded_policy(page):
@@ -1609,7 +1735,7 @@ def test_money_never_renders_at_annotation_size(page):
     and counts. Money is the subject of this product, not an annotation."""
     BODY = 13
     for route in ("#/portfolio/control", "#/settlement/setl_000089/evidence",
-                  "#/settlement/setl_000109/control"):
+                  "#/settlement/setl_000166/control"):
         _ev(page, route)
         small = [m for m in _money_sizes(page, ".c-case") if m["px"] < BODY]
         assert not small, (
@@ -1781,7 +1907,7 @@ def test_no_room_paints_the_same_sentence_twice(page):
     # headline a second time further down is not.
     dupes = []
     for subject in ("portfolio", "settlement/setl_000089",
-                    "settlement/setl_000020"):
+                    "settlement/setl_000022"):
         for lens in ("control", "evidence", "investigate", "policy",
                      "journal", "activity", "trust"):
             _ev(page, f"#/{subject}/{lens}")
@@ -1810,7 +1936,7 @@ def test_no_section_is_a_heading_over_nothing(page):
     the rail's NEXT once the spine grew tall enough to push it out."""
     empty = []
     for subject in ("portfolio", "settlement/setl_000089",
-                    "settlement/setl_000020"):
+                    "settlement/setl_000022"):
         for lens in ("control", "evidence", "investigate", "policy",
                      "journal", "activity", "trust"):
             _ev(page, f"#/{subject}/{lens}")
@@ -1914,7 +2040,7 @@ def test_an_ambiguous_verification_routes_to_investigate(page):
     _ev(page, "#/settlement/setl_000089/control")
     amb = page.get_attribute('.c-state .c-flow-r[data-stage="verification"]',
                              "data-lens")
-    _ev(page, "#/settlement/setl_000020/control")
+    _ev(page, "#/settlement/setl_000022/control")
     proven = page.get_attribute('.c-state .c-flow-r[data-stage="verification"]',
                                 "data-lens")
     assert amb == "investigate", f"ambiguous verification routes to {amb}"
@@ -1959,9 +2085,9 @@ def test_the_next_question_is_derived_from_the_case_not_a_script(page):
     sends you to Policy."""
     _ev(page, "#/settlement/setl_000089/evidence")     # AMBIGUOUS
     amb = page.get_attribute(".c-onward", "data-lens")
-    _ev(page, "#/settlement/setl_000020/evidence")     # PROVEN
+    _ev(page, "#/settlement/setl_000022/evidence")     # PROVEN
     proven = page.get_attribute(".c-onward", "data-lens")
-    _ev(page, "#/settlement/setl_000109/evidence")     # CONTRADICTED
+    _ev(page, "#/settlement/setl_000166/evidence")     # CONTRADICTED
     contra = page.get_attribute(".c-onward", "data-lens")
     assert amb == "investigate", f"ambiguous evidence proposes {amb}"
     assert proven == "policy", f"proven evidence proposes {proven}"
@@ -2051,7 +2177,7 @@ def test_policy_does_not_state_its_decision_twice(page):
     pixels below it. The block's unique content is the sentence that policy
     reads the verdict and does not change it — one of the product's core
     claims, and it appeared nowhere else."""
-    for sid, word in (("setl_000089", "REVIEW"), ("setl_000020", "AUTO-POST")):
+    for sid, word in (("setl_000089", "REVIEW"), ("setl_000022", "AUTO-POST")):
         _ev(page, f"#/settlement/{sid}/policy")
         big = page.evaluate("""(w) => {
           const out = [];
@@ -2107,7 +2233,7 @@ def test_no_room_states_its_own_conclusion_twice_at_emphasis(page):
     saying its own headline a second time."""
     bad = []
     for subject in ("portfolio", "settlement/setl_000089",
-                    "settlement/setl_000020", "settlement/setl_000109"):
+                    "settlement/setl_000022", "settlement/setl_000166"):
         for lens in ("control", "evidence", "investigate", "policy",
                      "journal", "activity", "trust"):
             _ev(page, f"#/{subject}/{lens}")
@@ -2251,10 +2377,10 @@ def test_ambiguous_control_leads_with_the_disputed_money(page):
     Both figures are checked against the engine payload rather than pinned to
     a literal, so a change in the data cannot leave the room stating a number
     the engine no longer produces."""
-    _ev(page, "#/settlement/setl_000089/control")
+    _ev(page, "#/settlement/setl_000163/control")
     truth = page.evaluate("""async () => {
       const d = await (await fetch(`/api/settlement?run=${SHELL.run}`
-        + `&id=setl_000089`)).json();
+        + `&id=setl_000163`)).json();
       const st = d.exception && d.exception.settled;
       return st ? {disputed: st.disputed_paise, agreed: st.net_paise} : null; }""")
     assert truth, "no settled part in the engine payload"
@@ -2430,7 +2556,14 @@ def test_the_benchmark_note_is_read_from_the_artifact(page):
 def test_a_model_conclusion_cannot_make_a_settlement_postable(page):
     """The boundary is structural, and the room must not contradict it."""
     _ev(page, "#/settlement/setl_000089/policy")
-    assert "0/5 passed" in page.inner_text("#w-main")
+    # not "0/5": see test_an_unproven_settlement_is_never_priced. What the
+    # boundary guarantees is that nothing the model said can carry a proof
+    # gate, and that the room does not offer to post.
+    proof_ok = page.evaluate("""() => {
+      const st = [...document.querySelectorAll('.p-stage')].find(
+        s => /proof/i.test((s.querySelector('.p-stage-h') || {}).textContent || ''));
+      return st ? st.querySelectorAll('.p-gate.ok').length : null; }""")
+    assert proof_ok == 0, f"{proof_ok} proof gates passed on an unproven case"
     _ev(page, "#/settlement/setl_000089/journal")
     j = page.inner_text("#w-main").lower()
     assert "no entry is written" in j
@@ -2493,7 +2626,7 @@ def test_the_dock_state_changes_with_the_case(page):
     _ev(page, "#/settlement/setl_000225/control")
     amb = page.evaluate("""() => [...document.querySelectorAll('.c-lens-s')]
       .map(e => e.textContent.trim()).join('|')""")
-    _ev(page, "#/settlement/setl_000020/control")
+    _ev(page, "#/settlement/setl_000022/control")
     prov = page.evaluate("""() => [...document.querySelectorAll('.c-lens-s')]
       .map(e => e.textContent.trim()).join('|')""")
     assert amb != prov, f"the dock reports the same state for both cases: {amb}"
@@ -2634,14 +2767,30 @@ def test_the_threshold_is_drawn_even_when_nothing_was_priced(page):
     # the review cost is real and still stated
     assert "₹" in page.inner_text(".p-bound-k.rv")
 
-    # and on a priced case the marker exists and sits on the cheaper side
-    _ev(page, "#/settlement/setl_000020/policy")
+    # and on a priced case the marker exists and sits on the side the gate
+    # says it does. This used to require the CHEAPER side, which was true of
+    # the old run and is not a guarantee: on the held-out seed setl_000022 is
+    # proven and priced, and its expected loss is ABOVE the cost of checking,
+    # which is why it goes to review rather than posting. The drawing must
+    # agree with the gate either way - that is the invariant. Pinning one side
+    # pinned one dataset.
+    _ev(page, "#/settlement/setl_000022/policy")
+    cheaper = page.evaluate("""async () => {
+      const d = await (await fetch(`/api/decision?run=${SHELL.run}`
+        + `&type=settlement&id=setl_000022&review=${SHELL.review}`
+        + `&exposure=${SHELL.exposure}`)).json();
+      const g = (d.gates || []).find(x => /cost of checking/i.test(x.name || ''));
+      return g ? !!g.ok : null; }""")
+    assert cheaper is not None, "the run states no cost-of-checking gate"
     pos = page.evaluate("""() => {
       const m = document.querySelector('.p-bound-mark');
       const l = document.querySelector('.p-bound-line');
       if (!m || !l) return null;
       return m.getBoundingClientRect().left < l.getBoundingClientRect().left; }""")
-    assert pos is True, "expected loss below the review cost is not drawn below it"
+    assert pos is not None, "a priced case drew no marker"
+    assert pos is cheaper, (
+        f"the gate says expected loss below review cost is {cheaper}, "
+        f"but the marker is drawn {'below' if pos else 'above'} the line")
 
 
 def test_balanced_by_absence_is_stated_as_the_conclusion(page):
@@ -3120,9 +3269,17 @@ def test_the_two_populations_are_named_where_they_are_compared(inv):
     contradiction, and a judge who spots one stops trusting every other figure
     on the page.
 
-    The artifact says they are not in conflict: the same portfolio size, two
-    DIFFERENT seeds, neither of them the seed the live run uses. That is
-    held-out evaluation — a strength that was being kept to ourselves.
+    The artifact says they are not in conflict: the same portfolio size, and
+    seeds the policy was never calibrated on. That is held-out evaluation — a
+    strength that was being kept to ourselves.
+
+    §47.F1 changed which way this holds. The live run used to sit on a
+    calibration seed, so the panel was held out *from the run* and this test
+    asserted the two shared no seed. The run now sits on 555001, which IS a
+    panel seed — so the claim is no longer "the panel is held out from the run"
+    but the stronger one: the run itself is on data nothing was tuned on. The
+    assertion below follows that, and asks the API which basis a seed has
+    rather than deciding here.
 
     Both figures are read from their sources, and both must be visible at the
     benchmark itself: not in Trust, not in a tooltip, not in a document."""
@@ -3130,6 +3287,7 @@ def test_the_two_populations_are_named_where_they_are_compared(inv):
       const run = await (await fetch('/api/run?n=250')).json();
       const cl = await (await fetch(`/api/claims?run=${run.run_id}`)).json();
       return {liveN: run.settlements, liveSeed: run.seed,
+              basis: run.seed_basis || {},
               panel: (cl.baselines || {}).panel}; }""")
     panel = truth["panel"]
     assert panel and panel.get("settlements"), "the artifact reports no panel shape"
@@ -3153,10 +3311,15 @@ def test_the_two_populations_are_named_where_they_are_compared(inv):
     assert "live" in t.lower() and "benchmark" in t.lower(), \
         "the two populations are not labelled as different things"
 
-    # the panel really is held out: its seeds are not the live seed
-    assert truth["liveSeed"] not in (panel.get("seed_ids") or []), (
-        "the benchmark panel shares a seed with the live run, so 'held out' "
-        "is not true")
+    # the live run really is on held-out data: its seed is one the policy was
+    # never calibrated against. This is what makes both figures comparable
+    # rather than one of them a memory.
+    assert truth["basis"].get("held_out") is True, (
+        f"the live run is on seed {truth['liveSeed']}, which is "
+        f"{truth['basis'].get('label')} — so 'held out' is not true of it")
+    assert truth["liveSeed"] in (panel.get("seed_ids") or []), (
+        "the live run's seed is not one of the panel's, so the figures on "
+        "screen are drawn from two unrelated populations")
 
 
 # ── §38 ─────────────────────────────────────────────────────────────────────
@@ -3196,11 +3359,20 @@ def test_the_model_boundary_is_one_screenshottable_frame(inv):
 
 
 def test_the_frames_numbers_come_from_the_measurement(inv):
-    """§38.P0-1. 27/63 is read from the artifact, and the ticks agree with it.
+    """§38.P0-1 / §47.F2. The frame states what n=1020 supports, and no more.
 
     A hand-written ratio beside a hand-drawn bar is a picture of a claim. The
     tick row is generated from the same two integers the API reports, so the
     drawing cannot drift from the finding it draws.
+
+    It used to read "42.9% - below a coin flip". At n=63 that is p=0.157 against
+    a fair coin and a 95% interval of roughly [0.31, 0.55], which contains one
+    half: the claim the hero frame made was the one claim on the page the
+    artifact could not carry, in a product whose stated law is not to claim what
+    it cannot measure. The decision to disable the loop was never in doubt - it
+    rests on how rarely the loop speaks at all (63 of 1020 ambiguous cases) and
+    on the 53% of pools where its lens is true of every order. Those are counts,
+    not inferences, and they are what the frame states now.
     """
     truth = inv.evaluate("""async () => {
       const run = await (await fetch('/api/run?n=250')).json();
@@ -3215,12 +3387,41 @@ def test_the_frames_numbers_come_from_the_measurement(inv):
         f"{ticks} ticks drawn for {truth['resolved']} resolved proposals"
     assert hits == truth["correct"], \
         f"{hits} filled for {truth['correct']} correct"
-    assert hits < ticks / 2, \
-        "the drawing does not show the measurement falling below a coin flip"
-
     t = inv.inner_text(".sig")
-    assert f"{truth['correct']} / {truth['resolved']}" in t, \
-        "the frame does not state the ratio it draws"
+    assert f"{truth['resolved']} / {truth['ambiguous']}" in t, \
+        "the frame does not state how rarely the loop speaks"
+    assert f"{truth['correct']}" in t, \
+        "the frame does not state how often it was right when it did"
+    assert "coin flip" not in t.lower(), \
+        "the frame is making a claim n=63 does not support"
+
+
+def test_the_demo_runs_on_a_seed_it_was_not_calibrated_on(inv):
+    """§47.F1. The live run uses a held-out seed, and both surfaces say so.
+
+    The demo ran on 20260821 for most of this project's life. That is one of the
+    three calibration seeds, and FAILURES.md D7 - "Published 'precision 1.000'
+    for six days. It was one seed." - is about exactly that seed and exactly the
+    pair of numbers the demo was reporting. The disclosure existed, on the front
+    door, in prose; /app showed the flattering figure with no seed at all. A
+    system whose claim is that it will not assert what it cannot prove does not
+    get to demonstrate itself on the data it was tuned on.
+
+    Held out is a property of the panel artifact, not of this test, so the test
+    asks the API which it is rather than hard-coding a seed.
+    """
+    basis = inv.evaluate("""async () => {
+      const r = await (await fetch('/api/run?n=250')).json();
+      return {seed: r.seed, basis: r.seed_basis}; }""")
+    assert basis["basis"]["held_out"] is True, \
+        f"the demo runs on seed {basis['seed']}, which is {basis['basis']['label']}"
+
+    inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
+    inv.wait_for_timeout(400)
+    body = inv.inner_text("body")
+    assert str(basis["seed"]) in body, "the front door does not name the seed it ran"
+    assert basis["basis"]["short"] in body.lower(), \
+        "the front door does not say the seed was held out"
 
 
 def test_the_benchmark_shows_coverage_and_error_together(inv):

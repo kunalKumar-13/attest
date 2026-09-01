@@ -22,10 +22,11 @@ an action except through all four in order.
 | **L6** | calibration, cost-derived posting threshold | no |
 | **L7** | exceptions, each with a reason code and a residual | no |
 
-L5 is the only layer a model touches, and it is disabled — measured at precision
-27 correct of 63 resolved — below a coin flip. D8 first measured this by
-hand at 0.521 and the re-measurement in `benchmark/anchoring.json` came back
-worse, so the decision held. It runs in investigation mode,
+L5 is the only layer a model touches, and it is disabled — across 1,020
+ambiguous cases it offered an answer on 63 and was right on 27, silent on 94% of
+the work it exists for. D8 first measured this by hand at 0.521 and the
+re-measurement in `benchmark/anchoring.json` came back worse, so the decision
+held. It runs in investigation mode,
 where its conclusion is discarded and only the record of what it proposed and why
 it was refused is kept.
 

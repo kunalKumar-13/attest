@@ -19,6 +19,17 @@ from urllib.parse import parse_qs, urlparse
 from attest import api
 
 PORT = 8420
+
+#: The seed the live demo runs on. 555001 is one of the two EVALUATION seeds in
+#: benchmark/results.json — held out from the three the policy was calibrated on.
+#:
+#: It used to be 20260821, a calibration seed, and that was wrong for a reason
+#: FAILURES.md D7 already wrote down: "Published 'precision 1.000' for six days.
+#: It was one seed." The demo was reporting exactly the pair of numbers that
+#: entry retracts. A product whose claim is that it will not assert what it
+#: cannot prove does not get to demonstrate itself on the data it was tuned on.
+#: The headline is worse on this seed. That is the point of holding it out.
+DEMO_SEED = 555001
 UI = Path(__file__).resolve().parent / "ui"
 
 
@@ -66,7 +77,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/run":
             n = max(10, min(5000, int(q.get("n", ["250"])[0])))
-            self._json(api.summary(api.execute(n, 20260821)))
+            self._json(api.summary(api.execute(n, DEMO_SEED)))
 
         elif u.path == "/api/attention":
             r = api.get(q.get("run", [""])[0])

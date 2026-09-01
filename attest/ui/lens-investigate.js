@@ -102,10 +102,11 @@
         discarded; it is not eligible to become the verdict, and nothing
         downstream reads it.</div>
       ${m && m.resolved ? `<p class=i-bound-m-note>Benchmark, not this
-        settlement: re-measured across the evaluation panel, the loop resolved
-        <b>${m.correct} of ${m.resolved}</b> correctly
-        (${(m.precision * 100).toFixed(1)}%) — below a coin flip, which is why
-        it does not decide.</p>` : ''}
+        settlement: re-measured across the evaluation panel, the loop offered an
+        answer on <b>${m.resolved} of ${m.ambiguous}</b> ambiguous cases — silent
+        on ${(m.silent_share * 100).toFixed(0)}% of the work it exists for — and
+        was right on <b>${m.correct}</b> of those ${m.resolved}. That is why it
+        does not decide.</p>` : ''}
     </div>`;
   }
 

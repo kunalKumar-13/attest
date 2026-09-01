@@ -107,9 +107,18 @@ def test_the_readme_states_both_paths_before_the_reviewer_path():
     head = text[:repro + 2000]
     assert "maturin develop --release" in head, \
         "the native build is not in the reproduce section"
-    assert "52 proven" in head and "161 ambiguous" in head, \
-        "the README does not state both paths' figures side by side"
-    assert "37 insufficient" in head.lower()
+    # Both paths' figures, side by side. Read out of the table rather than
+    # pinned: the counts follow the demo seed, and pinning them made §47.F1's
+    # seed change look like the README had stopped stating them at all.
+    rows = re.findall(
+        r"\|\s*\*\*(Native kernel|Portable)\*\*[^|]*\|[^|]*\|([^|]*)\|", head)
+    assert len(rows) == 2, \
+        f"the README does not state both paths' figures side by side: {rows}"
+    for name, figs in rows:
+        assert re.search(r"\d+ proven", figs), f"{name} states no proven count"
+        assert re.search(r"\d+ ambiguous", figs), f"{name} states no ambiguous count"
+    assert re.search(r"\d+ insufficient", head.lower()), \
+        "the README does not state the portable path's insufficient count"
     assert "identical on both" in head, \
         "the README does not say the canonical case is path-independent"
 
@@ -118,7 +127,10 @@ def test_no_submission_document_states_native_figures_unlabelled():
     """Every place the recorded 197 appears as a portfolio count, the native
     path is named nearby. This is the mistake the rehearsal caught, and it is
     the one that would let a judge's own run contradict the video."""
-    NATIVE_ONLY = re.compile(r"197 ambiguous|52 proven|197 settlements")
+    # The native run's counts, whichever seed the demo is on. These moved with
+    # §47.F1 and the guard went quiet because it was still watching for the
+    # old ones - a guard that matches nothing passes for the wrong reason.
+    NATIVE_ONLY = re.compile(r"210 ambiguous|39 proven|210 settlements")
     CONTEXT = ("native", "recorded", "kernel")
     offenders = []
     for rel in ("docs/DEMO-SCRIPT-35.md", "docs/DEMO-SHOTLIST-35.md",
