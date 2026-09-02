@@ -34,11 +34,11 @@ every number in `PRD.md`. If a hazard looks wrong, say so — do not change it.
 
 | Contract | Owns | Read it |
 |---|---|---|
-| `baselines` | `eval/baselines.py` | [contracts/baselines.md](contracts/baselines.md) |
-| `blocking-study` | `eval/blocking_study.py` | [contracts/blocking-study.md](contracts/blocking-study.md) |
-| `rust` | `native/**` | [contracts/rust.md](contracts/rust.md) |
-| `adversary` | appends to `FAILURES.md` only | [contracts/adversary.md](contracts/adversary.md) |
-| `report` | `attest/eval/report.py` | [contracts/report.md](contracts/report.md) |
+| `baselines` | `eval/baselines.py` | [contracts/baselines.md](docs/contracts/baselines.md) |
+| `blocking-study` | `eval/blocking_study.py` | [contracts/blocking-study.md](docs/contracts/blocking-study.md) |
+| `rust` | `native/**` | [contracts/rust.md](docs/contracts/rust.md) |
+| `adversary` | appends to `FAILURES.md` only | [contracts/adversary.md](docs/contracts/adversary.md) |
+| `report` | `attest/eval/report.py` | [contracts/report.md](docs/contracts/report.md) |
 
 One worker per contract. If your contract is taken, do not start a second copy.
 

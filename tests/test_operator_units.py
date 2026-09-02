@@ -189,12 +189,12 @@ def test_no_product_code_quotes_a_superseded_anchoring_precision():
         "attest/eval/anchoring.py",       # explains why it was re-measured
         "tests/test_operator_units.py",   # this file
     }
-    # `docs/archive/` IS the historical record — that is the whole reason it
-    # exists, and its own README says nothing in it is part of the reading
-    # path. Two files were exempted here by their old paths and the exemption
-    # broke the moment they were archived; the directory is the right unit,
-    # and it maintains itself as more history moves in.
-    HISTORICAL_DIRS = ("docs/archive/",)
+    # A directory whose whole job is to hold superseded chronology is exempt
+    # from the "state the current figure" rule. `docs/archive/` held that job
+    # and was removed as development scratchpad; `reports/` now carries the
+    # historical record that remains, and it is exempt for the same reason —
+    # a defect report describes what WAS true before the fix.
+    HISTORICAL_DIRS = ("reports/",)
     CHRONOLOGY = ("supersed", "hand-taken", "by hand", "d8 measured",
                   "d8 first measured", "d8 recorded", "d8 disabled",
                   "earlier", "historical", "first measured")

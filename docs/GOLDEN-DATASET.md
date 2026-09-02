@@ -27,14 +27,14 @@ the same book, the same verdicts and the same numbers on any machine.
 
 | | state | why it exists | source | verdict | policy | action | lens | context |
 |---|---|---|---|---|---|---|---|---|
-| **A** | clean PROVEN settlement | one candidate set explains the credit exactly, and nothing else does | `setl_000020`, ₹353.73, UTR 857043679462 | PROVEN | AUTO-POST | entry written | Journal | the balanced entry |
+| **A** | clean PROVEN settlement | one candidate set explains the credit exactly, and nothing else does | `setl_000022`, ₹109.08, UTR 365100201879 | PROVEN | AUTO-POST | entry written | Journal | the balanced entry |
 | **B** | AMBIGUOUS with multiple valid explanations | four disjoint order sets satisfy the amount to the paisa | `setl_000225`, ₹23,922.07 | AMBIGUOUS | REVIEW | supply an order-level reference | Evidence | explanation A–D |
-| **C** | CONTRADICTED settlement | no combination of candidates satisfies the amount at all | `setl_000109`, ₹6,316.03 | CONTRADICTED | REVIEW | look for a fee correction or manual adjustment | Control | the settlement |
+| **C** | CONTRADICTED settlement | no combination of candidates satisfies the amount at all | `setl_000166`, ₹1,817.31, UTR 107342563262 | CONTRADICTED | REVIEW | look for a fee correction, reversal or manual adjustment in that amount | Control | the settlement |
 | **D** | search-space boundary | the two effective reductions are conventions, not facts — uniqueness is *inside a space the calendar chose* | 2,328 → 23 on `setl_000225` | — | — | — | Evidence | the reduction |
 | **E** | advisory proposal, discarded | the advisor proposes a capture-batch anchor that would select one of four explanations; the engine keeps the verdict it reached without it | `setl_000225` investigation, step 1 | — | — | — | Investigate | the advisor step |
 | **F** | the loop closing | advisor proposes · solver tests · engine proves · policy prices · ledger posts, on one settlement | `setl_000233`, ₹6,523.53, AUTO-POST | PROVEN | AUTO_POST | none — it posted | Investigate | the control loop |
-| **G** | policy AUTO-POST | expected loss below the cost of checking, and a proof exists to price against | 1 of 250 | PROVEN | AUTO-POST | — | Policy | the decision |
-| **H** | policy REVIEW | 249 of 250, including every ambiguous case | 249 of 250 | mixed | REVIEW | — | Policy | the decision |
+| **G** | policy AUTO-POST | expected loss below the cost of checking, and a proof exists to price against | 17 of 250 | PROVEN | AUTO-POST | — | Policy | the decision |
+| **H** | policy REVIEW | 233 of 250, including every ambiguous case | 233 of 250 | mixed | REVIEW | — | Policy | the decision |
 | **I** | activity trail | eight events through the real ingest path, three signed correctly | 8 deliveries, 8 events | — | — | — | Activity | an event |
 | **J** | Trust limitation | 2 of 8 claims are not MEASURED; 11 unknowns are stated | claim register | — | — | — | Trust | the claim |
 | **K** | Razorpay adapter boundary | six frozen boundaries, including live validation NOT VERIFIED | `docs/RAZORPAY-INTEGRATION.md` | — | — | — | Trust | the unknown |
@@ -44,10 +44,10 @@ the same book, the same verdicts and the same numbers on any machine.
 Five cases tell the whole story. Three would tell most of it; these five are the
 smallest set where nothing important is left implicit.
 
-### Case A — `setl_000020` · ₹353.73 · PROVEN · AUTO-POST
+### Case A — `setl_000022` · ₹109.08 · PROVEN · AUTO-POST
 
-The system's happy path, and the only settlement in 250 that clears it. Two
-orders explain the credit exactly. The journal entry balances to the paisa
+The system's happy path, and one of the 17 settlements in 250 that clear it. A
+single order explains the credit exactly. The journal entry balances to the paisa
 across four accounts — Bank, Payment gateway fees, Input GST (recoverable),
 Trade receivables — because the fee and the tax on it are split from the single
 charge the proof carries, and a merchant needs them apart.
@@ -77,8 +77,10 @@ asserted. `verdict_changed: false`.
 
 ### Case D — the policy boundary
 
-`expected loss ₹135.48` against `cost of checking ₹150.00` → AUTO-POST for the
-one PROVEN case. For every AMBIGUOUS case the boundary is not drawn at all:
+`expected loss ₹247.82` against `cost of checking ₹250.00` → AUTO-POST for
+`setl_000233`, and the two-rupee margin is the point: the threshold is not a
+round number someone chose, it is wherever the priced error crosses the cost of
+a person looking. For every AMBIGUOUS case the boundary is not drawn at all:
 **UNPRICED**, because no proof was established, so there is no error probability
 to price. A threshold drawn there would be a number invented to fill a space.
 

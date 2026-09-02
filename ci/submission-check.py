@@ -10,9 +10,9 @@ figure from a calibration seed has crept back onto a reading surface.
 
 It exists because the claim register checks percentages, and every defect it
 failed to catch was a rupee figure, a candidate count or a settlement id.
-`docs/archive/` is excluded deliberately: it is the working record, and
-rewriting the figures a past decision was MADE ON would destroy the only
-evidence that the decision was measured.
+`reports/` is excluded deliberately: a defect report states what WAS true
+before its fix, and rewriting those figures would destroy the only evidence
+that the defect was real.
 """
 import json, pathlib, subprocess, sys
 from attest import api
@@ -144,7 +144,7 @@ from attest.rules import DEFAULT as _RULES, dataset_version, policy_version, sol
 _live = {"rules": _RULES.version, "policy": policy_version(Costs()),
          "solver": solver_version(), "synthetic": dataset_version(250, 555001)}
 for _f in ("FREEZE.txt", "docs/GOLDEN-DATASET.md", "docs/REPRODUCE.md",
-           "README.md", "docs/SUBMISSION-CHECKLIST-35.md"):
+           "README.md"):
     _p = pathlib.Path(_f)
     if not _p.is_file(): continue
     _t = _p.read_text()
@@ -153,13 +153,9 @@ for _f in ("FREEZE.txt", "docs/GOLDEN-DATASET.md", "docs/REPRODUCE.md",
             say(f"{_f}: {_m}", _m == _want, "" if _m == _want else f"live is {_want}")
 
 print("\nNO STALE CALIBRATION CLAIMS")
-# docs/archive is the working record — phase audits and reversed decisions.
-# Rewriting the figures a past decision was MADE ON would destroy the only
-# evidence that the decision was measured. It is excluded deliberately, and
-# README says it is not part of the reading path.
 _raw = subprocess.run(["grep", "-rln", "setl_000089", "README.md", "docs", "run-demo"],
                       capture_output=True, text=True).stdout
-bad = "\n".join(l for l in _raw.splitlines() if "archive" not in l)
+bad = _raw.strip()
 say("no setl_000089 on any submission surface", not bad, bad or "clean")
 for tok in ("1,00,036.83", "97,759.84", "7,292.03", "2,368", "53,02,701"):
     hit = subprocess.run(["grep", "-rl", tok, "README.md", "docs", "run-demo"],

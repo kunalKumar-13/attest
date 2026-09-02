@@ -1,293 +1,76 @@
 # ATTEST
 
-**It won't move money it can't prove.**
+### AI can decide. Your ledger can't guess.
+
+**ATTEST is a financial control layer that verifies AI-proposed actions before
+they can change financial state.** Settlement reconciliation is the first
+workflow it does that for.
 
 ![ATTEST financial control — the native kernel reconciling 250 settlements on
 held-out seed 555001: 39 proven and eligible to automate, 210 ambiguous and
 held, 1 contradicted.](docs/img/product-control.png)
 
-<sub>The live demo, on **held-out evaluation seed 555001** — one of the two seeds
-in the benchmark panel, neither of which the policy was calibrated on. The
-headline is lower on held-out data than on a calibration seed. That is the
-point of holding it out.</sub>
+<sub>The live demo on **held-out evaluation seed 555001**, on the **native
+kernel** — one of the two execution paths, both stated below.</sub>
+
+---
+
+## The problem
 
 A payment gateway does not pay a merchant order by order. It sends one lump sum
-covering hundreds of orders at once, minus its fees. Somebody has to establish
-what that credit was composed of, and getting it wrong marks the wrong customer
-as paid while the books balance either way.
+covering many orders at once, minus its fees, and somebody has to establish what
+that credit was composed of.
 
-Where a gateway's own recon report carries order-level references — Razorpay's
-does — much of that composition can be read off the report rather than
-reconstructed. **ATTEST does not implement that join**, and does not claim to:
-the adapter reads `order_id` and `settlement_id` to name and count the records
-it normalises, and every row then goes to the same engine. What ATTEST does is
-*reconstruct and verify* composition from amounts, fees and dates — the work
-that remains when the linkage does not close the explanation: a bank credit
-matching no single settlement, a period with no recon available, adjustments
-with no linked entity, or a merchant reconciling against a bank statement
-rather than against the gateway. In those cases composition has to be derived
-from the records rather than read off them, and the alternative today is a
-person in a spreadsheet.
+Where the records carry an order-level reference, that reconstruction is a join
+and it is easy. The hard case is the one where they do not — a bank credit
+reconciled against a statement rather than a gateway report, a period whose
+recon is unavailable, an adjustment with no linked entity. There, composition
+has to be *derived* from amounts, fees and dates, and **more than one set of
+orders can add up to the same credit exactly**.
 
-ATTEST does that reconstruction, reports what it could prove, and when the
-evidence genuinely cannot tell two answers apart it says so instead of picking
-one — handing that case to a person with the exact thing that would settle it.
+Those sets discharge different customers. Picking one is a guess, and a guess
+marks the wrong customer as paid while the books still balance — so nobody finds
+out until it is expensive. The alternative today is a person in a spreadsheet.
 
-> ### AI can decide. Your ledger can't guess.
-
-> **ATTEST is a financial control layer that verifies AI-proposed actions
-> before they can change financial state.** Settlement reconciliation is the
-> first workflow that demonstrates the control model.
-
-That is not a slogan about safety, it is the shape of the system. An advisor
-that cannot be wrong is an advisor nobody would let near a real problem; the
-useful thing is to let it be wrong cheaply, in a place where being wrong costs
-a wasted search rather than a wrong customer's balance.
-
-Four parties to every decision, in order of authority:
+## How ATTEST works
 
 ```
-ADVISE   proposes investigative signals · cannot move money
-VERIFY   independently reconstructs and proves the explanation
-PERMIT   decides whether a proven result is safe to automate
-RECORD   records only permitted execution
+ADVISOR    proposes investigative signals — which records to look at
+VERIFIER   independently reconstructs and proves the explanation
+POLICY     decides whether a proven result is safe to automate
+LEDGER     records only permitted execution
 ```
 
-The primary object is a **decision record**: one financial event, those four
-parties, and what actually happened to the money. The front door opens on one;
-the workspace opens on one; the seven instruments are deeper cuts of the four
-rows rather than seven things to choose between.
+**The advisor is advisory only. It cannot authorize financial action.** It is
+given identifiers, names and dates and never an amount; the verifier recomputes
+the explanation from the source records without reading what the advisor said;
+and the ledger accepts nothing the verifier has not re-derived.
 
-The advisor in this build is a deterministic capture-batch ranking heuristic,
-and it is named as one on every screen — `model_version` reads `none` in every
-provenance record the product emits. It is honest about being weak: measured
-over 1,250 pools it offered an answer on 63 and was right on 27, which is
-**below a coin flip**, and it is disabled as a resolver for exactly that reason.
-It still runs, on every case, in the advisory slot — because the slot is the
-product and a slot nobody can inspect is a claim rather than an architecture.
-A language model implements the same signature and nothing downstream changes,
-because nothing downstream trusts it.
+## The two outcomes
 
-**Both halves of that boundary are demonstrated on held-out data**, in the
-product and below:
+Both are settlements in the held-out evaluation seed. Every figure is read from
+the run, and both are pinned by a test so the data cannot move underneath them.
 
-| | financial event | advisor proposes | verifier proves | policy permits | ledger records |
-|---|---|---|---|---|---|
-| **action** | `setl_000233` ₹6,523.53 | 3 orders, a capture batch | 2,328 → 4 → **1** · PROVEN, residual 0 paise | expected loss ₹247.82 < ₹250 → **AUTO-POST** | ₹6,523.53 posted, balanced |
-| **hold** | `setl_000225` ₹23,922.07 | 3 orders, and it would pick one of four | 2,328 → 23 → **4** · AMBIGUOUS | not eligible at any price → **REVIEW** | no entry, and the missing field named |
-
-On the second one the advisor has an opinion — its anchor sits inside exactly
-one of the four surviving explanations, so a system that listened to it would
-post ₹23,922.07 today. It is right 27 times in 63. A 43% opinion is not
-evidence, so ₹12,630.27 is reported as settled whichever explanation is right,
-₹30,107.39 is held, and the operator is handed the one field that ends the
-argument.
-
-```
-₹51,35,744.40   processed
-₹51,348.48      posted without a person, 17 settlements, none of them wrong
-₹47,97,685.11   stopped at verification
-210             settlements blocked by one missing piece of evidence
-```
-
-## For a reviewer — the five-minute path
-
-If you only open three files: [`attest/verdict.py`](attest/verdict.py) is the
-35-line proof kernel and it does not import the solver — the solver imports it.
-[`attest/eval/baseline_panel.py`](attest/eval/baseline_panel.py) is the
-benchmark that ATTEST loses on precision. [`attest/adapters/razorpay.py`](attest/adapters/razorpay.py)
-is the only module that knows Razorpay exists; it is read-only and has no write
-scope. Everything on screen describes generated data, always labelled as such.
-
-Track 04 asks for an agent that closes one finance-ops loop across a 50+ record
-batch of synthetic data, **reporting its match rate and the exceptions it could
-not resolve.** ATTEST runs 250 settlements on the native kernel (both execution paths are
-tabled below), and reports exact set recovery of 16.0% over the 500-settlement
-held-out panel — the figure the evaluation is scored on, not the one a
-calibration seed flatters. The exceptions it could not resolve are the product
-rather than a footnote —
-and they leave the system as a work queue, with the contested orders, the
-blocker and the evidence that would settle each one:
-
-```bash
-curl "http://127.0.0.1:8420/api/export/queue?run=<id>&format=csv"
-```
-
-That export is a read. `tests/test_export_safety.py` pins it: the run, the
-ledger and the filesystem are compared before and after, and the source is read
-for the names of every mutating call.
-
-### Reproduce the demo
-
-```bash
-git clone https://github.com/kunalKumar-13/attest && cd attest
-python3.13 -m venv .venv && ./.venv/bin/pip install -e .
-cd native && maturin develop --release && cd ..   # optional kernel — see below
-./run-demo
-```
-
-**Two execution paths, and the demo uses the first.**
-
-| | solver envelope | this run of 250 |
+| | `setl_000233` | `setl_000225` |
 |---|---|---|
-| **Native kernel** — the recorded demo | ₹2,00,000 | 39 proven · 210 ambiguous · 1 contradicted |
-| **Portable** — no Rust toolchain needed | ₹30,000 | 38 proven · 170 ambiguous · 1 contradicted · **41 insufficient** |
+| **event** | ₹6,523.53 | ₹23,922.07 |
+| **advisor** | proposed a capture batch | proposed a capture batch |
+| **verifier** | 2,328 → 4 → **1** · PROVEN, residual ₹0.00 | 2,328 → 23 → **4** · AMBIGUOUS, four valid explanations |
+| **policy** | expected loss ₹247.82 < ₹250 review cost | not eligible at any price |
+| **ledger** | **AUTO-POST** — balanced entry written | **HOLD** — no financial action |
 
-The 41 are not failures. They are settlements whose candidate space exceeds
-what the portable solver will attempt, so it reports INSUFFICIENT rather than
-searching a space it cannot finish — the same refusal the rest of this
-document is about, applied to compute instead of evidence.
+On the second, the advisor's proposal sits inside exactly one of the four
+explanations, so a system that listened to it would post ₹23,922.07 today.
+Across the held-out panel that advisor is right 27 times in 63. A 43% opinion is
+not evidence, so ₹12,630.27 is reported as settled whichever explanation is
+right, ₹30,107.39 is held, and the operator is handed the one field that ends
+the argument.
 
-`./run-demo` prints which path is active **before** any portfolio figure, so
-the two can never be confused.
+## Measured results
 
-**The canonical case is identical on both.** `setl_000225` — ₹23,922.07,
-AMBIGUOUS, 2,328 → 23 → 4, four surviving explanations, the model/solver/
-engine boundary, and the anchoring benchmark (`C-006` in
-[docs/CLAIMS.md](docs/CLAIMS.md)). It was chosen for that reason. Only
-portfolio-wide counts diverge.
-
-| | |
-|---|---|
-| **1. See it** | `./run-demo` — opens the investigation at `/`, the instrument at `/app`. Every figure on both is read from the running engine at load. |
-| **2. Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/ARCHITECTURE-DIAGRAM.md](docs/ARCHITECTURE-DIAGRAM.md) |
-| **3. Measurement** | [docs/EVALUATION.md](docs/EVALUATION.md) · `benchmark/baselines.json` — four methods over 500 held-out settlements, and `exact_only` beats us on precision |
-| **4. Razorpay boundary** | [docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md) — read-only adapter, no live account contacted, and the engine's 21 modules contain no reference to the provider |
-| **5. What we refuse to claim** | [docs/CLAIMS.md](docs/CLAIMS.md) · [docs/FAILURE-STORY.md](docs/FAILURE-STORY.md) |
-
-Fifteen documents in `docs/`. The working record — phase audits, design
-explorations, reversed decisions — is in [docs/archive/](docs/archive/) and is
-not part of the reading path.
-
-### The problem
-
-Reconciliation systems are measured on how many cases they resolve, so they are
-built to resolve more. But a **wrong** financial explanation is worse than no
-explanation: candidate order sets discharge receivables against different
-customers, so posting the wrong one moves money against the wrong account while
-the books still balance.
-
-Measured on this repository's benchmark, over 500 settlements:
-
-```
-                decided   wrong    false-proof rate
-exact_only         22       0            0.0%     safe, and nearly useless
-ATTEST             84       4            4.8%
-greedy            462     439           95.0%     useful, and catastrophic
-```
-
-`exact_only` beats ATTEST on precision and we say so. The claim is not *most
-accurate*. It decides **84 settlements against `exact_only`'s 22**, at a
-false-proof rate one twentieth of `greedy`'s — **and it says which of its
-answers it could not establish.**
-
-### The insight
-
-AI should investigate. Deterministic systems should prove. Policy should control
-action.
-
-### One case
-
-```
-₹23,922.07       a bank credit
-23 candidates    after the reductions, two of which are conventions
-4 explanations   satisfy the amount exactly
-
-₹12,630.27       settled whichever one is right
-₹30,107.39       turns on which one is, across 17 orders
-```
-
-The model proposed an anchor — three orders captured together on the densest day
-in the window. The solver found it in **all four** explanations, so it separates
-nothing. The engine abstained.
-
-```
-AMBIGUOUS  →  UNPRICED  →  REVIEW  →  LEDGER UNCHANGED
-```
-
-An AI system could have picked one of those four. ATTEST refuses to.
-
----
-
-ATTEST treats settlement reconciliation as a **constrained proof problem**, not
-as fuzzy matching. A bank credit is the net of some subset of the orders a
-merchant captured — after per-transaction fees, GST on those fees, refunds, and
-the T+2 settlement calendar. Finding that subset is subset-sum: NP-complete.
-
-> A merchant's bank statement shows one credit: **₹47,382.19**. It is the net of
-> some subset of the 400 orders they captured that week — minus per-transaction
-> fees, minus GST on those fees, offset by a refund, shifted T+2 by the
-> settlement calendar.
->
-> **Which orders?**
-
-This is resolved by hand, in Excel, daily, at effectively every merchant in India.
-
----
-
-## The engine does not emit a confidence score
-
-`97%` is not interpretable. It does not say what would have to be true for the
-answer to be wrong, it cannot be audited, and it invites a threshold — and a
-threshold invites posting an entry nobody can defend.
-
-Instead every settlement receives a **decidable property of the constraint
-system**:
-
-| | |
-|---|---|
-| 🟢 **PROVEN** | exactly one assignment satisfies every constraint |
-| 🟡 **AMBIGUOUS** | two or more do — the engine reports them and stops |
-| 🔴 **CONTRADICTED** | none does — the engine reports which constraints conflict |
-
-These are **counted, not estimated**. The solver saturates its subset counter at
-two, because the question is never *how many* explanations exist, only whether
-the explanation is *unique*. Two bits per reachable sum decides the verdict.
-
-### The trusted kernel
-
-The prover is large: blocking, a counting DP over the amount axis, constraint
-propagation, model-proposed hypotheses. The verifier is **35 lines**
-(`attest/verdict.py::check`), depends on none of it, and recomputes every value
-from source records rather than trusting a single field on the proof.
-
-A proof is accepted only if the kernel accepts it.
-
-> A bug anywhere in the prover can cost recall. It cannot post a wrong entry.
-
-## What this does not claim
-
-Stated here rather than in an appendix, because a system that reports only what
-it wins has not been evaluated.
-
-- **No live Razorpay account has ever been contacted.** `fetch` performs a real
-  authenticated request and has never been called with real credentials. The
-  product says so itself, on the Trust lens, unprompted.
-- **The bank statement is simulated.** Every synthetic credit matches its
-  settlement by construction, so the adapter cannot exercise the one case the
-  engine exists for — a credit that corresponds to no single settlement.
-- **`exact_only` is more precise than ATTEST**: 0.0% false proofs against 4.8%.
-  It achieves that by answering 22 settlements of 500 and declining 478.
-  Published in the product as claim C-004.
-- **The numbers describe generated data.** That is what makes a false-proof rate
-  knowable at all — the generator holds ground truth — and it is a population
-  ATTEST created.
-- **Coverage is 16%, not 90%.** Most settlements are correctly refused rather
-  than resolved.
-
-`docs/RAZORPAY-DEMO.md` separates IMPLEMENTED from SIMULATED from NOT VERIFIED,
-capability by capability.
-
-Same reason a proof assistant separates its kernel from its tactics.
-
----
-
-## Measured
-
-Ground truth is exact by construction: orders are generated first, and
-settlements derived *from* them. Fifteen hazard families
-(`attest/generate/taxonomy.py`) are frozen — written before the matcher, so the
-benchmark cannot be tuned to flatter the engine.
+Held-out evaluation. Calibration and evaluation seeds are disjoint by
+construction, and every figure below is regenerated from
+[`benchmark/results.json`](benchmark/results.json) rather than typed.
 
 <!-- generated: results -->
 ```
@@ -319,49 +102,14 @@ NORTH STAR
 ```
 <!-- /generated -->
 
-Every figure is read from [`benchmark/results.json`](benchmark/results.json),
-regenerated by `python -m attest.eval.benchmark`. Nothing about this engine is
-quoted from a second place — "precision 1.000" survived six days past the
-measurement that refuted it because a number had been typed into a README and
-never re-derived.
+**A false proof and a wrongly posted entry are different things, and the gap
+between them is the product.** Over 500 held-out settlements the engine offered
+84 proofs and 4 of them were wrong. None of those 4 was posted: the policy
+priced them into REVIEW or BLOCK, so of the 33 settlements that auto-posted,
+**33 were exact and ₹0.00 moved against the wrong account.**
 
-### Read `accounted for`, not `exact set recovery`
-
-16.0% complete recovery reads like an engine that fails five times out of
-six. That reading is wrong, and `accounted for` is why.
-
-Most abstentions are not *"we do not know"*. When several explanations survive,
-the orders appearing in **every** one of them belong to that settlement whichever
-explanation is right — so the engine can state that part as settled and name the
-exact remainder that is in dispute. Across the panel, **47% of ambiguous value
-turns out not to be in dispute at all.**
-
-A real case from the held-out seed: `setl_000200`, ₹92,666.62, with four surviving
-explanations. Twenty-three orders worth ₹91,599.60 appear in all four — **99% of the
-money is settled whichever explanation is right**. Only ₹3,435.87 across eleven orders is
-contested — and the next step is not "investigate", it is *"a reference on any one
-of those eleven settles the rest."*
-
-**Coverage falls as portfolio density rises**, and it is a limitation rather
-than a tuning knob: more orders sharing a window means more disjoint subsets
-land inside tolerance, so more settlements genuinely have more than one
-arithmetic explanation and are reported AMBIGUOUS. The absolute number of proofs
-still rises with size; the rate falls because the question gets harder faster.
-The false-proof count does not rise with it — the extra ambiguity is absorbed as
-refusal, not as guessing. Measured at three sizes, with the caveat that nothing
-here measures beyond 1,200 settlements in a 90-day window:
-[docs/EVALUATION.md](docs/EVALUATION.md).
-
-**One number cannot describe this engine.** 16.0% exact recovery and
-0.952 proof precision measure different things: the first is how often the
-complete truth is recovered, the second how often the engine is right *when it
-claims to be sure*. Blending them into "95.2% accurate reconciliation"
-would be selling the second while doing the work of the first.
-
-**A decline is a correct outcome.** The engine is built to refuse rather than
-guess, so `declined` is a feature and `WRONG` is the only real failure.
-
-### Against reference matchers, same data, same pools
+Against three reference matchers on identical data — including one that is more
+precise than ATTEST, which is said here rather than omitted:
 
 <!-- generated: baselines -->
 ```
@@ -376,200 +124,145 @@ guess, so `declined` is a feature and `WRONG` is the only real failure.
 ```
 <!-- /generated -->
 
-`exact-only` is more precise than ATTEST and answers a quarter as often.
-Precision alone is trivially winnable by declining, which is why coverage sits
-beside it. Greedy answers almost everything and is wrong almost every time —
-that is what a matcher with no way to abstain does.
+Full methodology, metric definitions and the seed panel:
+**[docs/EVALUATION.md](docs/EVALUATION.md)**.
 
-**Read the WRONG column.** `greedy` declines 5% of the time and is wrong 90% of
-the time — 226 of 250 settlements posted against orders that did not produce
-them. That is what a matcher with no way to abstain actually does. `fuzzy`, the
-industry default, scores *below* doing nothing clever and buys it with 11 false
-proofs.
+## Why this is safe
 
-Greedy fails structurally, not by tuning: taking the largest order that fits is a
-local decision, and subset-sum has no greedy-choice property. One early take
-consumes an order a correct explanation needed and there is no way back.
+- **Exact money.** Integer paise end to end. No float touches an amount, so the
+  rounding tolerance is a derived bound rather than a guess.
+- **Independent verification.** A 35-line checker re-derives every proof from
+  the source records and shares no code with the search that produced it. A bug
+  in the search can cost recall; it cannot post a wrong entry.
+- **A policy gate, not a threshold.** Automation happens where the *measured*
+  error rate for that class of result, priced at its 95% upper bound, costs less
+  than a human check. Change what a review is worth and the boundary moves on
+  its own.
+- **The ledger cannot bypass verification.** It calls the checker itself rather
+  than trusting that someone upstream did — see
+  [reports/](reports/), which documents two defects where that was not yet true.
+- **Adversarial testing.** 35 attacks from source to ledger run on every build.
+- **Held out.** The policy is calibrated on seeds it is not evaluated on.
 
-Full methodology in [eval/BASELINES.md](attest/eval/BASELINES.md).
+## The AI boundary
 
-### A feature that was measured and then disabled
+**AI proposes. ATTEST proves. Policy permits. Ledger records.**
 
-Cross-settlement constraint propagation (`attest/evidence.py`) works — an order
-belongs to exactly one settlement, so settlements are evidence about each other.
-It is off by default:
+There is no language model in this repository, and the product says so on every
+screen — every run stamps `model_version = none`. The advisory layer is a
+**deterministic capture-batch ranking heuristic**: it reads the records a person
+would read and points at the orders it believes belong together.
+
+It was measured before it was trusted. Over 1,250 candidate pools it offered an
+answer on 63 and was right on 27 — **below a coin flip** — so it is disabled as
+a *resolver* and retained as an *advisor*. It still runs on every case, because
+a boundary nobody can inspect is a claim rather than an architecture.
+
+A language model implements the same interface and nothing downstream changes,
+because nothing downstream trusts it. That is the point of the boundary: the
+advisor is allowed to be wrong, cheaply, somewhere being wrong costs a wasted
+search rather than a customer's balance.
+
+## Architecture
+
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — the layers, the trusted
+kernel, and search-space integrity.
+**[docs/ARCHITECTURE-DIAGRAM.md](docs/ARCHITECTURE-DIAGRAM.md)** — source to
+ledger in one diagram, with the advisor outside the decision path.
+
+## Run locally
+
+### Reproduce the demo
+
+```bash
+git clone https://github.com/kunalKumar-13/attest && cd attest
+python3.13 -m venv .venv && ./.venv/bin/pip install -e .
+cd native && maturin develop --release && cd ..   # optional kernel — see below
+./run-demo                                        # UI on http://127.0.0.1:8420
+```
+
+**Two execution paths, and the recorded demo uses the first.**
+
+| | solver envelope | this run of 250 |
+|---|---|---|
+| **Native kernel** — the recorded demo | ₹2,00,000 | 39 proven · 210 ambiguous · 1 contradicted |
+| **Portable** — no Rust toolchain needed | ₹30,000 | 38 proven · 170 ambiguous · 1 contradicted · **41 insufficient** |
+
+The 41 are not failures. They are settlements whose candidate space exceeds what
+the portable solver will attempt, so it reports INSUFFICIENT rather than
+searching a space it cannot finish — the same refusal this whole document is
+about, applied to compute instead of evidence. `./run-demo` prints which path is
+active **before** any portfolio figure, so the two can never be confused.
+
+**The canonical cases are identical on both.** `setl_000233` and `setl_000225`
+behave the same either way; only portfolio-wide counts diverge.
+
+Tests and evidence:
+
+```bash
+./.venv/bin/pip install -q pytest ortools playwright
+./.venv/bin/python -m playwright install chromium
+
+./.venv/bin/python -m pytest tests/ -q          # 385 tests
+./.venv/bin/python -m attest.eval.adversarial   # 35 attacks, source to ledger
+./.venv/bin/python -m attest.eval.gate 250      # the safety gates
+./.venv/bin/python -m attest.eval.benchmark 250 # regenerate benchmark/results.json
+```
+
+Clone-to-running, including the three things that did not work the first time:
+**[docs/REPRODUCE.md](docs/REPRODUCE.md)**.
+
+## Repository map
 
 ```
-                  exact     WRONG    precision      (seed 20260821)
-off               20.8%      0.0%      1.000
-on                24.0%      3.6%      0.829
+attest/       the engine, the adapters, the API and the UI
+tests/        385 contracts and regression tests
+docs/         architecture, evaluation, decisions, failure reports
+benchmark/    the artifacts every published figure is read from
+reports/      numbered defect reports for the money-deciding core
+ci/           what the build defends, runnable locally
+native/       the Rust port of the DP hot path
 ```
 
-Three points of exact-set match, bought by going from **zero** false proofs to
-nine. One bad seed amplifies across the population, because propagation is only
-as sound as what it propagates from. A change that raises exact-set match by
-three points is not an improvement if it raises false proofs by the same amount.
-See [FAILURES.md](FAILURES.md), D4.
+**[docs/](docs/)** indexes everything below, in the order a reviewer would
+want it.
+
+- **[FAILURES.md](FAILURES.md)** — twenty-four dated failures, what each one
+  cost, and what changed because of it.
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — fifteen ADRs, including five that
+  rejected work already built.
+- **[docs/CLAIMS.md](docs/CLAIMS.md)** — every externally visible number, the
+  artifact it is read from, and the command that regenerates it.
+- **[docs/QUESTIONS.md](docs/QUESTIONS.md)** — questions a reviewer would ask,
+  answered from artifacts.
+
+## Limitations
+
+Stated here rather than in an appendix, because a system that reports only what
+it wins has not been evaluated.
+
+- **The evaluation data is synthetic.** That is what makes a false-proof rate
+  knowable at all — the generator holds ground truth — and it is a population
+  ATTEST created. The hazard taxonomy was frozen before the matcher was written.
+- **No live merchant money.** The Razorpay adapter is read-only, has no write
+  scope, and has never been called with real credentials.
+  [docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md) separates IMPLEMENTED from
+  SIMULATED from NOT VERIFIED, capability by capability.
+- **Ambiguity rises with candidate density.** More settlements over the same
+  window means larger candidate pools, so more subsets land within tolerance and
+  more settlements are correctly refused. Coverage roughly a third at 1,200
+  settlements of what it is at 250 — a denser portfolio is a harder question,
+  not a worse engine. Measured at three densities in
+  [docs/EVALUATION.md](docs/EVALUATION.md).
+- **The advisory layer is non-authoritative and weak.** Measured at 0.429
+  precision and disabled as a resolver. It is not a language model and is not
+  described as one.
+- **Coverage is 16%, not 90%.** Most settlements are correctly refused rather
+  than resolved. A decline is a correct outcome here; a wrong posting is the
+  only real failure.
 
 ---
 
-## Run
-
-```bash
-python3.13 -m venv .venv && ./.venv/bin/pip install -e .
-
-./run-demo                              # the demo: engine + UI on :8420
-./.venv/bin/python -m attest.web        # the same server, without the wrapper
-#   http://127.0.0.1:8420/              the investigation — the front door
-#   http://127.0.0.1:8420/app           the instrument workspace
-./.venv/bin/python -m attest.eval.adversarial   # 35 attacks, source to ledger
-./.venv/bin/python -m attest 250 --sweep   # the five-seed panel — report THIS
-./.venv/bin/python -m attest 250        # a single seed
-./.venv/bin/python -m attest 250 --html # emit report.html
-ATTEST_PROP=1 ./.venv/bin/python -m attest 250   # reproduce the D4 ablation
-```
-
-The UI runs a generated portfolio or takes your own `orders.csv` and
-`settlements.csv`. Stdlib only — no framework, no build step, and nothing leaves
-the machine. It leads with rupees rather than row counts, because the question a
-merchant has is never "what is your exact-set match rate", it is **how much of my
-money is accounted for, and what happened to the rest.**
-
-Navigation is four verbs, and depth lives inside a mode rather than beside it:
-
-```
-SUBJECT  ×  LENS  ×  CONTEXT
-
-CONTROL      Where did the money stop?       JOURNAL      What entered the books?
-EVIDENCE     Can the explanation be proved?  ACTIVITY     What actually happened?
-INVESTIGATE  What would separate them?       TRUST        What can I believe?
-POLICY       What is safe to automate?
-```
-
-A **subject** is what you are looking at — the portfolio, or one settlement. A
-**lens** is the question you are asking about it. A **context** is something
-inspected *inside* that state without leaving it. All three live in the URL, so
-every view is addressable and Back means what it says.
-
-The case rail carries the subject through every lens: amount, verdict, where it
-stopped, what is agreed against what is disputed, and what to do next. Changing
-lens does not change the case, and opening a context moves neither.
-
-CONTROL opens on the work, ranked by what each item **unlocks** rather than by
-what is stuck — in the native-kernel run, 210 ambiguous settlements are one
-action, not 210, because they are ambiguous for the same missing field. Each row states where it is blocked,
-why, what would unblock it, and whether ATTEST can do that itself. Three of them
-say it cannot.
-
-The state spine runs down the rail on every lens — `SOURCE → MATCHING →
-VERIFICATION → POLICY → ACTION` — drawn as the proportion that survives each
-stage, so the collapse is legible before any number is read. Clicking a stage
-opens the instrument that owns it.
-
-Four screens demonstrate rather than assert. **Activity** sends webhook
-deliveries through the same verify/de-duplicate/scope path the HTTP endpoint
-uses and reports what came back. **Policy** runs the permission pipeline against
-the current run, so a refused capability is something the code did. **Trust**
-reads the same benchmark files the build reads, so it cannot report a pass CI
-would fail. **Investigate** runs the hypothesis loop, discards its verdict, and
-shows the measurement that disabled it — read from `benchmark/anchoring.json`
-rather than transcribed.
-
-`⌘K` reaches any lens and any settlement in the attention queue.
-
-See `docs/archive/UX-AUDIT.md` for what the audit found and the defects that reading the
-screens turned up.
-
-Optional: build the Rust kernel for the wider envelope and the 52× DP.
-
-```bash
-cd native && maturin develop --release
-```
-
-## Layout
-
-```
-attest/model.py        fee model, tolerance derivation, records
-attest/verdict.py      PROVEN/AMBIGUOUS/CONTRADICTED + the 35-line kernel
-attest/blocking.py     calendar-inverted candidate generation, escalating
-attest/subsetsum.py    counting DP over the amount axis
-attest/evidence.py     cross-settlement propagation (off by default)
-attest/generate/       hazard taxonomy + generator — FROZEN
-attest/policy.py       Wilson-priced risk, the auto-post inequality
-attest/ledger.py       the journal entry a proof implies, balanced to the paisa
-attest/actions.py      the work ranked by value unlocked per step
-attest/eval/          harness, baselines, ablations, regression gates
-attest/rules.py        content-hashed rule set + run provenance
-attest/agents.py       capabilities, and the four granted to nothing
-attest/whatchanged.py  run-to-run diff with computed attribution (CLI)
-attest/webhooks.py     raw-byte HMAC, idempotency on id AND payload hash
-attest/api.py          the JSON API behind the Case Desk
-attest/adapters/       source adapters; money.py reads amounts exactly or refuses
-attest/ui/             the Case Desk — one subject, seven lenses, three axes
-eval/cpsat_study.py    the CP-SAT measurement that rejected set packing
-native/                Rust port of the DP hot path
-```
-
-## The kernel
-
-The DP is three ALU ops per cell and re-reads an array the width of the credit
-once per order. It is bandwidth-bound, not compute-bound, so the only
-optimisation that matters is **making the array smaller**.
-
-Two bits is the floor — the verdict only distinguishes none / one / more than
-one. Rather than interleaving 2-bit lanes, which forces lane-masking on every
-shift, the counter is split into two **bitplanes** of one bit per sum: `one[s]`
-and `many[s]`, mutually exclusive, so together they encode 0/1/2 exactly and each
-shifts with a plain bit-shift. The saturating add becomes six bitwise operations
-over 64 sums at a time:
-
-```
-both  = (one | many) & (s_one | s_many)     // both sides non-zero ⇒ ≥ 2
-many' = many | s_many | both
-one'  = (one | s_one) & !both
-```
-
-```
-credit        numpy      native    speedup
-₹20,000      275.6 ms   17.11 ms     16.1×
-₹80,000    1,342.8 ms   25.46 ms     52.7×
-
-DP footprint at ₹200,000:  4.8 MB   (one byte per sum would be 19.5 MB)
-```
-
-The speedup widens with credit size, which is what a bandwidth-bound kernel
-should do. **Verified byte-identical to the numpy reference over 1,777 instances
-and 1.32 × 10¹¹ DP cells, across all fifteen hazard families** — `tobytes()`
-compared, not `array_equal`, because `solve` sums a slice of this array and a
-dtype difference would change the sum.
-
-This is not a benchmark flourish. The Python reference could only afford a
-₹30,000 envelope, which silently skipped **14.8% of the portfolio** — including
-*every* large bundle — before a single subset was examined. The port is what made
-those settlements reachable at all. Without the extension the engine falls back
-to numpy and a narrower envelope, and still runs correctly.
-
-## Documents
-
-- **[PRD.md](PRD.md)** — the problem, the algorithm, the tolerance derivation, the plan
-- **[FAILURES.md](FAILURES.md)** — what broke, daily. Four entries and counting
-- **[AGENTS.md](AGENTS.md)** — the working agreement, enforced by `.githooks/pre-commit`
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — layers, the trusted kernel, search-space integrity
-- **[docs/ALGORITHMS.md](docs/ALGORITHMS.md)** — the tolerance derivation, the counting DP, why greedy and Hungarian both fail
-- **[docs/EVALUATION.md](docs/EVALUATION.md)** — ground truth, the metric vocabulary, baselines, the seed panel
-- **[docs/DECISIONS.md](docs/DECISIONS.md)** — fifteen ADRs, including the five that rejected work already built
-- **[native/BENCH.md](native/BENCH.md)** — parity methodology and benchmarks
-
-**Evidence and boundaries**
-
-- **[docs/ARCHITECTURE-DIAGRAM.md](docs/ARCHITECTURE-DIAGRAM.md)** — the one diagram: source → ledger, with the model outside the decision path
-- **[docs/EVALUATION-PANEL.md](docs/EVALUATION-PANEL.md)** — ATTEST against three baselines, including the one that beats it
-- **[docs/FAILURE-STORY.md](docs/FAILURE-STORY.md)** — five failures that changed the system, with reproductions
-- **[docs/FAILURE-REGRESSION-MAP.md](docs/FAILURE-REGRESSION-MAP.md)** — every failure mapped to the test that would catch it returning, machine-checked
-- **[docs/RAZORPAY-INTEGRATION.md](docs/RAZORPAY-INTEGRATION.md)** — capability matrix with an evidence column, and the frozen boundaries
-- **[docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md)** — IMPLEMENTED / SIMULATED / NOT VERIFIED, capability by capability
-- **[docs/GOLDEN-DATASET.md](docs/GOLDEN-DATASET.md)** — the canonical dataset and the eleven states it produces
-- **[docs/archive/WINNING-SUBMISSION.md](docs/archive/WINNING-SUBMISSION.md)** — fifteen questions a reviewer would ask, answered from artifacts
-- **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 35 attacks from source to ledger, and the defect they found
-- **[docs/REPRODUCE.md](docs/REPRODUCE.md)** — clone to running, with the three things that did not work
-- **[docs/MONEY-MODEL.md](docs/MONEY-MODEL.md)** — integer paise, tolerance, rounding direction
+<sub>Built for the Razorpay AI Buildathon, Track 04. Working agreement and the
+protected-core rule: [AGENTS.md](AGENTS.md). Product requirements and the
+tolerance derivation: [PRD.md](PRD.md).</sub>
