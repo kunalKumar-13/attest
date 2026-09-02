@@ -101,7 +101,7 @@ To deliberately refresh the published numbers:
 ./.venv/bin/python -m attest.eval.adversarial
 ```
 
-34 attacks from SOURCE to LEDGER. Exits non-zero on a breach, a broken control,
+35 attacks from SOURCE to LEDGER. Exits non-zero on a breach, a broken control,
 or a harness error. See `docs/ADVERSARIAL.md`.
 
 ## 5. Check the claim register

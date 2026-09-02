@@ -432,7 +432,7 @@ Statuses used:
   `test_kernel_rejects_a_duplicated_order`,
   `test_every_proof_survives_the_independent_kernel`,
   `test_nothing_posts_without_a_unique_kernel_checked_explanation`
-- **CURRENT STATUS** — FIXED. The 28-line independent kernel shares no code with
+- **CURRENT STATUS** — FIXED. The 35-line independent kernel shares no code with
   the prover, so a bug in the prover cannot hide in the checker.
 - **WHY IT MATTERS** — a self-checking prover checks its own assumptions. The
   point of the kernel is that it does not share them.

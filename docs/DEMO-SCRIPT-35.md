@@ -1,14 +1,14 @@
 # The five-minute pitch — spoken script
 
 Every figure below is on screen when it is spoken. Nothing is read from memory.
-Verified against the running product on seed `20260821`, run of 250,
+Verified against the running product on seed `555001`, run of 250,
 **on the native kernel** — which is the path the recording uses. Confirm
 `run-demo` prints `ATTEST · GENERATED · NATIVE KERNEL` before you start.
 
-**One precision rule for the whole script:** ₹47,96,811.78 belongs to the **197
+**One precision rule for the whole script:** ₹47,97,685.11 belongs to the **197
 ambiguous** settlements. **198** are held at verification — the extra one is the
 single contradicted case, a separate blocker whose figure appears only in the
-workspace and is therefore never spoken. Never say "198" while ₹47,96,811.78 is
+workspace and is therefore never spoken. Never say "198" while ₹47,97,685.11 is
 on screen.
 
 Word count ≈ 720, which is five minutes at a measured pace. Do not rush the
@@ -27,7 +27,7 @@ two pauses; they are marked.
 
 *On screen: the front door as it loads. The headline is the first thing said
 and the first thing shown — do not scroll during this line. The run manifest is
-already beside it: ₹53,02,701.96 · 250 · 2,368 · seed 20260821, and the
+already beside it: ₹51,35,744.40 · 250 · 2,328 · seed 555001, and the
 model/solver/engine sequence in the lower half of the manifest.*
 
 ## 0:15 — 0:40 · The loop

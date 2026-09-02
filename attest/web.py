@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from attest import api
+from attest.policy import Costs
 
 PORT = 8420
 
@@ -30,6 +31,13 @@ PORT = 8420
 #: cannot prove does not get to demonstrate itself on the data it was tuned on.
 #: The headline is worse on this seed. That is the point of holding it out.
 DEMO_SEED = 555001
+
+#: The review cost every screen defaults to, read from the policy rather
+#: than typed. Seven call sites carried the literal 15000 after the policy
+#: moved to 25000, so the workspace said 17 settlements post while the front
+#: door and the journal said nothing did — two screens disagreeing about one
+#: portfolio, which is the failure journal_view's own docstring warns about.
+DEFAULT_REVIEW = Costs().review_paise
 UI = Path(__file__).resolve().parent / "ui"
 
 
@@ -99,8 +107,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.decision_view(
                 api.get(q.get("run", [""])[0]),
                 q.get("type", ["portfolio"])[0], q.get("id", [""])[0],
-                int(q.get("review", ["15000"])[0]),
+                int(q.get("review", [str(DEFAULT_REVIEW)])[0]),
                 int(q.get("exposure", ["10000000"])[0])))
+
+        elif u.path == "/api/loop":
+            r = api.get(q.get("run", [""])[0])
+            self._json(api.control_loop(
+                r, q.get("id", [""])[0],
+                int(q.get("review", [str(DEFAULT_REVIEW)])[0]),
+                int(q.get("exposure", ["10000000"])[0]),
+            ) if r else {"error": "unknown run"}, 200 if r else 404)
 
         elif u.path == "/api/investigation":
             self._json(api.investigation_view(api.get(q.get("run", [""])[0]),
@@ -121,7 +137,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(api.spine_view(api.get(q.get("run", [""])[0]),
                                       q.get("type", ["portfolio"])[0],
                                       q.get("id", [""])[0],
-                                      int(q.get("review", ["15000"])[0]),
+                                      int(q.get("review", [str(DEFAULT_REVIEW)])[0]),
                                       int(q.get("exposure", ["10000000"])[0])))
 
         elif u.path == "/api/actions":
@@ -133,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
             r = api.get(q.get("run", [""])[0])
             self._json(api.journal_view(
                 r,
-                int(q.get("review", ["15000"])[0]),
+                int(q.get("review", [str(DEFAULT_REVIEW)])[0]),
                 int(q.get("exposure", ["10000000"])[0]),
             ) if r else {"error": "unknown run"}, 200 if r else 404)
 

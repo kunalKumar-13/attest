@@ -35,7 +35,7 @@ it was refused is kept.
 ## The trusted kernel
 
 The prover is large: blocking, a counting DP, constraint propagation, CP-SAT,
-model-proposed hypotheses. The verifier is **28 lines**
+model-proposed hypotheses. The verifier is **35 lines**
 (`attest/verdict.py::check`), shares no code with any of it, and recomputes every
 value from source records rather than trusting a field on the proof.
 

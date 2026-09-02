@@ -129,7 +129,7 @@ def _detail(f: Finding, s: Settlement, orders: dict[str, Order]) -> str:
     if f.verdict is Verdict.PROVEN:
         body = _proof_table(f, orders) + (
             "<p class=note>Every value above is recomputed from the order records by "
-            "<code>verdict.check</code>, a 28-line kernel that shares no code with the "
+            "<code>verdict.check</code>, a 35-line kernel that shares no code with the "
             "solver. The proof was accepted because exactly one subset of the candidate "
             "pool satisfies the amount constraint within the rounding bound.</p>")
     elif f.verdict is Verdict.AMBIGUOUS:
@@ -204,7 +204,7 @@ seed {seed} · {rep.n_settlements:,} settlements</p>
 <div class=bar>{bar}</div><div class=legend>{legend}</div>
 <h2>Settlements</h2>{cards}
 <footer>Every proof shown is recomputed from source records by
-<code>verdict.check</code> — 28 lines, sharing no code with the solver that
+<code>verdict.check</code> — 35 lines, sharing no code with the solver that
 produced it. A bug in the prover can cost recall; it cannot post a wrong entry.
 <br>Showing {len(shown)} of {rep.n_settlements:,}.</footer>
 </div></body></html>"""

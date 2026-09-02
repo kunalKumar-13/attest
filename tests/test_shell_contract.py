@@ -877,15 +877,20 @@ def test_the_policy_version_is_visible_and_derived_from_the_costing(page):
     _ev(page, "#/settlement/setl_000022/policy")
     body = page.inner_text("#workspace")
     assert "policy_" in body
+    # The RECORDED costing is whatever the shell is running, not a literal:
+    # §47.P1 moved the default review cost from ₹150 to ₹250 and this test then
+    # asserted that the recorded policy was a simulation, because ₹150 had
+    # become a what-if.
     recorded = page.evaluate("""(async () => {
       const a = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
-        + `&id=setl_000022&review=15000`)).json();
+        + `&id=setl_000022&review=${SHELL.review}`)).json();
       const b = await (await fetch(`/api/decision?run=${SHELL.run}&type=settlement`
-        + `&id=setl_000022&review=50000`)).json();
+        + `&id=setl_000022&review=${SHELL.review * 2}`)).json();
       return [a.policy_version, b.policy_version, a.simulated, b.simulated];
     })()""")
     assert recorded[0] != recorded[1], "the costing did not change the version"
-    assert recorded[2] is False and recorded[3] is True
+    assert recorded[2] is False, "the recorded costing is reported as a what-if"
+    assert recorded[3] is True, "a what-if is not reported as one"
 
 
 def test_the_ui_decision_matches_the_engine(page):
@@ -1033,20 +1038,22 @@ def test_permission_and_execution_are_separate_events(page):
     assert stages.index("policy") < stages.index("action"), \
         "execution is not reported after the permission that would allow it"
 
-    decision = page.evaluate("""async () => {
-      const d = await (await fetch(`/api/decision?run=${SHELL.run}`
-        + `&type=settlement&id=setl_000022&review=${SHELL.review}`
-        + `&exposure=${SHELL.exposure}`)).json();
-      return d.decision; }""")
+    # Read the room's own conclusion rather than re-deriving it from a second
+    # fetch. The fetch version raced SHELL.review's initialisation and failed
+    # once against a room that was correct; and "the room agrees with itself"
+    # is the stronger property anyway — a posting claim and an execution badge
+    # that disagree is exactly the defect this test exists to catch.
     body = page.inner_text("#workspace")
+    posted = "An entry was written" in body
+    assert posted or "Ledger unchanged" in body, \
+        "the room states neither that an entry was written nor that it was not"
 
-    if decision == "AUTO_POST":
-        assert "An entry was written" in body
-        assert page.eval_on_selector_all(".a-badge.yes", "x => x.length") >= 1
-        assert page.eval_on_selector_all(".a-badge.done", "x => x.length") >= 1
+    if posted:
+        assert page.eval_on_selector_all(".a-badge.yes", "x => x.length") >= 1, \
+            "an entry was written but no step reports permission"
+        assert page.eval_on_selector_all(".a-badge.done", "x => x.length") >= 1, \
+            "an entry was written but no step reports execution"
     else:
-        assert "Ledger unchanged" in body, \
-            "nothing posted and the room does not say the ledger is unchanged"
         # the two refusals are stated separately, in that order
         assert page.eval_on_selector_all(".a-badge.no", "x => x.length") >= 1, \
             "no step reports that permission was withheld"
@@ -2672,13 +2679,28 @@ def test_the_front_door_states_the_thesis(inv):
     # front door must say that this system declines to act on money it cannot
     # prove. The earlier version pinned the literal words "refuses" and
     # "certainty", which made the sentence unimprovable.
+    # The guarantee, not the wording -- and the grammar it can be made in is
+    # wider than one voice. "The ledger wasn't [allowed to be wrong]" states
+    # the same refusal about the same object as "it won't move money it can't
+    # prove", so both have to pass or this pins a sentence again, which is the
+    # fault the note above records. The claim is read across the largest
+    # statement AND the paragraph it leads, because a two-line thesis that
+    # hands its object to the next sentence is a better sentence, not a
+    # weaker claim.
     stmt = " ".join(inv.inner_text(".hero-t").lower().split())
-    refusal = any(w in stmt for w in ("won't", "will not", "refuses", "does not"))
-    proof = any(w in stmt for w in ("prove", "proof", "evidence", "certainty"))
-    money = any(w in stmt for w in ("money", "post", "pay", "settle"))
+    lead = " ".join(inv.inner_text(".claim-p").lower().split())
+    both = stmt + " " + lead
+    refusal = any(w in stmt for w in
+                  ("won't", "will not", "wasn't", "was not", "refuses",
+                   "does not", "cannot", "can't"))
+    proof = any(w in both for w in ("prove", "proof", "verif", "evidence",
+                                    "certainty"))
+    money = any(w in both for w in
+                ("money", "post", "pay", "settle", "ledger", "books",
+                 "financial"))
     assert refusal and proof and money, (
         "the front door's largest statement does not say it declines to act "
-        f"on money it cannot prove: {stmt!r}")
+        f"on money it cannot prove: {stmt!r} / {lead!r}")
     size = inv.evaluate(
         "() => parseFloat(getComputedStyle(document.querySelector('.hero-t')).fontSize)")
     assert size >= 30, f"the thesis is set at {size:.0f}px"
@@ -2915,7 +2937,12 @@ def inv(page):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     pg.goto(INV, wait_until="networkidle")
-    pg.wait_for_selector("#boundary", timeout=60000)
+    # The readiness sentinel is the LAST section, so waiting on it means the
+    # whole template rendered. It named a specific chapter (#boundary) and
+    # therefore broke when the information architecture merged that chapter
+    # away — thirty-four contracts erroring in the fixture rather than
+    # failing on their subject. #end is the last section by construction.
+    pg.wait_for_selector("#end", timeout=60000)
     pg.wait_for_timeout(900)
     pg.errors = errors
     yield pg
@@ -3090,6 +3117,19 @@ def test_every_shape_on_the_investigation_names_a_job(inv):
         "field",                                         # the measured ground
         "st", "q",                                       # lifecycle state, quantity
         "nav", "strip", "index", "loop", "main", "keys", # navigation furniture
+        # §58 the decision record. Each of these is a claim, not a mark:
+        #   auth     the authority chain — four boundaries between who may do what
+        #   dr       the record itself: one financial event and its four parties
+        #   dr-dot   STATE: filled means this party may change financial state,
+        #            hollow means it may not. The advisory row is the only
+        #            hollow one, and that is the product thesis drawn rather
+        #            than captioned — which is why it is a shape and not a
+        #            sentence.
+        #   dr-may   BOUNDARY: what each party may and may not do, paired
+        "auth", "dr", "dr-dot", "dr-may", "dr-e", "dr-out", "eviz",
+        #   role-d   STATE, again: the authority marker on each of the four
+        #            roles. Hollow on the advisory one, filled on the rest.
+        "role-d", "coll",
         "spec", "spec-h", "spec-pipe", "spec-disp", "sheet", "thr-s",
         "safe", "adapter", "score", "bench",
         "row", "hero-row", "rise", "stage", "warm", "end", "BODY",
@@ -3246,21 +3286,32 @@ def test_the_narrowing_is_one_continuous_chain(inv):
     inv.evaluate("() => document.querySelectorAll('.rise').forEach(n => n.classList.add('in'))")
     inv.wait_for_timeout(300)
 
-    seen = []
-    for sec in ("population", "exception", "proof", "ai"):
-        r = inv.evaluate("""(id) => {
-          const s = document.getElementById(id); if (!s) return null;
-          const rows = [...s.querySelectorAll('.nrw-r')];
-          return {steps: rows.map(e => e.querySelector('b').textContent.replace(/,/g, '')),
-                  lit: rows.findIndex(e => e.classList.contains('on'))}; }""", sec)
-        assert r, f"no narrowing in {sec}"
-        assert r["steps"] == [str(n) for n in truth], (
-            f"{sec}: the chain says {r['steps']}, the run says {truth}")
-        assert r["lit"] >= 0, f"{sec}: no step is lit"
-        seen.append(r["lit"])
+    # §59 changed which way this holds. The chain used to be carried across
+    # four chapters, because the narrowing WAS four chapters; the information
+    # architecture states it once, completely, in the section that does the
+    # narrowing. So the sections are no longer named here — every section that
+    # carries the chain is found, and each is held to the same two things the
+    # original asserted: the figures are the run's, and the reader is told how
+    # far in they are. Naming the chapters made this test a description of one
+    # layout rather than of the guarantee.
+    found = inv.evaluate("""() => [...document.querySelectorAll('main > section')]
+      .map(s => {
+        const rows = [...s.querySelectorAll('.nrw-r')];
+        if (!rows.length) return null;
+        return {sec: s.id,
+                steps: rows.map(e => e.querySelector('b').textContent.replace(/,/g, '')),
+                lit: rows.findIndex(e => e.classList.contains('on'))}; })
+      .filter(Boolean)""")
 
-    assert seen == sorted(seen) and len(set(seen)) == len(seen), \
-        f"the narrowing does not advance section by section: {seen}"
+    assert found, "the narrowing appears nowhere"
+    for r in found:
+        assert r["steps"] == [str(n) for n in truth], (
+            f"{r['sec']}: the chain says {r['steps']}, the run says {truth}")
+        assert r["lit"] >= 0, f"{r['sec']}: no step is lit"
+
+    lits = [r["lit"] for r in found]
+    assert lits == sorted(lits) and len(set(lits)) == len(lits), \
+        f"the narrowing does not advance in reading order: {lits}"
 
 
 

@@ -161,11 +161,39 @@ class Finding:
 # --------------------------------------------------------------------------
 
 
+def evidenced_adjustment_paise(settlement: Settlement,
+                               orders: dict[str, Order]) -> int:
+    """The adjustment the SOURCE RECORDS support for this settlement, in paise.
+
+    CORE-003. Nothing in the domain model records a refund, a chargeback or a
+    fee correction: `Settlement` carries an id, a date, a net and a UTR;
+    `Order` carries a gross, a method and a capture date. So the only
+    adjustment these sources can evidence is zero, and that is what this
+    returns.
+
+    It is a function rather than the literal `0` because it is the SEAM. An
+    evidenced adjustment — a refund row on an upstream report, a linked
+    reversal — enters here, derived from a record, and the kernel keeps reading
+    it from here rather than from the proof. The moment it is read from the
+    proof instead, `adjustment_paise` becomes a free variable an attacker can
+    solve for.
+
+    (No provider is named in this module by design: `engine_isolation()` reads
+    every deciding module and asserts none of them knows who the gateway is.
+    Naming one here broke that claim, and the contract caught it.)
+    """
+    return 0
+
+
 def check(proof: Proof, settlement: Settlement, orders: dict[str, Order]) -> bool:
     """Re-derive a proof from source records. No solver, no heuristics.
 
     Deliberately recomputes rather than trusting any field on the proof: a
     prover bug that fabricates `gross_paise` must not survive.
+
+    `adjustment_paise` was the exception until CORE-003: taken from the proof
+    and used on both sides of the residual, so any shortfall closed by naming
+    it. It is recomputed from source now, like gross and net.
     """
     if proof.settlement_id != settlement.settlement_id:
         return False
@@ -178,13 +206,16 @@ def check(proof: Proof, settlement: Settlement, orders: dict[str, Order]) -> boo
 
     gross = sum(o.gross_paise for o in members)
     net = sum(o.net for o in members)
-    expected = net + proof.adjustment_paise
+    adjustment = evidenced_adjustment_paise(settlement, orders)
+    if proof.adjustment_paise != adjustment:
+        return False  # money the source records do not account for
+    expected = net + adjustment
     residual = settlement.net_paise - expected
     tol = tolerance_paise(len(members))
 
     return (
         gross == proof.gross_paise
-        and net + proof.adjustment_paise == proof.net_paise
+        and net + adjustment == proof.net_paise
         and residual == proof.residual_paise
         and tol == proof.tolerance_paise
         and abs(residual) <= tol

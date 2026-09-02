@@ -163,7 +163,7 @@ def issue(finding: Finding, settlement: Settlement, judgement: Judgement) -> Cer
 
     lines.append(Line(
         "independent kernel", p is not None,
-        "re-derived from source records by verdict.check — 28 lines sharing no "
+        "re-derived from source records by verdict.check — 35 lines sharing no "
         "code with the solver, so a prover bug can cost recall but cannot post"
         if p is not None else "nothing to verify"))
 

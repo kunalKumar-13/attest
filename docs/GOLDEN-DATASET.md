@@ -5,13 +5,13 @@ make a screenshot work. Every state below is produced by the engine running on
 generated data, and the demo operates on the real product.
 
 ```
-seed              20260821
+seed              555001          held out from calibration
 settlements       250
-orders            2,368
-dataset version   synthetic_n250_s20260821
+orders            2,328
+dataset version   synthetic_n250_s555001
 rules             rules_d4cb21a4b0ac
-policy            policy_661e43db9242
-solver            solver_c53ecade566d
+policy            policy_76b7dd4eabcc
+solver            solver_000589bed531
 ```
 
 The run id (`run_0013`) is a session label and increments per launch; the
@@ -28,11 +28,11 @@ the same book, the same verdicts and the same numbers on any machine.
 | | state | why it exists | source | verdict | policy | action | lens | context |
 |---|---|---|---|---|---|---|---|---|
 | **A** | clean PROVEN settlement | one candidate set explains the credit exactly, and nothing else does | `setl_000020`, ₹353.73, UTR 857043679462 | PROVEN | AUTO-POST | entry written | Journal | the balanced entry |
-| **B** | AMBIGUOUS with multiple valid explanations | four disjoint order sets satisfy the amount to the paisa | `setl_000089`, ₹1,00,036.83 | AMBIGUOUS | REVIEW | supply an order-level reference | Evidence | explanation A–D |
+| **B** | AMBIGUOUS with multiple valid explanations | four disjoint order sets satisfy the amount to the paisa | `setl_000225`, ₹23,922.07 | AMBIGUOUS | REVIEW | supply an order-level reference | Evidence | explanation A–D |
 | **C** | CONTRADICTED settlement | no combination of candidates satisfies the amount at all | `setl_000109`, ₹6,316.03 | CONTRADICTED | REVIEW | look for a fee correction or manual adjustment | Control | the settlement |
-| **D** | search-space boundary | 3 of 5 reductions are conventions, not facts — the proof is unique *inside a space the calendar chose* | 2,368 → 73 on `setl_000089` | — | — | — | Evidence | the reduction |
-| **E** | bad model hypothesis | the model proposes a capture-batch anchor that every surviving explanation contains | `setl_000089` investigation, step 1 | — | — | — | Investigate | the model step |
-| **F** | solver rejection | the solver tests the anchor against uniqueness and returns NON-DISCRIMINATIVE | `setl_000089` investigation, step 2 | — | — | — | Investigate | the solver step |
+| **D** | search-space boundary | the two effective reductions are conventions, not facts — uniqueness is *inside a space the calendar chose* | 2,328 → 23 on `setl_000225` | — | — | — | Evidence | the reduction |
+| **E** | advisory proposal, discarded | the advisor proposes a capture-batch anchor that would select one of four explanations; the engine keeps the verdict it reached without it | `setl_000225` investigation, step 1 | — | — | — | Investigate | the advisor step |
+| **F** | the loop closing | advisor proposes · solver tests · engine proves · policy prices · ledger posts, on one settlement | `setl_000233`, ₹6,523.53, AUTO-POST | PROVEN | AUTO_POST | none — it posted | Investigate | the control loop |
 | **G** | policy AUTO-POST | expected loss below the cost of checking, and a proof exists to price against | 1 of 250 | PROVEN | AUTO-POST | — | Policy | the decision |
 | **H** | policy REVIEW | 249 of 250, including every ambiguous case | 249 of 250 | mixed | REVIEW | — | Policy | the decision |
 | **I** | activity trail | eight events through the real ingest path, three signed correctly | 8 deliveries, 8 events | — | — | — | Activity | an event |
@@ -54,17 +54,17 @@ charge the proof carries, and a merchant needs them apart.
 
 **What it shows:** the whole chain succeeding, and how rare that is.
 
-### Case B — `setl_000089` · ₹1,00,036.83 · AMBIGUOUS · REVIEW
+### Case B — `setl_000225` · ₹23,922.07 · AMBIGUOUS · REVIEW
 
 Four disjoint sets of orders satisfy the amount exactly, within a tolerance of
-31 paise for 31 orders. **27 orders are in every explanation** — ₹97,759.84 is
-not in question. The argument is 12 orders and ₹7,292.03.
+**4 orders are in every explanation** — ₹12,630.27 is not in question. The
+argument is 17 orders and ₹30,107.39.
 
 **What it shows:** the product's actual thesis. Arithmetic cannot choose between
 four exact answers, so the engine does not, and it says precisely how much is
 agreed rather than refusing the whole settlement.
 
-### Case C — `setl_000089` investigation · model → solver → engine
+### Case C — `setl_000225` investigation · advisor → solver → engine
 
 The model proposes a capture-batch anchor: three orders captured together on
 2026-05-06, the densest batch in the window. The solver tests it against

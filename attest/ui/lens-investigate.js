@@ -17,7 +17,7 @@
 
 (() => {
   const { Section, Row, MetricRow, Disclosure, EmptyState, Conclusion,
-          rupees, plural, esc } = window.C;
+          DecisionRecord, rupees, plural, esc } = window.C;
 
   const ACTOR = {
     model:  ['Model',  'proposes', 'e-act-model'],
@@ -117,9 +117,14 @@
      product has been removing throughout. */
 
   async function settlement(subject, S) {
-    const d = await window.shellApi(`/api/investigation?run=${S.run}`
-      + `&type=settlement&id=${encodeURIComponent(subject.id)}`);
+    const [d, loop] = await Promise.all([
+      window.shellApi(`/api/investigation?run=${S.run}`
+        + `&type=settlement&id=${encodeURIComponent(subject.id)}`),
+      window.shellApi(`/api/loop?run=${S.run}`
+        + `&id=${encodeURIComponent(subject.id)}`),
+    ]);
     if (d.error) return EmptyState(d.error);
+    const chain = DecisionRecord(loop);
 
     // The loop's outcome is the answer, and the fact that the verdict did NOT
     // change is the product's whole claim about where the model sits.
@@ -139,12 +144,34 @@
       <h2>${esc(d.question)}</h2></div>`;
 
     if (!d.steps.length) {
-      return head + Section({
-        title: 'Not investigated',
-        body: `<p class=c-lead>The loop only runs on ambiguity. A
-          ${esc(d.verdict.toLowerCase())} settlement is not a case of the engine
-          being unable to choose — it is a case of there being nothing to choose
-          between.</p>`,
+      /* The resolution loop did not run, so `head` — which narrates that loop —
+         has nothing true to say. It said "Still open · Verdict unchanged" over
+         a settlement that is PROVEN, AUTO-POSTED and in the ledger, directly
+         under a control loop showing exactly that. A conclusion that
+         contradicts the instrument above it is worse than no conclusion. */
+      const settled = loop && loop.acted;
+      return chain + Conclusion({
+        fact: settled ? 'Resolved without a person'
+                      : `Nothing to investigate — ${esc(d.verdict.toLowerCase())}`,
+        tone: settled ? 'go' : 'hold',
+        figure: settled ? 'Advisory input changed nothing' : null,
+        because: settled
+          ? 'The arithmetic was already unique, so no tie needed breaking. The '
+            + 'advisor proposed anyway, and the engine reached the same answer '
+            + 'without reading it — which is what the boundary looks like on a '
+            + 'case that ends in money moving.'
+          : 'The resolution loop runs only on ambiguity, and this settlement is '
+            + 'not ambiguous.',
+      }) + `<div class=i-q>
+        <span class=i-q-k>the question</span>
+        <h2>${esc(d.question)}</h2></div>` + Section({
+        title: 'No tie to break',
+        body: `<p class=c-lead>The <em>resolution</em> loop only runs on
+          ambiguity. A ${esc(d.verdict.toLowerCase())} settlement is not a case
+          of the engine being unable to choose — it is a case of there being
+          nothing to choose between, so there is nothing for an advisor to
+          resolve. The advisor above still ran; the loop above shows where its
+          proposal sat relative to an answer reached without it.</p>`,
       }) + Resolvers(d);
     }
 
@@ -162,7 +189,7 @@
      * what it always was: the evidence for a claim already made. Nothing was
      * removed; the order changed, which is the difference between a story and
      * a log. */
-    return head
+    return chain + head
       + AiBoundary(d)
       + Section({
           title: 'What was tried',

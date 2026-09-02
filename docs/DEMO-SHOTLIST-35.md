@@ -9,19 +9,19 @@ If it is not on screen, cut the line — do not speak it from memory.
 
 | Time | Screen | Cursor | What changes | Spoken | Number visible |
 |---|---|---|---|---|---|
-| 0:00 | **hold on the headline, do not scroll** | none | — | "it won't move money it can't prove" | IT WON'T MOVE MONEY IT CAN'T PROVE · ₹53,02,701.96 · 250 · 2,368 |
-| 0:00 | `/` first viewport, static | none | — | thesis line | ₹53,02,701.96 · 250 · 2,368 |
-| 0:08 | same | none | — | "synthetic by design…" | seed 20260821 · GENERATED |
-| 0:15 | scroll to §01 the money | slow scroll | collapse bars draw | the loop, settlement→orders | ₹53,02,701.96 → ₹353.73 |
-| 0:26 | scroll to §02 the population | stop | field draws, legend lands | 52 / 197 / 1 *(say "in the native-kernel run")* | 52 PROVEN · 197 AMBIGUOUS · 1 CONTRADICTED |
+| 0:00 | **hold on the headline, do not scroll** | none | — | "it won't move money it can't prove" | IT WON'T MOVE MONEY IT CAN'T PROVE · ₹51,35,744.40 · 250 · 2,328 |
+| 0:00 | `/` first viewport, static | none | — | thesis line | ₹51,35,744.40 · 250 · 2,328 |
+| 0:08 | same | none | — | "synthetic by design…" | seed 555001 · GENERATED |
+| 0:15 | scroll to §01 the money | slow scroll | collapse bars draw | the loop, settlement→orders | ₹51,35,744.40 → ₹353.73 |
+| 0:26 | scroll to §02 the population | stop | field draws, legend lands | 39 / 210 / 1 *(say "in the native-kernel run")* | 39 PROVEN · 210 AMBIGUOUS · 1 CONTRADICTED |
 | 0:34 | hold on the scoreboard | none | — | "20.8% match rate, 198 exceptions" | 20.8% · 198 |
 | 0:40 | scroll up to the benchmark | scroll up 1 screen | — | "held-out panel…" | LIVE RUN 250 · PANEL 500 · 2 seeds × 250 |
 | 0:52 | hold on the CORRECT column | none | — | "greedy makes 23, we make 80" | ATTEST 80 · GREEDY 23 · both bars, one scale |
 | 0:48 | hold | none | bars already drawn | the four methods | 84/500 4.8% · 22/500 0.0% · 462/500 95.0% |
 | 1:00 | hold | none | — | "exact-only is safer" | 0.0% |
-| 1:05 | scroll to §03 the exception | scroll down 2 | — | the blocked money | ₹47,96,811.78 · 197 settlements *(native)* |
+| 1:05 | scroll to §03 the exception | scroll down 2 | — | the blocked money | ₹47,97,685.11 · 197 settlements *(native)* |
 | 1:22 | hold | none | — | "would unblock" | order-level reference |
-| 1:35 | scroll to §04 the proof | scroll | candidate field draws | 2,368 → 164 → 4 | 2,368 · 164 · 4 |
+| 1:35 | scroll to §04 the proof | scroll | candidate field draws | 2,328 → 23 → 4 | 2,328 · 23 · 4 |
 | 1:52 | hold on the cuts | none | — | calendar / claimed / ceiling | −2,204 · CONVENTION |
 | 2:00 | hold on `4 explanations` | none | — | **pause**, then "no unique explanation" | 4 |
 | 2:05 | scroll to §05 the model | scroll | — | "we asked whether a model could break the tie" | No financial action. (52px) |
@@ -36,7 +36,7 @@ If it is not on screen, cut the line — do not speak it from memory.
 | 3:20 | scroll to §10 trust → adapter | scroll | — | the provider chain | RAZORPAY → ADAPTER → ENGINE |
 | 3:32 | hold | none | — | "21 of 21 modules" | 21 of 21 |
 | 3:42 | hold | none | — | "live validation is not claimed" | NOT VERIFIED |
-| 3:50 | scroll to §11 the boundary (umber) | scroll | environment changes | the refusal | ₹47,96,811.78 · 197 · 0 posted on a guess |
+| 3:50 | scroll to §11 the boundary (umber) | scroll | environment changes | the refusal | ₹47,97,685.11 · 197 · 0 posted on a guess |
 | 4:05 | hold | none | — | "supply an order-level reference" | Supply an order-level reference. |
 | 4:12 | scroll to the handoff, hover the export | scroll ½ screen | — | "198 unresolved, 48 lakh exposure" | 198 UNRESOLVED · ₹48,03,127.81 EXPOSURE · EVIDENCE REQUIRED · EXPORT INVESTIGATION QUEUE (lime) · READ-ONLY · NO FINANCIAL ACTION |
 | 4:20 | hold on umber | none | — | why it matters | — |
@@ -54,7 +54,7 @@ the front door has not already shown.
 ## Things that will tempt you and must not happen
 
 - Reading a figure that scrolled off screen.
-- Saying "198 settlements" while ₹47,96,811.78 is visible — that money is the
+- Saying "198 settlements" while ₹47,97,685.11 is visible — that money is the
   **197**.
 - Hovering the reduction cuts to show the justification text. It is good, but
   it costs eight seconds and the KIND is already visible without it.

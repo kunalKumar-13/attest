@@ -399,6 +399,35 @@ def _():
         f"got {type(out).__name__}: {getattr(out, 'reason', '')[:70]}"
 
 
+@attack("LEDGER", "forged",
+        "a proof the kernel rejects, pushed straight at the ledger")
+def _():
+    """CORE-004, and the reason this attack exists at all.
+
+    Every other LEDGER attack here forges something `postable` can see: a
+    foreign order, an unbalanced entry, a verdict that is not PROVEN. This one
+    forges the ARITHMETIC and leaves the search provenance immaculate — real
+    orders, a recorded space, a named layer — so `postable` answers yes to all
+    four of its questions and never notices the sum is wrong.
+
+    Before the fix the ledger posted it, because the ledger did not ask the
+    kernel. Found by a red-team review, not by this suite, which is the honest
+    provenance and worth stating.
+    """
+    st, orders = _kernel_case()
+    # o1 + o2 net to 2000; claim o1 + o3, which nets to 1700, against a 2000
+    # credit -- then assert the arithmetic anyway. The kernel recomputes.
+    p = Proof("s1", ("o1", "o3"), 1700, 0, 0, 0, 2000, 0, 2)
+    sp = SearchSpace(universe=3, reductions=(Reduction("amount ceiling", 0, True, "x"),),
+                     members=frozenset({"o1", "o2", "o3"}))
+    f = Finding("s1", Verdict.PROVEN, [p], space=sp, layer="exact")
+    if check(p, st, orders):
+        return False, "BREACH: the kernel accepted a proof that does not balance"
+    out = post(f, st, _judgement(), orders)
+    return not isinstance(out, JournalEntry), \
+        f"postable={f.postable}, ledger returned {type(out).__name__}"
+
+
 @attack("LEDGER", "control", "a sound finding does post", control=True)
 def _():
     st, orders = _kernel_case()

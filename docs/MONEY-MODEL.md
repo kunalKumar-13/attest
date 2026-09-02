@@ -51,7 +51,7 @@ loss, which makes `loss < review_cost` more often true and auto-posting more
 likely. It now rounds up, which errs toward checking.
 
 Measured on the current panel the change flips no decision — the fraction is
-lost on all 52 proven settlements and none of them sit within a paise of the
+lost on all 39 proven settlements and none of them sit within a paise of the
 boundary. That is precisely when a rounding direction is cheap to get right, and
 it was found by auditing rather than by a failure.
 

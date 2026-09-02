@@ -46,7 +46,7 @@ from attest.model import Order, Settlement
 from attest.searchspace import why_not_postable
 from attest.rules import DEFAULT, RuleSet
 from attest.policy import Decision, Judgement
-from attest.verdict import Finding, Verdict
+from attest.verdict import Finding, Verdict, check
 
 
 class Unbalanced(Exception):
@@ -163,6 +163,22 @@ def post(finding: Finding, settlement: Settlement, judgement: Judgement,
     if not getattr(finding, "postable", False):
         return Refusal(settlement.settlement_id, settlement.net_paise,
                        why_not_postable(finding))
+
+    # CORE-004. `postable` answers four questions about the SEARCH -- which
+    # space, which universe, which solver, whose members -- and none about the
+    # ARITHMETIC. So this gate was open: a Finding assembled outside
+    # `pipeline.run` carried an unverified proof straight to the books, and the
+    # README's claim that "a proof is accepted only if the kernel accepts it"
+    # was false precisely here, because the ledger never asked. Measured before
+    # the fix: 245 proofs the kernel rejects, 131 of them posted.
+    #
+    # The pipeline already filters through `check`, so on a clean run this
+    # refuses nothing. That is the point -- a boundary that only holds because
+    # every caller remembers to hold it is not a boundary.
+    if not check(finding.proofs[0], settlement, orders):
+        return Refusal(settlement.settlement_id, settlement.net_paise,
+                       "the independent kernel does not accept this proof; it "
+                       "was not re-derivable from the source records")
     if judgement.decision is not Decision.AUTO_POST:
         return Refusal(settlement.settlement_id, settlement.net_paise,
                        (judgement.reasons or ("policy withheld it",))[-1])

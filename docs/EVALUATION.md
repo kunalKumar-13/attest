@@ -62,8 +62,9 @@ that settlement whichever is right. So the engine states that part as settled an
 names the exact remainder in dispute. **77.5% of ambiguous value turns out not to
 be in dispute at all**, and 67.3% of all processed value is accounted for.
 
-A real case: ₹1,00,036.83 with four surviving explanations. Twenty-seven orders
-worth ₹97,759.84 appear in all four. Only ₹7,292.03 across twelve orders is
+A real case from the held-out seed: `setl_000200`, ₹92,666.62, with four surviving
+explanations. Twenty-three orders worth ₹91,599.60 appear in all four. Only
+₹3,435.87 across eleven orders is
 contested, and the next step is not "investigate" — it is *a reference on any one
 of those twelve settles the rest*.
 
@@ -140,3 +141,44 @@ The build fails on safety, never on accuracy. Money wrongly auto-posted and the
 false-proof rate carry no tolerance; coverage metrics are advisory and may fall.
 A symmetric gate would have argued for shipping D4, D8 and D12 — all three of
 which correctly traded coverage for safety.
+
+## Coverage falls as portfolio density rises
+
+Coverage is not a constant of the engine. It is a function of how many orders
+share a window, and it falls as that number grows. Measured on held-out seed
+555001, native kernel, one run per size:
+
+```
+settlements   proven   coverage   ambiguous   exact set   false proofs
+        250       39      15.6%       84.0%       0.148              2
+        600       49       8.2%       91.7%       0.082              0
+      1,200       71       5.9%       94.0%       0.058              1
+```
+
+`benchmark/results.json` records the same shape independently in its own note:
+16.8% coverage at 250 settlements/seed against 8.5% at 600, with the false-proof
+rate falling from 0.80% to 0.08% across the same change.
+
+**This is an ambiguity characteristic, not a resource limit.** The solver is not
+running out of envelope — `INSUFFICIENT` stays at zero across all three sizes.
+More settlements over the same 90-day window means larger candidate pools, which
+means more disjoint subsets land inside tolerance, which means more settlements
+have genuinely more than one arithmetic explanation. The engine reports them as
+AMBIGUOUS because they are.
+
+Two things are worth reading off the table together. The **rate** falls, and the
+**absolute number of proofs rises** — 39, 49, 71. The engine is not finding less;
+the question is getting harder faster than the engine gets bigger. And the
+false-proof count does not rise with density, which is the property that matters:
+the additional ambiguity is absorbed as refusal, not as guessing.
+
+That is the trade this project is built around, and it is worth stating as a
+limitation rather than a feature: **on a dense portfolio, ATTEST will hand a
+person most of the book.** A matcher willing to pick one of several valid
+explanations would report far higher coverage on exactly these inputs, and would
+be wrong more often — `greedy` in the baseline panel decides 462 of 500 and is
+wrong 439 times. We would rather return less and be able to say which part is
+safe.
+
+No claim is made about behaviour beyond 1,200 settlements in a 90-day window;
+nothing in this repository measures it.

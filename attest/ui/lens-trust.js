@@ -162,7 +162,7 @@
           aside: `<span class=c-muted>${esc(d.scope)}</span>`,
           body: `<div class=t-asserts>${[
             ['proof kernel', 'INDEPENDENT',
-             '28 lines, sharing no code with the solver'],
+             '35 lines, sharing no code with the solver'],
             ['search space', 'RECORDED',
              'every reduction, and whether it was a convention'],
             ['membership', 'ENFORCED',

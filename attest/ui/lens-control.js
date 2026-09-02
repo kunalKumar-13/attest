@@ -216,14 +216,14 @@
      * and numbers appear" — a script with a UI on it. These four steps are what
      * the pipeline actually does: the adapter normalises to integer paise,
      * blocking and subset-sum enumerate every subset of candidate orders that
-     * could explain the credit, a 28-line kernel re-derives each surviving
+     * could explain the credit, a 35-line kernel re-derives each surviving
      * proof from the source records, and the count of survivors is the verdict.
      * Nothing here is a metaphor for the engine; it is the engine's stages. */
     const sum = window.SHELL.summary || {};
     const STEPS = [
       ['normalize', 'settlement and order records, into integer paise'],
       ['search', 'every subset of candidate orders that could explain the credit'],
-      ['verify', 'a 28-line kernel re-derives each proof from the source records'],
+      ['verify', 'a 35-line kernel re-derives each proof from the source records'],
       ['classify', 'one survivor proves it · several hold it · none contradict it'],
     ];
     const op = `<section class=r-op>
@@ -248,7 +248,8 @@
               String(n) === String(sum.settlements) ? ' selected' : ''}>${n}</option>`).join('')}
           </select>
           <button class="btn go" data-run>Run reconciliation</button>
-          <span class=r-op-ro>read-only · no financial action</span>
+          <span class=r-op-ro>posts to ATTEST's own journal · no external
+            system is written</span>
         </span>
       </div>
       <ol class=r-op-s>${STEPS.map(([k, why], i) => `<li>
@@ -321,10 +322,14 @@
         </button>`;
       }).join('') + Disclosure({
         summary: 'Why rank by leverage rather than by amount',
-        body: `<p>197 ambiguous settlements is one action, not 197 — they are
-          ambiguous for the same missing field. A queue that sorts by amount puts
-          a week of individual work above a one-line change worth eighty times
-          more.</p>`,
+        /* This read "197 ambiguous settlements" for the life of the project.
+           197 was the count on a calibration seed; the number is a property of
+           the run and belongs to it, not to a sentence. */
+        body: `<p>${esc(String((sum.counts || {}).AMBIGUOUS || 0))} ambiguous
+          settlements is one action, not
+          ${esc(String((sum.counts || {}).AMBIGUOUS || 0))} — they are ambiguous
+          for the same missing field. A queue that sorts by amount puts a week of
+          individual work above a one-line change worth far more.</p>`,
       }),
     });
 
@@ -459,12 +464,22 @@
 
   async function settlement(subject, S) {
     const api = window.shellApi;
-    const [spine, d] = await Promise.all([
+    const [spine, d, record] = await Promise.all([
       api(`/api/spine?run=${S.run}&type=settlement&id=${encodeURIComponent(subject.id)}`
           + `&review=${S.review}&exposure=${S.exposure}`),
       api(`/api/settlement?run=${S.run}&id=${encodeURIComponent(subject.id)}`),
+      api(`/api/loop?run=${S.run}&id=${encodeURIComponent(subject.id)}`
+          + `&review=${S.review}&exposure=${S.exposure}`),
     ]);
     if (d.error) return EmptyState('Not found', d.error);
+
+    /* §58. The DECISION RECORD leads, because it is what a settlement IS: one
+       financial event and the four parties to the decision about it. What
+       follows on this lens — the state spine, the blockers, the explanations —
+       is a deeper cut of rows the reader has now already met. Landing an
+       operator in a lens before they have met the object the lens is about was
+       the reframe's whole complaint. */
+    const lead = window.C.DecisionRecord(record, { label: 'financial event' });
 
     const ex = d.exception, st = ex && ex.settled, p = d.proofs[0];
     const j = d.judgement || {};
@@ -600,7 +615,7 @@
                 + 'independent kernel re-derived it from source records.',
     });
 
-    return answer + Section({ title: 'What we know', body: known })
+    return lead + answer + Section({ title: 'What we know', body: known })
       + why + decide;
   }
 

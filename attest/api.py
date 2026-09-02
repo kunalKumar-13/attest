@@ -45,6 +45,9 @@ from attest.money import rupees as _rs
 from attest.model import Order, Settlement, TrueMatch
 from attest.pipeline import run
 from attest.policy import Costs, RiskModel, calibrate, decide, simulate
+
+#: One home for the costing every view defaults to. See web.DEFAULT_REVIEW.
+_DEFAULT_REVIEW = Costs().review_paise
 from attest.rules import (DEFAULT as DEFAULT_RULES, Provenance, dataset_version,
                           policy_version, solver_version)
 from attest.verdict import Finding, Verdict
@@ -187,8 +190,23 @@ def execute(n: int, seed: int) -> Run:
     _audit(log, "verdicts",
            f"PROVEN {counts[Verdict.PROVEN]} · AMBIGUOUS {counts[Verdict.AMBIGUOUS]} "
            f"· CONTRADICTED {counts[Verdict.CONTRADICTED]}")
-    _audit(log, "kernel", f"{counts[Verdict.PROVEN]} proofs re-derived from source "
-                          f"records by verdict.check; {rep.wrong} rejected")
+    # `rep.wrong` is NOT a kernel rejection count and reading it as one is the
+    # exact overstatement this line used to make: those proofs were ACCEPTED by
+    # the kernel and refuted afterwards by ground truth, which the kernel does
+    # not have. The kernel's own count is the proofs it declined, and in a clean
+    # run it is zero -- the pipeline filters through `check` before a Finding is
+    # built, so anything that survives to here has already passed it. An audit
+    # trail on a product about trusting a verifier may not credit that verifier
+    # with catches it did not make.
+    _audit(log, "kernel",
+           f"{counts[Verdict.PROVEN]} proofs re-derived from source records by "
+           f"verdict.check; {counts[Verdict.PROVEN]} accepted, 0 declined")
+    if rep.wrong:
+        _audit(log, "ground truth",
+               f"{rep.wrong} of those proofs are WRONG against the generator's "
+               f"ground truth. The kernel accepted them: they balance, they "
+               f"clear the rounding bound, and they are not the truth. This is "
+               f"measurable here only because the data is generated")
     _audit(log, "policy", "auto-post eligible: PROVEN only — a unique, "
                           "kernel-checked explanation")
 
@@ -899,7 +917,7 @@ def detail(r: Run, sid: str) -> dict[str, Any] | None:
                         if f.verdict is Verdict.PROVEN
                         else f"{len(f.proofs)} subsets satisfy every constraint")},
             {"name": "kernel", "ok": True,
-             "detail": "re-derived from source records by verdict.check (28 lines, "
+             "detail": "re-derived from source records by verdict.check (35 lines, "
                        "shares no code with the solver)"},
         ]
 
@@ -1089,7 +1107,7 @@ def demonstrate_events(r: Run | None) -> dict[str, Any]:
 
 
 
-def journal_view(r: Run, review_paise: int = 15_000,
+def journal_view(r: Run, review_paise: int = _DEFAULT_REVIEW,
                  exposure_paise: int = 10_000_000) -> dict[str, Any]:
     """The accounting ATTEST would write, and a stated reason for everything
     it would not. §21.
@@ -1528,7 +1546,7 @@ SPINE = (
 
 
 def spine_view(r: Run | None, stype: str, sid: str,
-               review_paise: int = 15_000,
+               review_paise: int = _DEFAULT_REVIEW,
                exposure_paise: int = 10_000_000) -> dict[str, Any]:
     """Where the money is standing, for a portfolio or for one settlement.
 
@@ -1824,6 +1842,288 @@ SOLVER_RESULT: dict[str, tuple[str, str]] = {
 }
 
 
+# --------------------------------------------------------------------------
+# The control loop -- ADVISOR / SOLVER / ENGINE / POLICY / LEDGER
+# --------------------------------------------------------------------------
+#
+# §57. One payload, five stages, read by both the front door and the
+# workspace. It exists because the boundary this product is about was only
+# legible to a reader who already knew the architecture: the advisory layer
+# lived in one lens, the proof in another, the policy in a third, and nothing
+# on screen said that the first of those cannot reach the last.
+#
+# The stages are ordered by AUTHORITY, not by call order, and each one carries
+# what it is allowed to do. That ordering is the product thesis:
+#
+#     ADVISOR   proposes   -- may name records. May never name an amount.
+#     SOLVER    tests      -- checks the proposal against arithmetic already done.
+#     ENGINE    proves     -- recomputes from source. Never reads the proposal.
+#     POLICY    decides    -- prices the measured error rate against review cost.
+#     LEDGER    acts       -- takes nothing the kernel has not re-derived.
+#
+# The advisor runs on EVERY verdict here, including PROVEN, which the
+# resolution loop does not do. On a PROVEN settlement it has nothing to
+# resolve -- the arithmetic was already unique -- so what it produces is a
+# diagnostic: a proposal the engine's answer can be compared against, on a case
+# where the truth is known. That comparison is the only way to show the
+# boundary holding on a case that ENDS IN MONEY MOVING, which is the one place
+# a reader actually needs to see it hold.
+#
+# Nothing here can change a verdict. `falsify` is called for its refutation,
+# the Proof it may return is discarded, and the finding is read-only
+# throughout. The advisor's output reaches the ledger through no path.
+
+
+def _advisor_trace(r: "Run", f: Finding, s: Settlement) -> dict[str, Any]:
+    """Run the advisory proposer against one settlement and report honestly.
+
+    Returns what was proposed, what the solver did to it, and — stated rather
+    than implied — whether any of it mattered. On a case where the advisor is
+    vacuous or wrong, that is what this says.
+    """
+    from attest.hypothesis import Evidence, batch_proposer, falsify
+
+    pool = r.pools.get(s.settlement_id, [])
+    orders = {o.order_id: o for o in pool}
+    dates = {o.captured_on for o in pool}
+
+    ev = Evidence(
+        settlement_id=s.settlement_id, value_date=s.settled_on, utr=s.utr,
+        narration=next((c.narration for c in r.credits
+                        if c.txn_id.endswith(s.settlement_id.split("_")[1])), ""),
+        candidates=tuple((o.order_id, o.customer_name, o.captured_on) for o in pool),
+    )
+    hyps = batch_proposer(ev)
+    if not hyps:
+        return {
+            "proposed": False,
+            "headline": "stood down",
+            "detail": (f"The advisor had nothing to offer: {len(pool)} candidate "
+                       f"record(s) is too few to form a capture batch."),
+            "authority": "advisory — names records, never amounts",
+            "changed": False,
+        }
+
+    h = hyps[0]
+    anchor = tuple(sorted(h.order_ids))
+    # Read-only. `falsify` is the real solver test; the Proof it can return is
+    # discarded here on purpose, and no caller of this function reads it.
+    _discarded, refutation = falsify(h, s, orders, f.proofs)
+    consistent = [i for i, p in enumerate(f.proofs)
+                  if set(anchor) <= set(p.order_ids)]
+
+    if refutation is not None:
+        code, why = SOLVER_RESULT.get(refutation.constraint, ("REFUTED", ""))
+        outcome, why = code, why or refutation.hint
+    elif f.verdict is Verdict.PROVEN:
+        outcome = "CONSISTENT"
+        why = ("the engine's independently derived proof contains it — which is "
+               "agreement, not authorship: the proof was computed without "
+               "reading this")
+    else:
+        outcome = "DISCRIMINATIVE"
+        why = (f"it appears in exactly 1 of the {len(f.proofs)} valid "
+               f"explanations, so it would select one")
+
+    m = anchoring_measurement()
+    return {
+        "proposed": True,
+        "lens": h.lens,
+        "orders": list(anchor),
+        "reasoning": h.reasoning,
+        "admits": list(h.admits_missing),
+        "outcome": outcome,
+        "why": why,
+        "consistent_with": len(consistent),
+        "explanations": len(f.proofs),
+        "pool": len(pool),
+        "capture_dates": len(dates),
+        "vacuous": len(dates) == 1,
+        "authority": "advisory — names records, never amounts",
+        "changed": False,
+        "track_record": {
+            "correct": m["correct"], "resolved": m["resolved"],
+            "precision": m["precision"], "ambiguous": m["ambiguous"],
+        },
+        "headline": ("proposed a capture batch" if outcome != "NON_DISCRIMINATIVE"
+                     else "proposed a capture batch that separates nothing"),
+    }
+
+
+def control_loop(r: "Run | None", sid: str,
+                 review_paise: int | None = None,
+                 exposure_paise: int | None = None) -> dict[str, Any]:
+    """One financial decision, as a record. §57, §58.
+
+    The primary object of this product is not a portfolio and not a lens. It is
+    a single decision about a single financial event, and the four parties to
+    it, in order of authority:
+
+        ADVISOR   proposes   may name records. May not name amounts. May not act.
+        VERIFIER  proves     recomputes from source. Never reads the proposal.
+        POLICY    permits    prices measured error against what a review costs.
+        LEDGER    records    takes nothing the verifier has not re-derived.
+
+    Four rather than five. The solver and the kernel are two mechanisms inside
+    one job — establish, independently, what this money is — and splitting them
+    at the top level made a reader learn the architecture before they could read
+    the decision. They are named inside VERIFIER, where a reader who wants them
+    can have them, and the `#ai` signature frame on the front door still shows
+    all three actors separately for anyone who does.
+
+    Nothing here can change a verdict. `falsify` is called for its refutation,
+    the Proof it may return is discarded, and the finding is read-only
+    throughout. The advisor's output reaches the ledger through no path.
+    """
+    if r is None:
+        return {"error": "no run"}
+    st = {x.settlement_id: x for x in r.settlements}
+    f = next((x for x in r.findings if x.settlement_id == sid), None)
+    if f is None or sid not in st:
+        return {"error": "unknown settlement"}
+    s_ = st[sid]
+    orders = {o.order_id: o for o in r.orders}
+    base = Costs()
+    costs = Costs(
+        review_paise=base.review_paise if review_paise is None else review_paise,
+        max_exposure_paise=(base.max_exposure_paise if exposure_paise is None
+                            else exposure_paise))
+
+    advisor = _advisor_trace(r, f, s_)
+    sp = getattr(f, "space", None)
+    j = decide(f, s_, r.risk or RiskModel(), costs)
+
+    from attest.ledger import JournalEntry, post
+    entry = post(f, s_, j, orders, provenance=(r.provenance.render()
+                                               if r.provenance else ""))
+    acted = isinstance(entry, JournalEntry)
+
+    sets = [set(p.order_ids) for p in f.proofs]
+    common = set.intersection(*sets) if sets else set()
+    union = set.union(*sets) if sets else set()
+    agreed = sum(orders[o].net for o in common if o in orders)
+    contested = sum(orders[o].net for o in (union - common) if o in orders)
+
+    proved = f.verdict is Verdict.PROVEN
+    verdict_says = {
+        Verdict.PROVEN: "exactly one explanation satisfies every constraint",
+        Verdict.AMBIGUOUS: (f"{len(f.proofs)} explanations satisfy this credit "
+                            f"exactly — arithmetic cannot choose between them"),
+        Verdict.CONTRADICTED: "no combination of records reproduces this credit",
+        Verdict.INSUFFICIENT: ("the candidate space exceeds what the solver will "
+                               "attempt, so it did not search it"),
+    }[f.verdict]
+
+    stages = [
+        {"key": "advisor", "actor": "ADVISOR", "verb": "proposes",
+         "badge": "ADVISORY ONLY",
+         "authority": "may propose · may not authorize",
+         "may": "propose investigative signals — which records to look at",
+         "may_not": "name an amount, decide a verdict, or move money",
+         "state": "advisory",
+         "headline": advisor["headline"],
+         "detail": advisor.get("reasoning") or advisor.get("detail", ""),
+         "outcome": advisor.get("outcome"),
+         "why": advisor.get("why", ""),
+         "advisor": advisor},
+
+        {"key": "verifier", "actor": "VERIFIER", "verb": "proves",
+         "badge": "DETERMINISTIC",
+         "authority": "recomputes from source · never reads the proposal",
+         "may": "establish what the money is, from the records themselves",
+         "may_not": "be influenced by anything the advisor said",
+         "state": "proven" if proved else "held",
+         "headline": f.verdict.value,
+         "detail": verdict_says,
+         # The narrowing lives INSIDE verification rather than beside it: it is
+         # how the verifier did its job, not a separate party to the decision.
+         "narrowing": ({"universe": sp.universe, "candidates": sp.candidates,
+                        "explanations": len(f.proofs)} if sp else None),
+         "narrowing_line": (f"{sp.universe:,} records → {sp.candidates} candidates "
+                            f"→ {len(f.proofs)} explanation"
+                            f"{'' if len(f.proofs) == 1 else 's'}" if sp else ""),
+         "reductions": ([{"name": x.name, "removed": x.removed,
+                          "deterministic": x.deterministic,
+                          "justification": x.justification}
+                         for x in sp.reductions] if sp else []),
+         "agreed_paise": agreed, "agreed_orders": len(common),
+         "contested_paise": contested, "contested_orders": len(union - common),
+         "residual_paise": f.proofs[0].residual_paise if (proved and f.proofs) else None,
+         "tolerance_paise": f.proofs[0].tolerance_paise if (proved and f.proofs) else None,
+         "uniqueness": f.uniqueness_claim,
+         "mechanisms": ("a solver enumerates every subset of the candidate pool "
+                        "whose net equals this credit; a 35-line kernel that "
+                        "shares no code with it re-derives each survivor from "
+                        "the source records"),
+         "kernel": ("re-derived from source records by a 35-line verifier that "
+                    "shares no code with the solver"),
+         "advisor_outcome": advisor.get("outcome") if advisor["proposed"] else None},
+
+        {"key": "policy", "actor": "POLICY", "verb": "permits",
+         "badge": "MEASURED",
+         "authority": "prices measured error against what a review costs",
+         "may": "permit an automated posting when checking costs more than being wrong",
+         "may_not": "permit anything the verifier did not prove",
+         "state": j.decision.value.lower(),
+         "headline": j.decision.value.replace("_", "-"),
+         "detail": (j.reasons or ("",))[-1],
+         "reasons": list(j.reasons),
+         "p_error": j.p_error,
+         "expected_loss_paise": j.expected_loss_paise,
+         "review_paise": costs.review_paise},
+
+        {"key": "ledger", "actor": "LEDGER", "verb": "records",
+         "badge": "AUDITED",
+         "authority": "takes nothing the verifier has not re-derived",
+         "may": "write a balanced entry, or a refusal that states its reason",
+         "may_not": "record an explanation no one proved",
+         "state": "posted" if acted else "refused",
+         "headline": (_rs(s_.net_paise) + " posted" if acted else "no entry"),
+         "detail": ("" if acted else getattr(entry, "reason", "")),
+         "lines": ([{"account": x.account, "debit_paise": x.debit_paise,
+                     "credit_paise": x.credit_paise, "memo": x.memo}
+                    for x in entry.lines] if acted else []),
+         "balanced": acted},
+    ]
+
+    return {
+        "settlement_id": sid,
+        "amount_paise": s_.net_paise,
+        "settled_on": str(s_.settled_on),
+        "utr": s_.utr,
+        "verdict": f.verdict.value,
+        "decision": j.decision.value,
+        "acted": acted,
+        "review_paise": costs.review_paise,
+        # THE FINANCIAL EVENT — what arrived, before anyone has explained it.
+        "event": {
+            "label": "money arrived",
+            "amount_paise": s_.net_paise,
+            "utr": s_.utr,
+            "value_date": str(s_.settled_on),
+            "question": "What produced this?",
+            "unknown": (f"one credit, one reference, and no statement of which "
+                        f"of {len(r.orders):,} orders it paid for"),
+        },
+        "outcome": {
+            "acted": acted,
+            "headline": (f"{_rs(s_.net_paise)} posted without a person"
+                         if acted else f"{_rs(s_.net_paise)} held for a person"),
+            "consequence": ("a balanced journal entry, and nobody opened it"
+                            if acted else
+                            "no entry, and the exact evidence that would settle "
+                            "it is named"),
+        },
+        "stages": stages,
+        "thesis": "The AI was allowed to be wrong. The ledger wasn't.",
+        "boundary": ("The advisor named records. The verifier recomputed the "
+                     "explanation from the source records without reading what "
+                     "the advisor said. Nothing the advisor produced reaches "
+                     "the ledger by any path."),
+        "provenance": (r.provenance.to_json() if r.provenance else {}),
+    }
+
+
 def investigation_view(r: Run | None, stype: str, sid: str) -> dict[str, Any]:
     """What should I check next? §1, §5, §16.
 
@@ -2024,7 +2324,7 @@ def _question_for(reason: str) -> str:
 
 
 def decision_view(r: Run | None, stype: str, sid: str,
-                  review_paise: int = 15_000,
+                  review_paise: int = _DEFAULT_REVIEW,
                   exposure_paise: int = 10_000_000) -> dict[str, Any]:
     """Given what ATTEST knows, what is it allowed to do? §1, §9, §17.
 
@@ -2095,7 +2395,7 @@ def decision_view(r: Run | None, stype: str, sid: str,
                  f"the verdict is {f.verdict.value}")},
         {"stage": "proof", "name": "re-derived by the independent verifier",
          "ok": proven,
-         "why": ("the 28-line kernel accepted it, sharing no code with the prover"
+         "why": ("the 35-line kernel accepted it, sharing no code with the prover"
                  if proven else "nothing was submitted to the verifier")},
         {"stage": "proof", "name": "the search space was not compromised",
          "ok": bool(postable),

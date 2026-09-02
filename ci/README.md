@@ -70,3 +70,17 @@ The reason for the second requirement is CORE-001 itself. `postable()` failed
 open for as long as it existed, every gate held at +0.0000, and nothing anywhere
 was red. A green build is not evidence that a change to the core is safe; it is
 the state the core was already in while broken.
+
+## `submission-check.py`
+
+`verify.sh` defends the engine. `submission-check.py` defends the submission —
+the two demo settlements named by id, the held-out figures quoted on screen,
+both closed kernel defects, and the absence of any calibration-seed figure on a
+reading surface. Run it before submitting:
+
+```bash
+./.venv/bin/python ci/submission-check.py
+```
+
+It is separate because the failures it catches are the ones the claim register
+structurally cannot: a settlement id is not a percentage.

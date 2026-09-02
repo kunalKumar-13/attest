@@ -54,10 +54,11 @@ truth is the requirement, not a shortcut. Track 04 asks for synthetic data.
 → `docs/GOLDEN-DATASET.md`
 
 **8. Why do 250 and 500 both appear?**
-250 is today's live run, seed 20260821. 500 is the held-out evaluation panel:
-two seeds of 250, neither of them the live seed. Both are labelled above the
-comparison table.
-→ benchmark strip · a contract verifies the panel does not share the live seed
+250 is today's live run, seed 555001. 500 is the held-out evaluation panel:
+two seeds of 250, neither of them calibrated on — and the live run is one of
+them. The demo is a sample of the evaluation, not a separate favourable run.
+Both are labelled above the comparison table.
+→ benchmark strip · a contract verifies the live seed was held out from calibration
 
 **9. What does "match rate" mean here?**
 The share of the batch for which a unique explanation was established and
@@ -81,7 +82,7 @@ it is a *confident wrong* posting, which discharges a receivable against the
 wrong customer while the books still balance. Refusing is the cheaper error.
 
 **13. What prevents a forged proof?**
-Two things. A 28-line checker that re-derives every proof and does not import
+Two things. A 35-line checker that re-derives every proof and does not import
 the solver, so a bug in the search cannot approve its own output. And a
 recorded search space: a proof citing orders outside the universe it was found
 in is refused. CORE-001 was exactly that bug, found by the adversarial pass.
@@ -178,7 +179,7 @@ the adversarial pass found exactly that class of bug and it is written up.
 ## Judge B — product / hiring, skims, does not read docs
 
 **15s** — "it refuses to guess with money." The 52px coral line does that work.
-**90s** — the 197 coral points beside one white one, and 2,368 → 164 → 4.
+**90s** — the 197 coral points beside one white one, and 2,328 → 23 → 4.
 **Novel** — that an AI hackathon entry spends its largest type on *not* using
 the AI.
 **Attacks** — "is this a real product or a beautiful explanation of one?"

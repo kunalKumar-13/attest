@@ -200,7 +200,7 @@ def test_contradicted_and_insufficient_carry_no_proof() -> None:
 
 
 def test_every_proof_survives_the_independent_kernel() -> None:
-    """Nothing reaches a verdict without the 28-line verifier agreeing."""
+    """Nothing reaches a verdict without the 35-line verifier agreeing."""
     for _seed, _ds, findings, _p, _t, sts, ords in _runs():
         for f in findings:
             for proof in f.proofs:
@@ -565,16 +565,181 @@ def test_a_foreign_rule_set_is_refused_rather_than_absorbed() -> None:
     orders = {o.order_id: o for o in r.orders}
     foreign = DEFAULT.with_(fees=FeeSchedule(tax_bps=2800))
 
-    tried = False
+    # A foreign TAX rate can only be detected where a fee exists to tax. UPI is
+    # zero-MDR (FEE_BPS[UPI] == 0), so an all-UPI settlement has fee 0 and tax 0
+    # under every schedule, and there is nothing for the foreign rules to
+    # disturb. That is arithmetic, not a hole: the guarantee is that drift is
+    # refused where it is expressible, so the two populations are separated and
+    # both are required to be non-empty — otherwise this test could pass by
+    # testing nothing.
+    detectable = undetectable = 0
     for f in r.findings:
         s = st[f.settlement_id]
         jm = api._judge(r, f, s)
         if f.verdict is not Verdict.PROVEN or jm.decision is not Decision.AUTO_POST:
             continue
-        tried = True
+        members = [orders[o] for o in f.proofs[0].order_ids]
+        if all(fee_paise(o.gross_paise, o.method) == 0 for o in members):
+            undetectable += 1
+            post(f, s, jm, orders, rules=foreign)   # must not raise: identical
+            continue
+        detectable += 1
         with pytest.raises(Unbalanced):
             post(f, s, jm, orders, rules=foreign)
-    assert tried, "no postable finding to test against"
+    assert detectable, "no fee-bearing postable finding to test against"
+    assert undetectable, (
+        "no zero-fee postable finding: the exemption below is untested and may "
+        "be hiding a real absorption")
+
+
+
+def test_the_ledger_refuses_a_proof_the_kernel_rejects() -> None:
+    """CORE-004. `postable` asks four questions about the SEARCH and none about
+    the ARITHMETIC, so a Finding with immaculate provenance and a wrong sum
+    satisfied it. The ledger posted 131 such entries before this gate existed.
+
+    Asserting on `postable` as well as on the refusal is deliberate: tightening
+    `postable` would also make this pass, and that is a different fix to a
+    different defect. The claim under test is that the LEDGER consults the
+    KERNEL.
+    """
+    import datetime as dt
+
+    from attest.ledger import JournalEntry, post
+    from attest.model import Method, Order, Settlement
+    from attest.policy import Decision, Judgement
+    from attest.searchspace import Reduction, SearchSpace
+    from attest.verdict import Finding, Proof, Verdict, check
+
+    def _o(oid: str, gross: int) -> Order:
+        return Order(oid, dt.date(2026, 5, 6), gross, Method.UPI, "N", f"pay_{oid}")
+
+    st = Settlement("s1", dt.date(2026, 5, 8), 2000, "U1")
+    orders = {"o1": _o("o1", 1000), "o2": _o("o2", 1000), "o3": _o("o3", 700)}
+
+    # o1 + o3 net to 1700, not 2000. Every OTHER field is honest.
+    bad = Proof("s1", ("o1", "o3"), 1700, 0, 0, 0, 2000, 0, 2)
+    space = SearchSpace(universe=3,
+                        reductions=[Reduction("amount ceiling", 0, True, "x")],
+                        members=frozenset({"o1", "o2", "o3"}))
+    f = Finding("s1", Verdict.PROVEN, (bad,), space=space, layer="exact")
+    j = Judgement(Decision.AUTO_POST, 0, 0.0, ())
+
+    assert check(bad, st, orders) is False, "the kernel must reject this proof"
+    assert f.postable is True, (
+        "the premise of CORE-004: search provenance is intact, so postable "
+        "says yes. If this fails, postable changed and this test now measures "
+        "something else")
+    out = post(f, st, j, orders)
+    assert not isinstance(out, JournalEntry)
+    assert "kernel" in out.reason
+
+
+def test_an_honest_proof_still_posts_after_the_kernel_gate() -> None:
+    """The control. A gate that refuses everything is not a gate."""
+    import datetime as dt
+
+    from attest.ledger import JournalEntry, post
+    from attest.model import Method, Order, Settlement
+    from attest.policy import Decision, Judgement
+    from attest.searchspace import Reduction, SearchSpace
+    from attest.verdict import Finding, Proof, Verdict
+
+    def _o(oid: str, gross: int) -> Order:
+        return Order(oid, dt.date(2026, 5, 6), gross, Method.UPI, "N", f"pay_{oid}")
+
+    st = Settlement("s1", dt.date(2026, 5, 8), 2000, "U1")
+    orders = {"o1": _o("o1", 1000), "o2": _o("o2", 1000), "o3": _o("o3", 700)}
+    good = Proof("s1", ("o1", "o2"), 2000, 0, 0, 0, 2000, 0, 2)
+    space = SearchSpace(universe=3,
+                        reductions=[Reduction("amount ceiling", 1, True, "x")],
+                        members=frozenset({"o1", "o2", "o3"}))
+    f = Finding("s1", Verdict.PROVEN, (good,), space=space, layer="exact")
+    out = post(f, st, Judgement(Decision.AUTO_POST, 0, 0.0, ()), orders)
+    assert isinstance(out, JournalEntry)
+
+
+# ------------------------------------------------------------- control loop
+
+def test_the_advisor_cannot_reach_the_ledger() -> None:
+    """§57. The control loop renders the advisory layer beside the financial
+    one, so the boundary has to be asserted rather than drawn.
+
+    Two claims: the advisor's proposal is not consumed by anything downstream,
+    and the loop payload is a READ -- running it changes no verdict, no
+    decision and no ledger state.
+    """
+    from attest import api
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 555001)
+    before = [(f.settlement_id, f.verdict, tuple(p.order_ids for p in f.proofs))
+              for f in r.findings]
+
+    seen_advisory = 0
+    for sid in ("setl_000233", "setl_000225"):
+        d = api.control_loop(r, sid)
+        stages = {x["key"]: x for x in d["stages"]}
+        # §58. Four parties, in order of authority, and the order is the claim.
+        assert [x["key"] for x in d["stages"]] == \
+            ["advisor", "verifier", "policy", "ledger"]
+        assert [x["verb"] for x in d["stages"]] == \
+            ["proposes", "proves", "permits", "records"]
+        adv = stages["advisor"]
+        assert adv["badge"] == "ADVISORY ONLY"
+        assert "may not authorize" in adv["authority"]
+        assert adv["advisor"]["authority"].startswith("advisory")
+        assert adv["advisor"]["changed"] is False
+        # The advisor may name records. It may never name an amount -- asserted
+        # of the payload, so a future proposer cannot quietly start seeing one.
+        assert not any(k.endswith("_paise") for k in adv["advisor"])
+        if adv["advisor"]["proposed"]:
+            seen_advisory += 1
+        # The verifier's verdict is the one the run already held.
+        assert stages["verifier"]["headline"] == d["verdict"]
+        # A ledger entry exists only where the policy permitted one.
+        assert bool(stages["ledger"]["lines"]) == (d["decision"] == "AUTO_POST")
+        # The record states its own outcome rather than leaving it to be read
+        # off five rows.
+        assert d["outcome"]["acted"] == d["acted"]
+        assert d["thesis"] == "The AI was allowed to be wrong. The ledger wasn't."
+
+    assert seen_advisory == 2, "both demo cases should exercise the advisor"
+
+    after = [(f.settlement_id, f.verdict, tuple(p.order_ids for p in f.proofs))
+             for f in r.findings]
+    assert before == after, "reading the control loop mutated the run"
+
+
+def test_the_two_demo_cases_are_what_the_demo_says_they_are() -> None:
+    """The demo quotes two settlements by id. If the data moves under them the
+    README and the product start lying together, which is the one failure mode
+    a generated figure cannot catch -- an id is not a percentage.
+    """
+    from attest import api
+    from attest.verdict import Verdict
+
+    r = api.execute(250, 555001)
+    truth = {t.settlement_id: set(t.order_ids) for t in r.truth}
+    st = {x.settlement_id: x for x in r.settlements}
+
+    proven = api.control_loop(r, "setl_000233")
+    assert proven["verdict"] == "PROVEN"
+    assert proven["decision"] == "AUTO_POST"
+    assert proven["acted"] is True
+    assert proven["amount_paise"] == 652353
+    f = next(x for x in r.findings if x.settlement_id == "setl_000233")
+    assert set(f.proofs[0].order_ids) == truth["setl_000233"], (
+        "the PROVEN demo case must be CORRECT against ground truth, not merely "
+        "proved")
+
+    amb = api.control_loop(r, "setl_000225")
+    assert amb["verdict"] == "AMBIGUOUS"
+    assert amb["acted"] is False
+    assert amb["amount_paise"] == 2392207
+    verifier = next(x for x in amb["stages"] if x["key"] == "verifier")
+    assert verifier["contested_orders"] > 0 and verifier["agreed_orders"] > 0
+    assert verifier["narrowing"]["explanations"] == 4
 
 
 # -------------------------------------------------------------------- actions
@@ -809,6 +974,156 @@ def test_expected_loss_rounds_toward_checking_not_toward_posting() -> None:
             f"{f.settlement_id}: {j.expected_loss_paise} != ceil({exact})"
         checked += 1
     assert checked > 10
+
+
+# ------------------------------------------------- the policy operating point
+
+def test_no_review_cost_on_the_frontier_posts_a_wrong_entry() -> None:
+    """P1. The default moved ₹150 -> ₹250; the safety profile must not have.
+
+    A threshold that buys coverage by loosening safety is a demo tuning. This
+    pins the property that made ₹250 adoptable: across the whole frontier, every
+    auto-posted proof matches ground truth, and every false proof the panel
+    contains is refused. If a future change makes coverage cost correctness,
+    this fails at the cost where it starts.
+    """
+    from attest import api
+    from attest.policy import Costs, Decision, decide
+
+    EXPOSURE = 10_000_000
+    for review in (10_000, 15_000, 20_000, 25_000, 30_000, 50_000):
+        posted = wrong = false_proofs = false_posted = 0
+        for seed in (555001, 999983):
+            r = api.execute(250, seed)
+            truth = {t.settlement_id: set(t.order_ids) for t in r.truth}
+            for f in r.findings:
+                if f.verdict is not Verdict.PROVEN or not f.proofs:
+                    continue
+                s = next(x for x in r.settlements
+                         if x.settlement_id == f.settlement_id)
+                honest = set(f.proofs[0].order_ids) == truth.get(f.settlement_id)
+                if not honest:
+                    false_proofs += 1
+                j = decide(f, s, r.risk,
+                           Costs(review_paise=review, max_exposure_paise=EXPOSURE))
+                if j.decision is not Decision.AUTO_POST:
+                    continue
+                posted += 1
+                if not honest:
+                    wrong += 1
+                    false_posted += 1
+        assert wrong == 0, \
+            f"review ₹{review / 100:,.0f}: {wrong} of {posted} postings are wrong"
+        assert false_proofs == 4, \
+            f"the panel's false-proof count moved to {false_proofs}"
+        assert false_posted == 0, \
+            f"review ₹{review / 100:,.0f}: a false proof was posted"
+
+    # and the adopted point actually does something, or it is not an operating
+    # point — this is the half that would catch a silent revert to ₹150
+    default_posted = 0
+    for seed in (555001, 999983):
+        r = api.execute(250, seed)
+        pv = api.policy_view(r, Costs().review_paise, EXPOSURE)
+        default_posted += pv["auto_post"]
+    assert default_posted >= 30, \
+        f"the default policy auto-posts {default_posted} of 500; the frontier said 37"
+
+
+# --------------------------------------------------- CORE-003: unsupported money
+
+def test_a_proof_cannot_introduce_money_the_sources_do_not_account_for() -> None:
+    """CORE-003. `adjustment_paise` was a free variable an attacker could solve.
+
+    The kernel recomputed gross and net from the source orders but took the
+    ADJUSTMENT from the proof, then used it on both sides of the residual:
+
+        expected = net + proof.adjustment_paise
+        residual = settlement.net_paise - expected
+
+    So any shortfall could be closed by naming it. Cite a subset of the real
+    orders, set the adjustment to exactly what is missing, and the proof
+    balances, clears tolerance, and is accepted — on setl_000013 that was two
+    of three real orders plus an invented Rs 2,115.35.
+
+    This is the general form, not the fixture: for every settlement whose truth
+    has enough orders to leave a remainder, dropping one and naming the gap must
+    be refused. `Proof.adjustment_paise` already said non-zero values "must be
+    evidenced by a linked record, never inferred to close a gap" — this is that
+    sentence, enforced.
+    """
+    from attest import api
+    from attest.model import fee_paise, tax_paise
+    from attest.verdict import Proof, evidenced_adjustment_paise
+
+    r = api.execute(250, 555001)
+    orders = {o.order_id: o for o in r.orders}
+    settlements = {x.settlement_id: x for x in r.settlements}
+
+    attempted = accepted = 0
+    for t in r.truth:
+        s = settlements.get(t.settlement_id)
+        if s is None or len(t.order_ids) < 2:
+            continue
+        kept = list(t.order_ids)[:-1]           # drop one real order
+        m = [orders[o] for o in kept]
+        net = sum(o.net for o in m)
+        gap = s.net_paise - net                 # invent exactly what is missing
+        if gap == 0:
+            continue
+        forged = Proof(
+            settlement_id=s.settlement_id, order_ids=tuple(kept),
+            gross_paise=sum(o.gross_paise for o in m),
+            fee_paise=sum(fee_paise(o.gross_paise, o.method) for o in m),
+            tax_paise=sum(tax_paise(fee_paise(o.gross_paise, o.method)) for o in m),
+            adjustment_paise=gap, net_paise=net + gap,
+            residual_paise=s.net_paise - (net + gap),
+            tolerance_paise=tolerance_paise(len(m)))
+        assert forged.balances, "the attack is not even well-formed"
+        attempted += 1
+        if check(forged, s, orders):
+            accepted += 1
+
+    assert attempted > 50, f"only {attempted} attacks constructed; too weak a sweep"
+    assert accepted == 0, \
+        f"{accepted} of {attempted} forged adjustments were accepted by the kernel"
+
+    # the specific case the red team demonstrated
+    s = settlements["setl_000013"]
+    tids = next(t.order_ids for t in r.truth if t.settlement_id == "setl_000013")
+    two = list(tids)[:2]
+    m = [orders[o] for o in two]
+    net = sum(o.net for o in m)
+    gap = s.net_paise - net
+    assert gap == 211535, f"the demonstrated attack moved: gap is now {gap}"
+    forged = Proof(
+        settlement_id=s.settlement_id, order_ids=tuple(two),
+        gross_paise=sum(o.gross_paise for o in m),
+        fee_paise=sum(fee_paise(o.gross_paise, o.method) for o in m),
+        tax_paise=sum(tax_paise(fee_paise(o.gross_paise, o.method)) for o in m),
+        adjustment_paise=gap, net_paise=net + gap,
+        residual_paise=s.net_paise - (net + gap),
+        tolerance_paise=tolerance_paise(len(m)))
+    assert not check(forged, s, orders), \
+        "setl_000013: two real orders plus an invented adjustment was accepted"
+
+    # and the honest proof over the same settlement still passes, so the fix
+    # bought safety rather than simply refusing everything
+    allm = [orders[o] for o in tids]
+    n2 = sum(o.net for o in allm)
+    honest = Proof(
+        settlement_id=s.settlement_id, order_ids=tuple(tids),
+        gross_paise=sum(o.gross_paise for o in allm),
+        fee_paise=sum(fee_paise(o.gross_paise, o.method) for o in allm),
+        tax_paise=sum(tax_paise(fee_paise(o.gross_paise, o.method)) for o in allm),
+        adjustment_paise=0, net_paise=n2,
+        residual_paise=s.net_paise - n2,
+        tolerance_paise=tolerance_paise(len(allm)))
+    assert check(honest, s, orders), "the honest proof stopped verifying"
+
+    # the seam: the kernel reads the adjustment from the sources, and the
+    # sources record none, so the only supportable value is zero
+    assert evidenced_adjustment_paise(s, orders) == 0
 
 
 # ------------------------------------------------------- the AI boundary (§8.13)

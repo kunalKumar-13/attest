@@ -30,14 +30,14 @@ accuracy.
 | `C-002` | False proofs per settlement processed | `benchmark/results.json` | `python -m attest.eval.benchmark` | false_proofs / settlements | **0.80%** | MEASURED |
 | `C-003` | Proof precision | `benchmark/results.json` | `python -m attest.eval.benchmark` | correct proofs / proofs offered | **95.2%** | MEASURED |
 | `C-004` | Exact set recovery | `benchmark/results.json` | `python -m attest.eval.benchmark` | settlements whose exact order set was recovered | **16.0%** | MEASURED |
-| `C-005` | Value accounted for | `benchmark/results.json` | `python -m attest.eval.benchmark` | proven value plus undisputed value, over processed value | **66.7%** | MEASURED |
+| `C-005` | Value accounted for | `benchmark/results.json` | `python -m attest.eval.benchmark` | proven value plus undisputed value, over processed value | **68.8%** | MEASURED |
 | `C-006` | AI hypothesis precision | `benchmark/anchoring.json` | `python -m attest.eval.anchoring` | correct resolutions / resolutions offered | **0.429** | MEASURED |
 | `C-007` | Candidate pools spanning one capture date | `benchmark/anchoring.json` | `python -m attest.eval.anchoring` | pools with one distinct capture date / pools | **53.0%** | MEASURED |
 | `C-008` | ATTEST coverage against the baselines | `benchmark/baselines.json` | `python -m attest.eval.baseline_panel` | exact sets / settlements, identical datasets and scoring | **16.0%** | MEASURED |
 | `C-009` | ATTEST false-proof rate per answer given | `benchmark/baselines.json` | `python -m attest.eval.baseline_panel` | wrong / decided | **4.8%** | MEASURED |
 | `C-011` | Coverage — resolved outright | `benchmark/results.json` | `python -m attest.eval.benchmark` | settlements resolved / settlements | **16.8%** | MEASURED |
 | `C-012` | Ambiguity rate — correctly refused | `benchmark/results.json` | `python -m attest.eval.benchmark` | ambiguous / settlements | **82.4%** | MEASURED |
-| `C-013` | Safe resolution rate | `benchmark/results.json` | `python -m attest.eval.benchmark` | auto-posted correctly / settlements | **2.2%** | MEASURED |
+| `C-013` | Safe resolution rate | `benchmark/results.json` | `python -m attest.eval.benchmark` | auto-posted correctly / settlements | **6.6%** | MEASURED |
 | `C-014` | exact_only coverage | `benchmark/baselines.json` | `python -m attest.eval.baseline_panel` | exact sets / settlements | **4.4%** | MEASURED |
 | `C-015` | exact_only false-proof rate | `benchmark/baselines.json` | `python -m attest.eval.baseline_panel` | wrong / decided | **0.0%** | MEASURED |
 | `C-016` | fuzzy coverage | `benchmark/baselines.json` | `python -m attest.eval.baseline_panel` | exact sets / settlements | **3.6%** | MEASURED |

@@ -35,7 +35,7 @@ const SHELL = {
   context: null,       // {type, id} — what is being inspected inside subject×lens
   record: null,
   lenses: [],
-  review: 15000,
+  review: 25000,
   exposure: 10000000,
   seq: 0,
   notice: null,

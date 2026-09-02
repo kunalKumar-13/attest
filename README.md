@@ -17,47 +17,83 @@ what that credit was composed of, and getting it wrong marks the wrong customer
 as paid while the books balance either way.
 
 Where a gateway's own recon report carries order-level references — Razorpay's
-does — that reconstruction is largely a join, and ATTEST does the join. The
-engine exists for the cases where the join does not close: a bank credit that
-matches no single settlement, a period with no recon available, adjustments with
-no linked entity, or a merchant reconciling against a bank statement rather than
-against the gateway. Those are the cases where composition has to be *derived*
-from the records rather than read off them, and where the alternative today is a
+does — much of that composition can be read off the report rather than
+reconstructed. **ATTEST does not implement that join**, and does not claim to:
+the adapter reads `order_id` and `settlement_id` to name and count the records
+it normalises, and every row then goes to the same engine. What ATTEST does is
+*reconstruct and verify* composition from amounts, fees and dates — the work
+that remains when the linkage does not close the explanation: a bank credit
+matching no single settlement, a period with no recon available, adjustments
+with no linked entity, or a merchant reconciling against a bank statement
+rather than against the gateway. In those cases composition has to be derived
+from the records rather than read off them, and the alternative today is a
 person in a spreadsheet.
 
 ATTEST does that reconstruction, reports what it could prove, and when the
 evidence genuinely cannot tell two answers apart it says so instead of picking
 one — handing that case to a person with the exact thing that would settle it.
 
-> **AI is advisory. The deterministic engine decides. If the evidence cannot
-> prove the explanation, ATTEST refuses financial action.**
+> ### AI can decide. Your ledger can't guess.
 
-The thesis is **safe financial automation under uncertainty** — not *AI guesses
-the reconciliation*. A model may propose which orders belong together; it may
-never conclude that they do. Every verdict is re-derived by a 28-line kernel
-from the source records, and a proposal that no proof survives changes nothing.
-We built that advisory loop, measured it, and disabled it — the measurement is
-below.
+> **ATTEST is a financial control layer that verifies AI-proposed actions
+> before they can change financial state.** Settlement reconciliation is the
+> first workflow that demonstrates the control model.
+
+That is not a slogan about safety, it is the shape of the system. An advisor
+that cannot be wrong is an advisor nobody would let near a real problem; the
+useful thing is to let it be wrong cheaply, in a place where being wrong costs
+a wasted search rather than a wrong customer's balance.
+
+Four parties to every decision, in order of authority:
+
+```
+ADVISE   proposes investigative signals · cannot move money
+VERIFY   independently reconstructs and proves the explanation
+PERMIT   decides whether a proven result is safe to automate
+RECORD   records only permitted execution
+```
+
+The primary object is a **decision record**: one financial event, those four
+parties, and what actually happened to the money. The front door opens on one;
+the workspace opens on one; the seven instruments are deeper cuts of the four
+rows rather than seven things to choose between.
+
+The advisor in this build is a deterministic capture-batch ranking heuristic,
+and it is named as one on every screen — `model_version` reads `none` in every
+provenance record the product emits. It is honest about being weak: measured
+over 1,250 pools it offered an answer on 63 and was right on 27, which is
+**below a coin flip**, and it is disabled as a resolver for exactly that reason.
+It still runs, on every case, in the advisory slot — because the slot is the
+product and a slot nobody can inspect is a claim rather than an architecture.
+A language model implements the same signature and nothing downstream changes,
+because nothing downstream trusts it.
+
+**Both halves of that boundary are demonstrated on held-out data**, in the
+product and below:
+
+| | financial event | advisor proposes | verifier proves | policy permits | ledger records |
+|---|---|---|---|---|---|
+| **action** | `setl_000233` ₹6,523.53 | 3 orders, a capture batch | 2,328 → 4 → **1** · PROVEN, residual 0 paise | expected loss ₹247.82 < ₹250 → **AUTO-POST** | ₹6,523.53 posted, balanced |
+| **hold** | `setl_000225` ₹23,922.07 | 3 orders, and it would pick one of four | 2,328 → 23 → **4** · AMBIGUOUS | not eligible at any price → **REVIEW** | no entry, and the missing field named |
+
+On the second one the advisor has an opinion — its anchor sits inside exactly
+one of the four surviving explanations, so a system that listened to it would
+post ₹23,922.07 today. It is right 27 times in 63. A 43% opinion is not
+evidence, so ₹12,630.27 is reported as settled whichever explanation is right,
+₹30,107.39 is held, and the operator is handed the one field that ends the
+argument.
 
 ```
 ₹51,35,744.40   processed
+₹51,348.48      posted without a person, 17 settlements, none of them wrong
 ₹47,97,685.11   stopped at verification
 210             settlements blocked by one missing piece of evidence
-```
-
-```
-MODEL     proposes.
-SOLVER    tests.
-ENGINE    decides.
-POLICY    permits.
-LEDGER    records.
-OPERATOR  resolves what evidence could not.
 ```
 
 ## For a reviewer — the five-minute path
 
 If you only open three files: [`attest/verdict.py`](attest/verdict.py) is the
-28-line proof kernel and it does not import the solver — the solver imports it.
+35-line proof kernel and it does not import the solver — the solver imports it.
 [`attest/eval/baseline_panel.py`](attest/eval/baseline_panel.py) is the
 benchmark that ATTEST loses on precision. [`attest/adapters/razorpay.py`](attest/adapters/razorpay.py)
 is the only module that knows Razorpay exists; it is read-only and has no write
@@ -105,8 +141,8 @@ document is about, applied to compute instead of evidence.
 `./run-demo` prints which path is active **before** any portfolio figure, so
 the two can never be confused.
 
-**The canonical case is identical on both.** `setl_000225` — ₹27,208.12,
-AMBIGUOUS, 2,368 → 164 → 4, four surviving explanations, the model/solver/
+**The canonical case is identical on both.** `setl_000225` — ₹23,922.07,
+AMBIGUOUS, 2,328 → 23 → 4, four surviving explanations, the model/solver/
 engine boundary, and the anchoring benchmark (`C-006` in
 [docs/CLAIMS.md](docs/CLAIMS.md)). It was chosen for that reason. Only
 portfolio-wide counts diverge.
@@ -153,12 +189,12 @@ action.
 ### One case
 
 ```
-₹1,00,036.83     a bank credit
-164 candidates    after the reductions, two of which are conventions
+₹23,922.07       a bank credit
+23 candidates    after the reductions, two of which are conventions
 4 explanations   satisfy the amount exactly
 
-₹97,759.84       settled whichever one is right
-₹7,292.03        turns on which one is, across 12 orders
+₹12,630.27       settled whichever one is right
+₹30,107.39       turns on which one is, across 17 orders
 ```
 
 The model proposed an anchor — three orders captured together on the densest day
@@ -211,7 +247,7 @@ the explanation is *unique*. Two bits per reachable sum decides the verdict.
 ### The trusted kernel
 
 The prover is large: blocking, a counting DP over the amount axis, constraint
-propagation, model-proposed hypotheses. The verifier is **28 lines**
+propagation, model-proposed hypotheses. The verifier is **35 lines**
 (`attest/verdict.py::check`), depends on none of it, and recomputes every value
 from source records rather than trusting a single field on the proof.
 
@@ -270,16 +306,16 @@ SAFETY
 ACCOUNTED FOR
   settled (undisputed)     ₹67,66,131.23   agreed by every explanation
   disputed                 ₹75,73,097.75
-  accounted for                66.7%   of all processed value
+  accounted for                68.8%   of all processed value
 
 MONEY
   processed              ₹1,02,04,411.89
-  auto-posted                 ₹40,464.20
-  protected              ₹1,01,63,947.69   refused, deliberately
+  auto-posted               ₹2,52,431.44
+  protected                ₹99,51,980.45   refused, deliberately
   wrongly auto-posted              ₹0.00
 
 NORTH STAR
-  safe resolution rate          2.2%   resolved without a human
+  safe resolution rate          6.6%   resolved without a human
 ```
 <!-- /generated -->
 
@@ -300,10 +336,21 @@ explanation is right — so the engine can state that part as settled and name t
 exact remainder that is in dispute. Across the panel, **47% of ambiguous value
 turns out not to be in dispute at all.**
 
-A real case: a ₹1,00,036.83 settlement with four surviving explanations. Twenty-seven
-orders worth ₹97,759.84 appear in all four. Only ₹7,292.03 across twelve orders is
+A real case from the held-out seed: `setl_000200`, ₹92,666.62, with four surviving
+explanations. Twenty-three orders worth ₹91,599.60 appear in all four — **99% of the
+money is settled whichever explanation is right**. Only ₹3,435.87 across eleven orders is
 contested — and the next step is not "investigate", it is *"a reference on any one
-of those twelve settles the rest."*
+of those eleven settles the rest."*
+
+**Coverage falls as portfolio density rises**, and it is a limitation rather
+than a tuning knob: more orders sharing a window means more disjoint subsets
+land inside tolerance, so more settlements genuinely have more than one
+arithmetic explanation and are reported AMBIGUOUS. The absolute number of proofs
+still rises with size; the rate falls because the question gets harder faster.
+The false-proof count does not rise with it — the extra ambiguity is absorbed as
+refusal, not as guessing. Measured at three sizes, with the caveat that nothing
+here measures beyond 1,200 settlements in a 90-day window:
+[docs/EVALUATION.md](docs/EVALUATION.md).
 
 **One number cannot describe this engine.** 16.0% exact recovery and
 0.952 proof precision measure different things: the first is how often the
@@ -375,7 +422,7 @@ python3.13 -m venv .venv && ./.venv/bin/pip install -e .
 ./.venv/bin/python -m attest.web        # the same server, without the wrapper
 #   http://127.0.0.1:8420/              the investigation — the front door
 #   http://127.0.0.1:8420/app           the instrument workspace
-./.venv/bin/python -m attest.eval.adversarial   # 34 attacks, source to ledger
+./.venv/bin/python -m attest.eval.adversarial   # 35 attacks, source to ledger
 ./.venv/bin/python -m attest 250 --sweep   # the five-seed panel — report THIS
 ./.venv/bin/python -m attest 250        # a single seed
 ./.venv/bin/python -m attest 250 --html # emit report.html
@@ -443,7 +490,7 @@ cd native && maturin develop --release
 
 ```
 attest/model.py        fee model, tolerance derivation, records
-attest/verdict.py      PROVEN/AMBIGUOUS/CONTRADICTED + the 28-line kernel
+attest/verdict.py      PROVEN/AMBIGUOUS/CONTRADICTED + the 35-line kernel
 attest/blocking.py     calendar-inverted candidate generation, escalating
 attest/subsetsum.py    counting DP over the amount axis
 attest/evidence.py     cross-settlement propagation (off by default)
@@ -523,6 +570,6 @@ to numpy and a narrower envelope, and still runs correctly.
 - **[docs/RAZORPAY-DEMO.md](docs/RAZORPAY-DEMO.md)** — IMPLEMENTED / SIMULATED / NOT VERIFIED, capability by capability
 - **[docs/GOLDEN-DATASET.md](docs/GOLDEN-DATASET.md)** — the canonical dataset and the eleven states it produces
 - **[docs/archive/WINNING-SUBMISSION.md](docs/archive/WINNING-SUBMISSION.md)** — fifteen questions a reviewer would ask, answered from artifacts
-- **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 34 attacks from source to ledger, and the defect they found
+- **[docs/ADVERSARIAL.md](docs/ADVERSARIAL.md)** — 35 attacks from source to ledger, and the defect they found
 - **[docs/REPRODUCE.md](docs/REPRODUCE.md)** — clone to running, with the three things that did not work
 - **[docs/MONEY-MODEL.md](docs/MONEY-MODEL.md)** — integer paise, tolerance, rounding direction

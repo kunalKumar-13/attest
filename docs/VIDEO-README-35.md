@@ -12,8 +12,8 @@ python3.13 -m venv .venv && ./.venv/bin/pip install -e .
 doubles as a pre-flight check: if a number on that printout disagrees with the
 script, the script is wrong.
 
-The run is deterministic. Seed `20260821`, 250 settlements, 2,368 orders. The
-same seed produces the same 52 / 197 / 1 every time, on any machine.
+The run is deterministic. Seed `555001`, 250 settlements, 2,328 orders. The
+same seed produces the same 39 / 210 / 1 every time, on any machine.
 
 ## What must be true before you hit record
 
@@ -22,7 +22,7 @@ clone already has it and Trust reads 34 / 34 / 0 without you running anything.
 *(An earlier draft of this file claimed a fresh checkout would not have it.
 That was wrong — verified on a clean clone.)* Re-running
 `./.venv/bin/python -m attest.eval.adversarial` regenerates it and should end
-on `34 attacks · 34 defended/control-ok · 0 breached`.
+on `35 attacks · 35 defended/control-ok · 0 breached`.
 
 **The kernel — this is the one that matters.** The recording uses the native
 kernel. Without it the portable solver runs a ₹30,000 envelope instead of
@@ -30,14 +30,14 @@ kernel. Without it the portable solver runs a ₹30,000 envelope instead of
 
 | | native kernel | portable |
 |---|---|---|
-| split | 52 / 197 / 1 | 51 / 161 / 1 · **37 insufficient** |
+| split | 39 / 210 / 1 | 51 / 161 / 1 · **37 insufficient** |
 | held at verification | ₹48,03,127.81 across 198 | ₹49,16,887.51 across 199 |
-| top blocker | ₹47,96,811.78 · 197 | ₹25,58,683.75 · 37 |
+| top blocker | ₹47,97,685.11 · 197 | ₹25,58,683.75 · 37 |
 
 Everything from 1:35 onward is **identical on both**: `setl_000225` at
-₹27,208.12, AMBIGUOUS, 2,368 → 164 → 4, the model/solver/engine boundary,
-27 of 63 at 42.9%, the 500-settlement benchmark panel, 6/6 gates, 34/34,
-21/21, the 28-line kernel. The case was chosen for exactly this reason.
+₹23,922.07, AMBIGUOUS, 2,328 → 23 → 4, the model/solver/engine boundary,
+27 of 63 at 42.9%, the 500-settlement benchmark panel, 6/6 gates, 35/35,
+21/21, the 35-line kernel. The case was chosen for exactly this reason.
 
 Build it before recording:
 

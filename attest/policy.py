@@ -52,9 +52,37 @@ class Costs:
     with the engine.
     """
 
-    review_paise: int = 15_000
-    """₹150 — an analyst's time to open a settlement, read the evidence and
-    decide. Assumption."""
+    review_paise: int = 25_000
+    """₹250 — an analyst's time to open a settlement, read the evidence and
+    decide: half an hour at a fully-loaded ₹500/hour. Assumption, and the one
+    a merchant is most likely to replace.
+
+    It was ₹150 (eighteen minutes), and the change is an operating point rather
+    than a tuning. Measured over the held-out panel, 2 seeds × 250, exposure
+    ceiling ₹1,00,000, with every posted proof re-checked against ground truth:
+
+        review    auto-posted    posted        wrong    refused
+        ₹150           11       ₹40,464.20        0        489
+        ₹200           24      ₹1,36,033.84       0        476
+        ₹250           33      ₹2,52,431.44       0        467
+        ₹300           37      ₹3,17,472.14       0        463
+        ₹500           43      ₹4,78,969.80       0        457
+
+    The ₹250 row agrees with `benchmark/results.json` — `auto_post` 33,
+    `auto_posted_paise` 25243144 — because it has to. An earlier version of
+    this table was typed by hand and disagreed with the artifact on every row,
+    which is the failure `attest/eval/benchmark.py` opens by describing: a
+    number with two homes will eventually disagree with itself. It is
+    reproduced by `ci/submission-check.py`.
+
+    Nothing about the safety profile moves along that frontier. The panel
+    carries four false proofs; at ₹150 and at ₹250 alike they land 2 in REVIEW
+    and 2 in BLOCK, and none is posted. What moves is only how much correctly
+    proven work a person still has to open by hand.
+
+    The number is an assumption about a merchant's cost, not a measurement, and
+    the frontier is published so a reader can disagree with the number instead
+    of with the engine."""
 
     wrong_post_fixed_paise: int = 250_000
     """₹2,500 — the fixed cost of a wrong posting regardless of size:

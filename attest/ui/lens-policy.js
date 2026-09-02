@@ -177,13 +177,29 @@
     const idx = STEPS.indexOf(S.review);
 
     return Conclusion({
-      fact: `${d.auto_post} of ${total} may post without a person`,
-      tone: 'hold',
-      figure: rupees(d.protected_paise), figureLabel: 'held for review',
-      because: `Expected loss ${rupees(d.expected_loss_paise)} against `
-        + `${rupees(d.review_paise)} to check one. Proof gates first, `
-        + `economics second — and ${d.wrong_posts} posted wrongly.`,
-    }) + `<div class="p-head ${d.simulated ? 'sim' : ''}">
+      fact: `${d.auto_post} of ${total} post without a person`,
+      tone: d.auto_post ? 'go' : 'hold',
+      figure: rupees(d.protected_paise), figureLabel: 'held for a person',
+      because: `At ${rupees(d.review_paise)} to check one settlement by hand, `
+        + `automating ${d.auto_post} is cheaper than checking them and `
+        + `${d.wrong_posts === 0 ? 'none of them is wrong'
+             : `${d.wrong_posts} of them is wrong`}. `
+        + `Proof gates first, economics second: nothing without a unique, `
+        + `kernel-checked explanation is eligible at any price.`,
+    })
+      + Section({
+          title: 'Where this threshold came from',
+          question: 'Why ' + esc(rupees(d.review_paise)) + '?',
+          body: `<p class=c-lead>Nobody picked it. It is the cost of a person
+            opening one settlement and deciding — and the engine automates a
+            settlement exactly when its <em>measured</em> chance of being wrong,
+            multiplied by what being wrong costs, comes out below that. Change
+            what an analyst's time is worth and the line moves on its own.</p>
+          <p class=c-lead style="margin-top:10px">Below is the same portfolio
+            decided at every price. Read the last column: it is what the extra
+            automation costs in wrong entries. <b>That is the trade, measured
+            rather than argued.</b></p>`,
+        }) + `<div class="p-head ${d.simulated ? 'sim' : ''}">
         ${d.simulated ? '<div class=p-sim>Simulated costing — no action will be executed</div>' : ''}
         <span class=p-head-k>what ATTEST may automate</span>
         <div class=p-head-d><i aria-hidden=true></i>${esc(rupees(d.posted_paise, { whole: true }))}</div>
@@ -208,7 +224,13 @@
               value="${idx < 0 ? 3 : idx}" aria-label="Cost of a review">
             <output id=p-rev-v>${esc(rupees(S.review))}</output>
           </div>
-          <div class=p-front>${(d.frontier || []).map(p => {
+          <div class=p-front><div class="p-front-r hd">
+              <span class=p-front-c>if a check costs</span>
+              <span class=p-front-b></span>
+              <span class=p-front-n>auto</span>
+              <span class=p-front-v>posted</span>
+              <span class=p-front-w>wrong</span>
+            </div>${(d.frontier || []).map(p => {
             const on = p.review_paise === S.review;
             return `<div class="p-front-r${on ? ' on' : ''}">
               <span class=p-front-c>${esc(rupees(p.review_paise))}</span>
@@ -225,7 +247,17 @@
                   different cost of review. The threshold is never configured:
                   it is wherever expected loss crosses that cost. Nothing is
                   executed by moving it — the recorded decisions keep the policy
-                  version they were made under.</p>`,
+                  version they were made under.</p>
+                  <p style="margin-top:9px">The shipped operating point is
+                  ${esc(rupees(d.review_paise))}, and it was adopted on
+                  evidence rather than taste: across the held-out panel every
+                  accuracy and safety figure is identical at
+                  ${esc(rupees(15000))} and ${esc(rupees(25000))} — same exact
+                  recovery, same proof precision, same four false proofs, same
+                  zero rupees wrongly posted — while the number of settlements
+                  resolved without a person goes from 11 to 33. The engine did
+                  not get better. It stopped paying a person to re-check work it
+                  had already proved.</p>`,
               }),
         });
   }

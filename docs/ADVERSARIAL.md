@@ -4,7 +4,7 @@
 ./.venv/bin/python -m attest.eval.adversarial
 ```
 
-34 attacks against the real chain, run on every build as stage 8 of
+35 attacks against the real chain, run on every build as stage 8 of
 `ci/verify.sh`. The script is the evidence: it prints what each attack did and
 exits non-zero if anything breached, so an unsuccessful attack is recorded by
 being re-run rather than by being written down once and trusted.
@@ -72,10 +72,11 @@ incidental:
 | NORMALIZATION | amounts are read exactly or refused — never `int()`, `round()` or truncation; the unit is declared, not inferred |
 | SEARCH SPACE | a proof without recorded provenance cannot post, and a duck-typed look-alike is not a `SearchSpace` |
 | MEMBERSHIP | cited orders must *belong* to the recorded universe, not merely be fewer than it |
-| SOLVER | the 28-line kernel re-derives from source records and shares no code with the prover |
+| SOLVER | the 35-line kernel re-derives from source records and shares no code with the prover |
 | PROOF | AMBIGUOUS carrying one explanation, CONTRADICTED carrying a proof, and proofs with no solver provenance are all unpostable |
 | ACTION | `POST_ENTRY` is held by no agent, so a write is refused at configuration time rather than at call time |
 | LEDGER | an unbalanced entry cannot be constructed at all, and a line cannot be both a debit and a credit |
+| LEDGER | a proof the independent kernel rejects is refused an entry, however intact its search provenance — CORE-004 |
 
 The ACTION stage needed two passes to test anything real. The first attacks
 requested `POST_ENTRY`, which stops at the capability gate — the strongest

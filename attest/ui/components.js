@@ -479,11 +479,120 @@ function Conclusion({ fact, figure, figureLabel, because, tone, second }) {
   </div>`;
 }
 
+
+/* ── §58 THE DECISION RECORD ──────────────────────────────────────────────
+ *
+ * The primary object of this product. Not a portfolio and not a lens: one
+ * financial event, and the four parties to the decision about it, in order of
+ * authority.
+ *
+ *     ADVISOR   proposes   may name records · may not name amounts · may not act
+ *     VERIFIER  proves     recomputes from source · never reads the proposal
+ *     POLICY    permits    prices measured error against what a review costs
+ *     LEDGER    records    takes nothing the verifier has not re-derived
+ *
+ * It lives here rather than in a lens because it is what a settlement IS.
+ * Every lens is a deeper cut of one of these four rows, and a reader who
+ * opens any of them should already have met the record they belong to.
+ *
+ * Two rules are drawn rather than captioned, because a caption has to be read:
+ * the advisory row is the only one in outline (filled means this party can
+ * change financial state), and every row states what it MAY and MAY NOT do in
+ * the same place, so the boundary is a property of the row.
+ */
+function DecisionRecord(d, opts) {
+  const o = opts || {};
+  if (!d || d.error || !(d.stages || []).length) return '';
+  const acted = !!d.acted;
+  const ev = d.event || {}, out = d.outcome || {};
+
+  const may = s => `<span class=dr-may>
+    <span class=y><i>may</i><span>${esc(s.may || '')}</span></span>
+    <span class=n><i>may not</i><span>${esc(s.may_not || '')}</span></span></span>`;
+
+  const body = {
+    advisor(s) {
+      const a = s.advisor || {}, tr = a.track_record || {};
+      if (!a.proposed) return `<p>${esc(a.detail || '')}</p>` + may(s);
+      return `<p>${esc(a.reasoning || '')}</p>
+        <span class=dr-ids>${(a.orders || []).map(esc).join(' · ')}</span>
+        <p>Never shown an amount — identifiers, names and dates only.${
+          tr.resolved ? ` Held out, it answered ${tr.resolved} of ${tr.ambiguous}
+          ambiguous cases and was right on ${tr.correct}.` : ''}</p>${may(s)}`;
+    },
+    verifier(s) {
+      const cuts = (s.reductions || []).filter(r => r.removed > 0);
+      const n = s.narrowing || {};
+      return `<p>${esc(s.detail || '')}</p>
+        ${s.narrowing_line ? `<span class=dr-nar>${
+          Number(n.universe || 0).toLocaleString()} <u>records</u> → ${
+          n.candidates} <u>candidates</u> → ${n.explanations} <u>explanation${
+          n.explanations === 1 ? '' : 's'}</u></span>` : ''}
+        ${cuts.length ? `<span class=dr-cut>${cuts.map(r => `
+          <span class=rm>−${Number(r.removed).toLocaleString()}</span>
+          <span>${esc(r.name)}</span>
+          <span class="k ${r.deterministic ? 'd' : 'c'}">${
+            r.deterministic ? 'fact' : 'convention'}</span>`).join('')}</span>` : ''}
+        ${s.residual_paise != null ? `<p>Residual <b>${s.residual_paise}
+          ${s.residual_paise === 1 ? 'paisa' : 'paise'}</b> against a bound of
+          ±${s.tolerance_paise}.</p>` : ''}
+        ${(s.agreed_orders && s.contested_orders) ? `<p><b>${
+          rupees(s.agreed_paise)}</b> across ${s.agreed_orders} orders is settled
+          whichever explanation is right; <b>${rupees(s.contested_paise)}</b>
+          across ${s.contested_orders} is the argument.</p>` : ''}
+        <p>${esc(s.mechanisms || '')} — <b>without reading what the advisor
+          proposed</b>.</p>
+        ${s.advisor_outcome ? `<p>Tested the advisor's proposal:
+          <b>${esc(s.advisor_outcome)}</b>.</p>` : ''}${may(s)}`;
+    },
+    policy(s) {
+      return `<p>${esc(s.detail || '')}</p>${s.p_error != null
+        ? `<p>Priced at the measured error rate for this class of result, at its
+           95% upper bound — <b>${Number(s.p_error).toFixed(4)}</b>.</p>` : ''}${may(s)}`;
+    },
+    ledger(s) {
+      if (!(s.lines || []).length) return `<p>${esc(s.detail || '')}</p>` + may(s);
+      return `<span class=dr-je>${s.lines.map(l => `
+        <span>${esc(l.account)}</span><span class=amt>${
+          l.debit_paise ? 'Dr ' : 'Cr '}${rupees(l.debit_paise || l.credit_paise)}</span>`
+        ).join('')}</span><p>Balanced to the paisa.</p>${may(s)}`;
+    },
+  };
+
+  const cls = s => s.key === 'advisor' ? 'adv'
+    : (s.key === 'ledger' || s.key === 'policy') ? (acted ? 'acts' : 'holds') : '';
+
+  return `<figure class="dr${o.compact ? ' compact' : ''}">
+    <div class=dr-e>
+      <div><span class=dr-ek>${esc(o.label || 'financial event')}</span>
+        <div class=dr-ev>${rupees(ev.amount_paise || d.amount_paise)}</div>
+        <p class=dr-eq><b>${esc(ev.question || '')}</b> ${esc(ev.unknown || '')}</p></div>
+      <div class=dr-em>${esc(d.settlement_id)}<br>UTR ${esc(d.utr || '—')}<br>${
+        esc(ev.value_date || '')}</div>
+    </div>
+    ${d.stages.map(s => `
+      <div class="dr-r ${cls(s)}">
+        <span class=dr-a><b>${esc(s.actor)}</b><em>${esc(s.verb)}</em></span>
+        <span class=dr-n><i class=dr-dot></i></span>
+        <span class=dr-b>
+          <b class=dr-h>${esc(s.headline)}${s.badge
+            ? `<span class=dr-badge>${esc(s.badge)}</span>` : ''}</b>
+          ${(body[s.key] || (t => `<p>${esc(t.detail || '')}</p>`))(s)}
+        </span>
+      </div>`).join('')}
+    <div class="dr-out ${acted ? 'go' : 'stop'}">
+      <div><div class=dr-oh>${esc(out.headline || '')}</div>
+        <p class=dr-oc>${esc(out.consequence || '')}</p></div>
+      <span class=dr-ov>${acted ? 'action' : 'no financial action'}</span>
+    </div>
+  </figure>`;
+}
+
 /* Exported because a lens uses it. Amount and Panel were declared here and
    called by nothing, so they are gone — a component with no caller is a
    guess about the future, and it will be the wrong guess. */
 window.C = {
-  esc, rupees, plural, Conclusion, FromBlocker,
+  esc, rupees, plural, Conclusion, FromBlocker, DecisionRecord,
   Status, Metric, MetricRow, Disclosure, Section, Row, ContextChrome,
   DataTable, EmptyState, LoadingState, RunningState, ErrorState, StateSpine, ownerOf,
   SubjectHeader, LensStrip,

@@ -12,14 +12,14 @@ Used in README, slides, demo and submission. There is one, and this is it.
    BLOCKING              settlement calendar · amount ceiling · already claimed
      │
      ▼
-   SEARCH SPACE          2,368 ──▶ 73        every removal recorded, with
+   SEARCH SPACE          2,328 ──▶ 23        every removal recorded, with
      │                                       whether it was a CONVENTION
      ▼                                       or DETERMINISTIC
    SOLVER                counting DP over the amount axis
      │                   L1 exact ▸ L2 anchored ▸ L3 subset-sum ▸ L4 packing
      ▼
    PROOF CERTIFICATE     order ids · gross · fee · net · residual · tolerance
-     │                   ├── re-derived by a 28-line INDEPENDENT KERNEL
+     │                   ├── re-derived by a 35-line INDEPENDENT KERNEL
      │                   │   that shares no code with the solver
      │                   └── postable ⟺ members ⊆ recorded universe
      ▼                                ∧ space integrity ≠ COMPROMISED
@@ -39,7 +39,7 @@ Used in README, slides, demo and submission. There is one, and this is it.
    │                                                                           │
    │  The model may PROPOSE an anchor. It may not verify one, price one, or    │
    │  post one. Every arrow out of the model leads into the solver, and the    │
-   │  solver's answer is arithmetic. On setl_000089 the model proposed a       │
+   │  solver's answer is arithmetic. On setl_000225 the model proposed a       │
    │  capture-batch anchor, the solver returned NON-DISCRIMINATIVE, and the    │
    │  engine ABSTAINED — verdict_changed: false.                               │
    │                                                                           │
