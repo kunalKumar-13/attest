@@ -94,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/run":
             n = max(10, min(5000, int(q.get("n", ["250"])[0])))
-            self._json(api.summary(api.execute(n, DEMO_SEED)))
+            self._json(api.summary(_run(n)))
 
         elif u.path == "/api/attention":
             r = api.get(q.get("run", [""])[0])
@@ -231,6 +231,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
             ctype = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
             self._reply(path.read_bytes(), f"{ctype}; charset=utf-8")
+
+
+#: Runs already computed, by portfolio size. `execute` is a pure function of
+#: (n, seed) and the seed is fixed, so the second caller can have the first
+#: caller's answer.
+#:
+#: This is a serving concern, not an engine one. Locally the engine takes ~2s
+#: and nobody noticed; on a shared-CPU container it takes ~23s, and the landing
+#: page opens by calling this endpoint — so every visitor was re-deriving an
+#: identical result while looking at nothing. The first visitor still pays.
+_MEMO: dict[int, object] = {}
+
+
+def _run(n: int):
+    if n not in _MEMO:
+        _MEMO[n] = api.execute(n, DEMO_SEED)
+    return _MEMO[n]
 
 
 def main() -> None:
