@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import mimetypes
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -243,11 +244,35 @@ class Handler(BaseHTTPRequestHandler):
 #: identical result while looking at nothing. The first visitor still pays.
 _MEMO: dict[int, object] = {}
 
+#: One lock, not one per size. Two threads computing DIFFERENT portfolios at
+#: once is just as bad as two computing the same one: the container has a single
+#: shared core, so concurrent runs do not overlap, they interleave, and both
+#: callers wait for the sum of the work instead of the larger half. Serialising
+#: is what makes the startup warm-up worth anything — a request that arrives
+#: mid-warm now waits for that answer rather than starting a second copy of it.
+_LOCK = threading.Lock()
+
 
 def _run(n: int):
-    if n not in _MEMO:
-        _MEMO[n] = api.execute(n, DEMO_SEED)
-    return _MEMO[n]
+    with _LOCK:
+        if n not in _MEMO:
+            _MEMO[n] = api.execute(n, DEMO_SEED)
+        return _MEMO[n]
+
+
+def _warm() -> None:
+    """Compute the demo run before anyone asks for it.
+
+    The memo below turns the second request into a lookup, but somebody still
+    has to be the first — and on a shared-CPU container that is ~45 seconds of
+    blank page. Doing it at startup, off the serving thread, means the socket is
+    accepting immediately and the answer is usually already there by the time a
+    person arrives. If it is not, they simply get the old behaviour.
+    """
+    try:
+        _run(250)
+    except Exception as e:                    # a warm-up must never stop serving
+        print(f"warm-up skipped: {e!r}", flush=True)
 
 
 def main() -> None:
@@ -255,6 +280,7 @@ def main() -> None:
     print(f"ATTEST → {url}", flush=True)
     if OPEN_BROWSER:
         webbrowser.open(url)
+    threading.Thread(target=_warm, name="warm", daemon=True).start()
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
 
