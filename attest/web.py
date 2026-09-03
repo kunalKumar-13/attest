@@ -10,6 +10,7 @@ correct default for a tool that reads a merchant's books.
 from __future__ import annotations
 
 import json
+import os
 import mimetypes
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,7 +20,15 @@ from urllib.parse import parse_qs, urlparse
 from attest import api
 from attest.policy import Costs
 
-PORT = 8420
+#: Local default. A hosted deployment overrides both from the environment —
+#: PaaS platforms assign the port and require binding every interface, and
+#: 127.0.0.1 inside a container is reachable by nothing.
+PORT = int(os.environ.get("PORT", "8420"))
+HOST = os.environ.get("HOST", "127.0.0.1")
+
+#: Opening a browser is right on a laptop and wrong on a server, where there is
+#: no display and the process must not block on one.
+OPEN_BROWSER = os.environ.get("ATTEST_OPEN_BROWSER", "1") != "0"
 
 #: The seed the live demo runs on. 555001 is one of the two EVALUATION seeds in
 #: benchmark/results.json — held out from the three the policy was calibrated on.
@@ -225,10 +234,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    url = f"http://127.0.0.1:{PORT}/"
-    print(f"ATTEST → {url}")
-    webbrowser.open(url)
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    url = f"http://{'127.0.0.1' if HOST in ('127.0.0.1', '') else HOST}:{PORT}/"
+    print(f"ATTEST → {url}", flush=True)
+    if OPEN_BROWSER:
+        webbrowser.open(url)
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":
