@@ -1,0 +1,50 @@
+# Render's free tier sleeps a service after 15 minutes without traffic, and the
+# next visitor pays ~50s of container start before the page begins to load. A
+# judge reading a submission at 2am does not know that is what they are looking
+# at; they see a blank page and leave.
+#
+# This pings the service often enough that it never sleeps, and it asks for the
+# demo run specifically — `web.py` memoises the run per portfolio size, so the
+# ping both keeps the container alive AND leaves the answer warm in it. A
+# visitor arriving after this workflow has run gets the page immediately rather
+# than waiting ~45s for the engine on a shared CPU.
+#
+# GitHub disables scheduled workflows on a repository with no activity for 60
+# days. That is longer than this submission needs to stay up, and the manual
+# trigger below is there for when it isn't.
+
+name: keep the demo warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"    # every 10 minutes; the sleep threshold is 15
+  workflow_dispatch:
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the service and warm the run
+        run: |
+          URL="https://attest-69mi.onrender.com"
+
+          # A cold container needs the spin-up before it can answer at all, so
+          # the first call is allowed to be slow and to fail without failing
+          # the job — waking it is the point, not measuring it.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$URL/" || echo 000)
+          echo "front door: $code"
+
+          # This is the call that matters: it populates the in-process memo, so
+          # the next real visitor does not run the engine themselves.
+          body=$(curl -s --max-time 180 "$URL/api/run?n=250" || echo '')
+          if echo "$body" | grep -q '"run_id"'; then
+            secs=$(echo "$body" | sed -n 's/.*"seconds": \([0-9.]*\).*/\1/p')
+            echo "run warm · engine reported ${secs}s"
+          else
+            echo "::warning::the run endpoint did not return a run_id; the service may be mid-deploy"
+          fi
