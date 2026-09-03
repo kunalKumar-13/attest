@@ -17,7 +17,12 @@ name: keep the demo warm
 
 on:
   schedule:
-    - cron: "*/10 * * * *"    # every 10 minutes; the sleep threshold is 15
+    # Five minutes is GitHub's floor, and the margin matters more than the
+    # runner minutes: scheduled workflows are queued, not guaranteed, and a slip
+    # of ten or twenty minutes at peak is ordinary. At a ten-minute interval one
+    # slipped fire is enough to cross the fifteen-minute sleep threshold; at
+    # five, it takes three in a row.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:
