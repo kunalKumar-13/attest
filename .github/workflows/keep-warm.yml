@@ -1,55 +1,66 @@
-# Render's free tier sleeps a service after 15 minutes without traffic, and the
-# next visitor pays ~50s of container start before the page begins to load. A
-# judge reading a submission at 2am does not know that is what they are looking
-# at; they see a blank page and leave.
+# Render's free tier stops a service after fifteen minutes without traffic, and
+# the next visitor gets Render's "service waking up" splash for ~50 seconds
+# before the app is even reached. A judge does not read that as "sleeping". They
+# read it as broken, and they leave.
 #
-# This pings the service often enough that it never sleeps, and it asks for the
-# demo run specifically — `web.py` memoises the run per portfolio size, so the
-# ping both keeps the container alive AND leaves the answer warm in it. A
-# visitor arriving after this workflow has run gets the page immediately rather
-# than waiting ~45s for the engine on a shared CPU.
+# THE OBVIOUS VERSION OF THIS FILE DOES NOT WORK. A `*/5` schedule looks like a
+# ping every five minutes and is not one: GitHub queues scheduled workflows and
+# drops them under load, with no error and no retry. Measured on this repository
+# — one fire in two hours against a schedule asking for twenty-four. The service
+# slept through it. A cron line here is a request, not a guarantee.
 #
-# GitHub disables scheduled workflows on a repository with no activity for 60
-# days. That is longer than this submission needs to stay up, and the manual
-# trigger below is there for when it isn't.
+# So the schedule is only the STARTER. Each run then holds itself open and pings
+# from inside a loop for just under six hours, which is GitHub's ceiling for a
+# job. That inverts the dependency: instead of needing the scheduler to be
+# punctual twelve times an hour, it needs to fire once every few hours, which is
+# a bar it clears. Actions minutes are unlimited on public repositories, so the
+# long job costs nothing.
 
 name: keep the demo warm
 
 on:
   schedule:
-    # Five minutes is GitHub's floor, and the margin matters more than the
-    # runner minutes: scheduled workflows are queued, not guaranteed, and a slip
-    # of ten or twenty minutes at peak is ordinary. At a ten-minute interval one
-    # slipped fire is enough to cross the fifteen-minute sleep threshold; at
-    # five, it takes three in a row.
     - cron: "*/5 * * * *"
   workflow_dispatch:
+  push:
+    branches: [main]          # a deploy is exactly when the container restarts
 
 concurrency:
   group: keep-warm
-  cancel-in-progress: true
+  cancel-in-progress: true    # one live pinger; the newest run replaces the last
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 355      # GitHub's ceiling is 360
     steps:
-      - name: Wake the service and warm the run
+      - name: Hold the service awake
+        env:
+          URL: https://attest-69mi.onrender.com
+          INTERVAL: 240       # four minutes, against a fifteen-minute threshold
+          RUN_FOR: 20700      # 5h45m, inside the job timeout
         run: |
-          URL="https://attest-69mi.onrender.com"
+          set -u
+          deadline=$(( $(date +%s) + RUN_FOR ))
+          n=0
 
-          # A cold container needs the spin-up before it can answer at all, so
-          # the first call is allowed to be slow and to fail without failing
-          # the job — waking it is the point, not measuring it.
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$URL/" || echo 000)
-          echo "front door: $code"
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            n=$((n + 1))
 
-          # This is the call that matters: it populates the in-process memo, so
-          # the next real visitor does not run the engine themselves.
-          body=$(curl -s --max-time 180 "$URL/api/run?n=250" || echo '')
-          if echo "$body" | grep -q '"run_id"'; then
-            secs=$(echo "$body" | sed -n 's/.*"seconds": \([0-9.]*\).*/\1/p')
-            echo "run warm · engine reported ${secs}s"
-          else
-            echo "::warning::the run endpoint did not return a run_id; the service may be mid-deploy"
-          fi
+            # A cold container cannot answer until it has started, so a failure
+            # here is information, not an error — waking it is the point.
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$URL/" || echo 000)
+
+            # Ask for the run itself, not just the front door. web.py memoises
+            # the run per portfolio size, so this keeps the container alive AND
+            # leaves the answer warm inside it — the next real visitor gets a
+            # lookup instead of ~25s of engine on a shared core.
+            t=$(curl -s -o /dev/null -w '%{time_total}' --max-time 180 "$URL/api/run?n=250" || echo "-")
+
+            echo "$(date -u +%H:%M:%S)  ping #$n  front=$code  run=${t}s"
+
+            [ "$code" = "200" ] || echo "::warning::front door returned $code"
+            sleep "$INTERVAL"
+          done
+
+          echo "window closed after $n pings; the schedule or the next push starts the following one"
