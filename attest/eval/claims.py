@@ -106,7 +106,10 @@ REGISTER: tuple[Claim, ...] = (
     Claim("C-006", "AI hypothesis precision",
           "benchmark/anchoring.json", ("precision",), "ratio",
           "correct resolutions / resolutions offered",
-          "Below anything postable. The loop is disabled as a resolver.",
+          "Below anything postable, but NOT below chance: at n=63 the interval "
+          "around it contains one half (p = 0.157). The loop is disabled as a "
+          "resolver on how rarely it speaks, not on this figure.",
+          aliases=("42.9%",),
           command="python -m attest.eval.anchoring"),
     Claim("C-007", "Candidate pools spanning one capture date",
           "benchmark/anchoring.json", ("single_date_share",), "pct",

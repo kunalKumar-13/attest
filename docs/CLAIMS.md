@@ -64,7 +64,7 @@ accuracy.
 
 - **C-001** — True of this panel at this costing. Not a claim that ATTEST cannot auto-post incorrectly.
 - **C-002** — The other denominator — per proof OFFERED — is roughly six times larger and is the one that matters to a reader of one proof.
-- **C-006** — Below anything postable. The loop is disabled as a resolver.
+- **C-006** — Below anything postable, but NOT below chance: at n=63 the interval around it contains one half (p = 0.157). The loop is disabled as a resolver on how rarely it speaks, not on this figure.
 - **C-009** — exact_only scores better on this and answers a quarter as often.
 - **C-015** — Better than ATTEST's, on a quarter of the answers.
 - **C-101** — The feature raised exact recovery and raised wrong results by the same amount. Disabled; the code stays so the measurement repeats.

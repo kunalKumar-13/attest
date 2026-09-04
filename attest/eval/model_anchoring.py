@@ -110,6 +110,9 @@ def measure(seeds: tuple[int, ...], n: int = 250, max_rounds: int = 3,
                     f"where the model could not answer is not a measurement of "
                     f"the model.") from e
             proposals = sum(1 for e in trail.events if e["act"] == "propose")
+            if os.environ.get("MODEL_VERBOSE"):
+                print(f"  [{t.ambiguous:>3}] {f.settlement_id} · {proposals} proposal(s)"
+                      f" · resolved={out.verdict is Verdict.PROVEN}", flush=True)
             t.proposals += proposals
             if proposals == 0:
                 t.silent_cases += 1

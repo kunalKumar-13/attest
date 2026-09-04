@@ -86,6 +86,24 @@ def _payload(ev: Evidence) -> dict:
     }
 
 
+def _seconds(v: str | None) -> float:
+    """Parse a Retry-After or a Groq reset header ("20.01s", "2m13s") to seconds."""
+    if not v:
+        return 0.0
+    try:
+        return float(v)
+    except ValueError:
+        pass
+    total, num = 0.0, ""
+    for ch in v:
+        if ch.isdigit() or ch == ".":
+            num += ch
+        elif ch in "hms" and num:
+            total += float(num) * {"h": 3600, "m": 60, "s": 1}[ch]
+            num = ""
+    return total
+
+
 class AdvisorUnavailable(Exception):
     """The model could not be reached, or refused. NOT the same as saying nothing.
 
@@ -97,6 +115,10 @@ class AdvisorUnavailable(Exception):
     calls in a row. That number would have been a lie told in good faith.
     """
 
+    def __init__(self, message: str, retry_after: float = 0.0):
+        super().__init__(message)
+        self.retry_after = retry_after
+
 
 def _ask(req: urllib.request.Request) -> dict:
     """One call. Raises AdvisorUnavailable rather than returning an empty answer."""
@@ -105,7 +127,12 @@ def _ask(req: urllib.request.Request) -> dict:
             answer = json.loads(r.read())["choices"][0]["message"]["content"]
         return json.loads(answer)
     except urllib.error.HTTPError as e:
-        raise AdvisorUnavailable(f"HTTP {e.code}") from e
+        # The service says exactly how long its bucket needs. Guessing instead
+        # is how two attempts at this measurement died: a fixed ladder either
+        # sleeps far longer than required or not long enough, and the retries
+        # themselves keep the bucket empty.
+        wait = e.headers.get("retry-after") or e.headers.get("x-ratelimit-reset-tokens")
+        raise AdvisorUnavailable(f"HTTP {e.code}", _seconds(wait)) from e
     except (urllib.error.URLError, OSError, KeyError, IndexError,
             json.JSONDecodeError, TimeoutError) as e:
         raise AdvisorUnavailable(type(e).__name__) from e
@@ -148,7 +175,19 @@ def _hypotheses(parsed: dict) -> list[Hypothesis]:
     )]
 
 
-def strict_proposer(retries: int = 6, backoff: float = 20.0):
+#: The longest wait a 429 may buy. Beyond this the limit is not transient —
+#: it is a daily quota, and the honest response is to stop rather than to sleep.
+#:
+#: Honouring the header without a ceiling is how a run sat asleep for TWELVE
+#: HOURS with 1.8 seconds of CPU: the reset header for a daily bucket reads
+#: "2h15m21.6s", and six retries of that is most of a day. A measurement that
+#: might finish tomorrow is not a measurement, and a process that looks alive
+#: while doing nothing is worse than one that has visibly failed.
+MAX_WAIT_S = 90.0
+
+
+def strict_proposer(retries: int = 4, backoff: float = 15.0,
+                    min_interval: float = 13.0):
     """A proposer for MEASUREMENT: retries a refusal, then gives up loudly.
 
     The token budget is the binding limit — roughly six of these prompts per
@@ -158,20 +197,40 @@ def strict_proposer(retries: int = 6, backoff: float = 20.0):
     """
     import time as _t
 
+    # Pace INTO the limit rather than retreating from it. The budget is about
+    # eight thousand tokens a minute and these prompts are roughly thirteen
+    # hundred, so a little over six calls a minute is the ceiling. Sprinting and
+    # then backing off spends the whole minute's budget in ten seconds and then
+    # waits out a 429 storm: the first attempt at this aborted after 29 cases
+    # having exhausted six retries. Waiting before the call costs the same
+    # wall-clock and never trips the limiter.
+    last = [0.0]
+
     def propose(ev: Evidence) -> list[Hypothesis]:
+        gap = min_interval - (_t.monotonic() - last[0])
+        if gap > 0:
+            _t.sleep(gap)
+        last[0] = _t.monotonic()
         key = os.environ.get("GROQ_API_KEY")
         if not key:
             raise AdvisorUnavailable("GROQ_API_KEY is not set")
         if not ev.candidates:
             return []
-        last = ""
+        why = ""
         for attempt in range(retries):
             try:
                 return _hypotheses(_ask(_request(ev, key)))
             except AdvisorUnavailable as e:
-                last = str(e)
-                _t.sleep(backoff * (attempt + 1))
-        raise AdvisorUnavailable(f"gave up after {retries} attempts: {last}")
+                why = str(e)
+                asked = getattr(e, "retry_after", 0.0)
+                if asked > MAX_WAIT_S:
+                    raise AdvisorUnavailable(
+                        f"{why}; the service asked for {asked:.0f}s, which is a "
+                        f"daily quota rather than a transient limit") from e
+                # A floor so a missing header cannot turn this into a hot loop.
+                _t.sleep(max(asked, backoff))
+                last[0] = _t.monotonic()
+        raise AdvisorUnavailable(f"gave up after {retries} attempts: {why}")
 
     return propose
 

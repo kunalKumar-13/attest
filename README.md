@@ -148,15 +148,38 @@ Full methodology, metric definitions and the seed panel:
 
 **AI proposes. ATTEST proves. Policy permits. Ledger records.**
 
-There is no language model in this repository, and the product says so on every
-screen — every run stamps `model_version = none`. The advisory layer is a
-**deterministic capture-batch ranking heuristic**: it reads the records a person
-would read and points at the orders it believes belong together.
+The advisory layer that **runs on every case** is a deterministic capture-batch
+ranking heuristic: it reads the records a person would read and points at the
+orders it believes belong together. Every run stamps `model_version = none`, and
+that is what the product reports.
 
-It was measured before it was trusted. Over 1,250 candidate pools it offered an
-answer on 63 and was right on 27 — **below a coin flip** — so it is disabled as
-a *resolver* and retained as an *advisor*. It still runs on every case, because
-a boundary nobody can inspect is a claim rather than an architecture.
+It was measured before it was trusted. Across 1,020 ambiguous settlements it
+offered an answer on **63** and was right on **27** — and it is silent on 94% of
+the work it exists for, with 53% of candidate pools spanning a single capture
+date, which makes its whole lens vacuous there. Those are counts. *"Below a coin
+flip"* is not: at n=63 the interval around 42.9% contains one half (p = 0.157),
+so the decision to disable it as a *resolver* rests on the silence and the
+vacuity, not on a precision claim the sample cannot carry.
+
+**The slot also takes a real model.** `Proposer` is a one-function type, and
+[`attest/advisors.py`](attest/advisors.py) implements it against a live
+language model — reasoning like *"all four orders were captured on 2026-07-17
+and share the first name Diya"*, which is exactly the semantic signal a solver
+cannot produce. It is shown identifiers, names and dates and **no amount**:
+`Evidence` has no field that can carry one, and this proposer additionally
+withholds `residual_hint`, which the heuristic does receive.
+
+[`attest/eval/model_anchoring.py`](attest/eval/model_anchoring.py) measures it
+with the same harness, seeds, solver and ground truth, so the proposer is the
+only difference. **No figure is published for it, and that is deliberate.** A
+free key allows roughly five of these prompts a minute before demanding a
+nine-minute pause; a 1,020-case panel does not fit inside that. Three runs were
+attempted. The first reported the model silent on every case — it was rate
+limited, which returns an identical empty answer and supports the opposite
+conclusion. The second slept for twelve hours, because the backoff honoured a
+daily-quota reset header with no ceiling. None wrote an artifact:
+`benchmark/model-anchoring.json` is absent and the product reports it as NOT
+MEASURED rather than as a passing claim.
 
 A language model implements the same interface and nothing downstream changes,
 because nothing downstream trusts it. That is the point of the boundary: the
