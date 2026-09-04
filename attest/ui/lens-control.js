@@ -244,7 +244,7 @@
           <span>candidate orders</span></span>
         <span class=r-op-run>
           <select class=btn data-size aria-label="Batch size">
-            ${[120, 250, 500].map(n => `<option value="${n}"${
+            ${[60, 120, 250, 500].map(n => `<option value="${n}"${
               String(n) === String(sum.settlements) ? ' selected' : ''}>${n}</option>`).join('')}
           </select>
           <button class="btn go" data-run>Run reconciliation</button>
@@ -268,6 +268,9 @@
             <b>${n}</b><i>${k} <u>${act}</u></i><em>${why}</em></button>`).join('')}
       </div>
       <div class=r-foot>
+        <span class=r-u><b class=ok>${sum.settlements
+          ? ((sum.counts || {}).PROVEN / sum.settlements * 100).toFixed(1) + '%'
+          : ''}</b><span>proved, of this batch</span></span>
         <span class=r-u><b>${need}</b><span>need a person</span></span>
         <span class=r-u><b class=hot>${esc(heldStage.held_value || '')}</b>
           <span>exposure</span></span>

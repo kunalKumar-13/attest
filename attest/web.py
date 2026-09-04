@@ -260,19 +260,41 @@ def _run(n: int):
         return _MEMO[n]
 
 
-def _warm() -> None:
-    """Compute the demo run before anyone asks for it.
+#: The batch sizes the control room offers. Every one is warmed at startup, so
+#: the choice is genuinely free at the point of use.
+#:
+#: The dropdown used to offer 120/250/500 while `/api/run` accepted 10 to 5000,
+#: which hid the most interesting thing the engine does. Coverage is not a
+#: constant: 60 settlements over the same 90-day window resolve 51.7% of the
+#: time, 500 resolve 8.0%, because a denser portfolio puts more disjoint subsets
+#: inside tolerance and the engine reports them as ambiguous rather than
+#: guessing. Being able to move that dial and watch it happen is the difference
+#: between reading the limitation in a document and discovering it.
+#:
+#: 1000 is not offered. It takes ~23s locally and nearly four minutes on a
+#: shared core, and an option that appears to hang is worse than an option that
+#: is absent. The shape is already unmistakable across 60 to 500.
+SIZES: tuple[int, ...] = (60, 120, 250, 500)
 
-    The memo below turns the second request into a lookup, but somebody still
-    has to be the first — and on a shared-CPU container that is ~45 seconds of
-    blank page. Doing it at startup, off the serving thread, means the socket is
-    accepting immediately and the answer is usually already there by the time a
-    person arrives. If it is not, they simply get the old behaviour.
+
+def _warm() -> None:
+    """Compute every offered run before anyone asks for one.
+
+    The memo turns the second request into a lookup, but somebody still has to
+    be the first — and on a shared-CPU container that is ~45 seconds of blank
+    page. Doing it at startup, off the serving thread, means the socket accepts
+    immediately and the answers are usually already there by the time a person
+    arrives.
+
+    Warmed largest-first: 500 is the one worth waiting for, and a visitor who
+    arrives mid-warm is far more likely to want the default than the extreme.
     """
-    try:
-        _run(250)
-    except Exception as e:                    # a warm-up must never stop serving
-        print(f"warm-up skipped: {e!r}", flush=True)
+    for n in sorted(SIZES, reverse=True):
+        try:
+            _run(n)
+            print(f"warm: n={n}", flush=True)
+        except Exception as e:              # a warm-up must never stop serving
+            print(f"warm-up skipped n={n}: {e!r}", flush=True)
 
 
 def main() -> None:

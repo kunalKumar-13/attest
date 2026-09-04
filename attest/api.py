@@ -505,6 +505,45 @@ def baselines_measurement() -> dict[str, Any]:
     return {"present": True, "methods": out, "panel": panel}
 
 
+def model_anchoring_measurement() -> dict[str, Any]:
+    """The advisory slot filled by a real model rather than the stand-in. §47.
+
+    `anchoring_measurement()` reports `batch_proposer`, a deterministic
+    heuristic. The obvious objection to that number is that it measures a
+    30-line stand-in and therefore says nothing about what a model would do.
+    This reads the answer to that objection: the same harness, seeds, solver and
+    ground truth, with `advisors.groq_proposer` in the slot instead.
+
+    An absent artifact means the measurement has not been run, which the surface
+    reports as such rather than as a passing claim. The sample is far smaller
+    than the stand-in's — the token budget on a free key is the binding limit —
+    so the n travels with the number and a reader is never left to assume it was
+    the whole panel.
+    """
+    a = _artifact("model-anchoring.json")
+    if not a:
+        return {"present": False, "source": "benchmark/model-anchoring.json"}
+    amb = int(a.get("ambiguous") or 0)
+    silent = int(a.get("silent_cases") or 0)
+    return {
+        "present": True,
+        "model": a.get("model"),
+        "ambiguous": amb,
+        "resolved": int(a.get("resolved") or 0),
+        "correct": int(a.get("correct") or 0),
+        "wrong": int(a.get("wrong") or 0),
+        "proposals": int(a.get("proposals") or 0),
+        "silent_cases": silent,
+        "spoke_on": amb - silent,
+        "silent_share": float(a.get("silent_share") or 0.0),
+        "unresolved_share": float(a.get("unresolved_share") or 0.0),
+        "precision": float(a.get("precision") or 0.0),
+        "seeds": a.get("seeds") or [],
+        "limit": a.get("cases_examined_limit"),
+        "source": "benchmark/model-anchoring.json",
+    }
+
+
 def seed_basis(seed: int) -> dict[str, Any]:
     """Whether this run's seed was held out from calibration, read from the panel.
 
@@ -2978,6 +3017,7 @@ def trust_claims(r: Run | None = None) -> dict[str, Any]:
         "baselines": baselines_measurement(),
         "kernel": kernel_measurement(),
         "anchoring": anchoring_measurement(),
+        "model_anchoring": model_anchoring_measurement(),
         "isolation": engine_isolation(),
     }
 

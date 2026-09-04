@@ -2840,8 +2840,14 @@ button.e-uni-c:hover .e-uni-j,button.e-uni-c:focus-visible .e-uni-j,
     <span id=hint></span>
     <span class=sp></span>
     <a class=back href="/">← the investigation</a>
+    <!-- The real control boot() reads. The visible one in Control mirrors into
+         it, and a <select> silently ignores a value it has no option for — so
+         adding 60 to the visible list without adding it here made choosing 60 a
+         no-op that looked like the engine ignoring the request. Both lists are
+         the same list. -->
     <select class=btn id=size aria-label="Portfolio size" hidden>
-      <option>120</option><option selected>250</option><option>500</option></select>
+      <option>60</option><option>120</option><option selected>250</option>
+      <option>500</option></select>
     <button class="btn go" id=run hidden>Run</button>
   </div>
   <main id=workspace tabindex=-1></main>
