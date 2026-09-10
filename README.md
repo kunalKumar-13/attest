@@ -6,6 +6,10 @@
 they can change financial state.** Settlement reconciliation is the first
 workflow it does that for.
 
+**[Five-minute pitch](https://www.loom.com/share/c3342f2937774bf3b47c08cb225c1f7d)**
+· **[Live demo](https://attest-69mi.onrender.com/)** — both are up now. The demo
+runs on the held-out evaluation seed, in the browser, with nothing to install.
+
 ![ATTEST financial control — the native kernel reconciling 250 settlements on
 held-out seed 555001: 39 proven and eligible to automate, 210 ambiguous and
 held, 1 contradicted.](docs/img/product-control.png)
